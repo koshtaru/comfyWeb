@@ -3,13 +3,314 @@
  * Main application script
  */
 
+// WebSocket Connection States
+const WebSocketState = {
+    CONNECTING: 'connecting',
+    CONNECTED: 'connected',
+    DISCONNECTED: 'disconnected',
+    ERROR: 'error'
+};
+
+// WebSocket Service Class
+class WebSocketService {
+    constructor(config = {}) {
+        this.url = config.url || 'ws://192.168.10.15:8188/ws';
+        this.reconnectInterval = config.reconnectInterval || 3000;
+        this.maxRetryAttempts = config.maxRetryAttempts || 5;
+        this.retryAttempts = 0;
+        this.state = WebSocketState.DISCONNECTED;
+        this.ws = null;
+        this.eventListeners = new Map();
+        this.reconnectTimer = null;
+        this.isManualDisconnect = false;
+    }
+
+    // Event emitter methods
+    on(event, callback) {
+        if (!this.eventListeners.has(event)) {
+            this.eventListeners.set(event, []);
+        }
+        this.eventListeners.get(event).push(callback);
+    }
+
+    off(event, callback) {
+        if (!this.eventListeners.has(event)) return;
+        const listeners = this.eventListeners.get(event);
+        const index = listeners.indexOf(callback);
+        if (index > -1) {
+            listeners.splice(index, 1);
+        }
+    }
+
+    emit(event, data) {
+        if (!this.eventListeners.has(event)) return;
+        this.eventListeners.get(event).forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`Error in WebSocket event listener for ${event}:`, error);
+            }
+        });
+    }
+
+    // Connection management
+    connect() {
+        if (this.state === WebSocketState.CONNECTING || this.state === WebSocketState.CONNECTED) {
+            return;
+        }
+
+        this.isManualDisconnect = false;
+        this.setState(WebSocketState.CONNECTING);
+        
+        try {
+            this.ws = new WebSocket(this.url);
+            this.setupEventHandlers();
+        } catch (error) {
+            console.error('Failed to create WebSocket connection:', error);
+            this.handleConnectionError(error);
+        }
+    }
+
+    disconnect() {
+        this.isManualDisconnect = true;
+        this.clearReconnectTimer();
+        
+        if (this.ws) {
+            if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+                this.ws.close();
+            }
+        }
+        
+        this.setState(WebSocketState.DISCONNECTED);
+    }
+
+    setupEventHandlers() {
+        if (!this.ws) return;
+
+        this.ws.onopen = () => {
+            console.log('🔌 WebSocket connected to ComfyUI');
+            this.retryAttempts = 0;
+            this.setState(WebSocketState.CONNECTED);
+            this.emit('connected', { url: this.url });
+        };
+
+        this.ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                this.handleMessage(message);
+            } catch (error) {
+                console.error('Error parsing WebSocket message:', error);
+                this.emit('error', { type: 'parse_error', error, data: event.data });
+            }
+        };
+
+        this.ws.onclose = (event) => {
+            console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+            this.setState(WebSocketState.DISCONNECTED);
+            this.emit('disconnected', { code: event.code, reason: event.reason });
+            
+            if (!this.isManualDisconnect && this.retryAttempts < this.maxRetryAttempts) {
+                this.scheduleReconnect();
+            }
+        };
+
+        this.ws.onerror = (error) => {
+            console.error('🔌 WebSocket error:', error);
+            this.handleConnectionError(error);
+        };
+    }
+
+    handleMessage(message) {
+        // Validate message structure
+        if (!this.validateMessage(message)) {
+            console.warn('🔌 Received malformed WebSocket message:', message);
+            this.emit('error', { type: 'malformed_message', message });
+            return;
+        }
+
+        // ComfyUI WebSocket message types with enhanced parsing
+        try {
+            switch (message.type) {
+                case 'executing':
+                    this.handleExecutingEvent(message);
+                    break;
+                case 'progress':
+                    this.handleProgressEvent(message);
+                    break;
+                case 'executed':
+                    this.handleExecutedEvent(message);
+                    break;
+                case 'execution_error':
+                    this.handleExecutionErrorEvent(message);
+                    break;
+                case 'status':
+                    this.handleStatusEvent(message);
+                    break;
+                default:
+                    // Forward any other message types
+                    console.log('🔌 Unknown WebSocket message type:', message.type);
+                    this.emit('message', message);
+            }
+        } catch (error) {
+            console.error('🔌 Error handling WebSocket message:', error);
+            this.emit('error', { type: 'handler_error', error, message });
+        }
+    }
+
+    validateMessage(message) {
+        return message && 
+               typeof message === 'object' && 
+               typeof message.type === 'string' &&
+               message.data !== undefined;
+    }
+
+    handleExecutingEvent(message) {
+        const event = {
+            nodeId: message.data.node,
+            promptId: message.data.prompt_id,
+            timestamp: Date.now()
+        };
+        
+        // Validate required fields
+        if (!event.nodeId || !event.promptId) {
+            console.warn('🔌 Invalid executing event data:', message.data);
+            return;
+        }
+        
+        console.log(`🔌 Executing node ${event.nodeId} for prompt ${event.promptId}`);
+        this.emit('executing', event);
+    }
+
+    handleProgressEvent(message) {
+        const event = {
+            value: parseInt(message.data.value) || 0,
+            max: parseInt(message.data.max) || 100,
+            nodeId: message.data.node,
+            promptId: message.data.prompt_id,
+            percentage: 0,
+            timestamp: Date.now()
+        };
+        
+        // Calculate percentage
+        if (event.max > 0) {
+            event.percentage = Math.round((event.value / event.max) * 100);
+        }
+        
+        // Validate progress data
+        if (event.value < 0 || event.max < 0 || event.value > event.max) {
+            console.warn('🔌 Invalid progress values:', message.data);
+            return;
+        }
+        
+        console.log(`🔌 Progress: ${event.percentage}% (${event.value}/${event.max})`);
+        this.emit('progress', event);
+    }
+
+    handleExecutedEvent(message) {
+        const event = {
+            nodeId: message.data.node,
+            promptId: message.data.prompt_id,
+            output: message.data.output || {},
+            timestamp: Date.now()
+        };
+        
+        // Validate required fields
+        if (!event.nodeId || !event.promptId) {
+            console.warn('🔌 Invalid executed event data:', message.data);
+            return;
+        }
+        
+        console.log(`🔌 Executed node ${event.nodeId} for prompt ${event.promptId}`);
+        this.emit('executed', event);
+    }
+
+    handleExecutionErrorEvent(message) {
+        const event = {
+            nodeId: message.data.node_id,
+            promptId: message.data.prompt_id,
+            error: message.data.exception_message || 'Unknown execution error',
+            nodeType: message.data.node_type,
+            traceback: message.data.traceback,
+            timestamp: Date.now()
+        };
+        
+        console.error(`🔌 Execution error in node ${event.nodeId}:`, event.error);
+        this.emit('execution_error', event);
+    }
+
+    handleStatusEvent(message) {
+        const event = {
+            status: message.data,
+            timestamp: Date.now()
+        };
+        
+        console.log('🔌 Status update:', event.status);
+        this.emit('status', event);
+    }
+
+    setState(newState) {
+        const oldState = this.state;
+        this.state = newState;
+        this.emit('stateChange', { oldState, newState });
+    }
+
+    handleConnectionError(error) {
+        this.setState(WebSocketState.ERROR);
+        this.emit('error', { type: 'connection_error', error });
+        
+        if (!this.isManualDisconnect && this.retryAttempts < this.maxRetryAttempts) {
+            this.scheduleReconnect();
+        }
+    }
+
+    scheduleReconnect() {
+        this.clearReconnectTimer();
+        this.retryAttempts++;
+        
+        const delay = Math.min(this.reconnectInterval * Math.pow(1.5, this.retryAttempts - 1), 30000);
+        console.log(`🔄 Reconnecting in ${delay}ms (attempt ${this.retryAttempts}/${this.maxRetryAttempts})`);
+        
+        this.reconnectTimer = setTimeout(() => {
+            if (!this.isManualDisconnect) {
+                this.connect();
+            }
+        }, delay);
+    }
+
+    clearReconnectTimer() {
+        if (this.reconnectTimer) {
+            clearTimeout(this.reconnectTimer);
+            this.reconnectTimer = null;
+        }
+    }
+
+    // Public getters
+    getState() {
+        return this.state;
+    }
+
+    isConnected() {
+        return this.state === WebSocketState.CONNECTED;
+    }
+
+    // Send message (if connected)
+    send(data) {
+        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+            this.ws.send(typeof data === 'string' ? data : JSON.stringify(data));
+            return true;
+        }
+        return false;
+    }
+}
+
 // Application state
 const AppState = {
     apiEndpoint: localStorage.getItem('comfyui_endpoint') || 'http://192.168.10.15:8188',
     isConnected: false,
     workflowData: null,
     modifiedWorkflowData: null,
-    isGenerating: false
+    isGenerating: false,
+    websocket: null
 };
 
 // DOM Elements
@@ -24,7 +325,15 @@ const elements = {
     generateButton: document.getElementById('generate-button'),
     resultsArea: document.getElementById('results-area'),
     clearResults: document.getElementById('clear-results'),
-    toastContainer: document.getElementById('toast-container')
+    toastContainer: document.getElementById('toast-container'),
+    // Real-time status elements
+    realtimeStatus: document.getElementById('realtime-status'),
+    websocketIndicator: document.getElementById('websocket-indicator'),
+    currentNodeName: document.getElementById('current-node-name'),
+    progressContainer: document.getElementById('progress-container'),
+    progressPercentage: document.getElementById('progress-percentage'),
+    progressBar: document.getElementById('progress-bar'),
+    progressStep: document.getElementById('progress-step')
 };
 
 // Utility Functions
@@ -1430,8 +1739,23 @@ function initializeConnectionTest() {
         statusText.textContent = 'Testing connection...';
         indicator.dataset.status = 'unknown';
         
-        console.log(`Testing connection to: ${testUrl}`);
+        console.log(`🔍 Testing connection to: ${testUrl}`);
+        console.log(`📊 Current state - AppState.isConnected: ${AppState.isConnected}, WebSocket: ${AppState.websocket ? AppState.websocket.getState() : 'not initialized'}`);
         
+        // Check browser compatibility
+        const hasAbortSignalTimeout = typeof AbortSignal !== 'undefined' && 'timeout' in AbortSignal;
+        console.log(`🌐 Browser compatibility: AbortSignal.timeout ${hasAbortSignalTimeout ? 'supported' : 'not supported, using manual AbortController'}`);
+        
+        // Create fail-safe timeout to ensure button is never permanently stuck
+        const failSafeTimeout = setTimeout(() => {
+            console.error('🚨 Connection test fail-safe timeout reached (30s)');
+            elements.testConnection.textContent = 'Test';
+            elements.testConnection.disabled = false;
+            statusText.textContent = 'Connection test timed out';
+            indicator.dataset.status = 'disconnected';
+            Utils.showToast('Connection test timed out - please try again', 'error');
+        }, 30000); // 30 second fail-safe
+
         try {
             // Test official ComfyUI endpoints in order of reliability
             const endpoints = [
@@ -1446,11 +1770,21 @@ function initializeConnectionTest() {
             
             for (const endpoint of endpoints) {
                 try {
-                    console.log(`Testing ComfyUI ${endpoint.name}: ${testUrl}${endpoint.path}`);
+                    console.log(`🔍 Testing ComfyUI ${endpoint.name}: ${testUrl}${endpoint.path}`);
+                    
+                    // Create manual AbortController for cross-browser compatibility
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                        console.log(`⏱️ Timing out ${endpoint.name} after 3 seconds`);
+                        controller.abort();
+                    }, 3000); // 3 second timeout (reduced for better UX)
+                    
+                    console.log(`📡 Sending request to ${testUrl}${endpoint.path}...`);
+                    const startTime = Date.now();
                     
                     response = await fetch(`${testUrl}${endpoint.path}`, {
                         method: 'GET',
-                        signal: AbortSignal.timeout(5000), // 5 second timeout
+                        signal: controller.signal, // Manual timeout for browser compatibility
                         mode: 'cors',
                         headers: {
                             'Accept': 'application/json',
@@ -1458,7 +1792,11 @@ function initializeConnectionTest() {
                         }
                     });
                     
-                    console.log(`${endpoint.name} response:`, response.status, response.statusText);
+                    const duration = Date.now() - startTime;
+                    clearTimeout(timeoutId); // Clear timeout on successful response
+                    
+                    console.log(`📊 ${endpoint.name} response (${duration}ms):`, response.status, response.statusText);
+                    console.log(`📋 Response headers:`, Object.fromEntries(response.headers.entries()));
                     
                     if (response.ok) {
                         successfulEndpoint = endpoint;
@@ -1473,6 +1811,15 @@ function initializeConnectionTest() {
                 } catch (endpointError) {
                     console.log(`❌ ${endpoint.name} failed:`, endpointError.message);
                     lastError = endpointError;
+                    
+                    // Clear the timeout for this specific endpoint
+                    clearTimeout(timeoutId);
+                    
+                    // Check if it's a timeout/abort error
+                    if (endpointError.name === 'AbortError') {
+                        console.log('Request timed out after 5 seconds');
+                        lastError.message = 'Connection timeout (5s)';
+                    }
                     
                     // Check if it's a CORS error
                     if (endpointError.message.includes('CORS') || 
@@ -1520,6 +1867,8 @@ function initializeConnectionTest() {
                     indicator.dataset.status = 'connected';
                     statusText.textContent = 'Connected to ComfyUI';
                     Utils.showToast(`Connected to ComfyUI via ${successfulEndpoint.name}`, 'success');
+                    
+                    console.log('✅ Connection test completed successfully');
                     console.log('✅ ComfyUI connection verified!');
                 } else {
                     throw new Error('Server responded but does not appear to be ComfyUI');
@@ -1555,10 +1904,11 @@ function initializeConnectionTest() {
             let detailedMessage = error.message;
             let solution = '';
             
-            if (error.name === 'AbortError') {
+            if (error.name === 'AbortError' || error.message.includes('timeout')) {
                 errorMessage = 'Connection timeout';
-                detailedMessage = 'Request timed out after 5 seconds';
+                detailedMessage = 'Request timed out after 3 seconds';
                 solution = 'Check if ComfyUI is running and accessible';
+                console.log('⏱️ Timeout handled by manual AbortController (cross-browser compatible)');
             } else if (error.possibleCors || 
                        error.message.includes('CORS') ||
                        error.message.includes('NetworkError') ||
@@ -1609,6 +1959,9 @@ function initializeConnectionTest() {
                 console.log('3. Check ComfyUI startup logs for CORS headers');
             }
         } finally {
+            // Clear the fail-safe timeout since we're handling cleanup properly
+            clearTimeout(failSafeTimeout);
+            
             elements.testConnection.textContent = 'Test';
             elements.testConnection.disabled = false;
         }
@@ -1795,6 +2148,9 @@ async function generateImages(workflowData) {
         AppState.isGenerating = true;
         setGenerationLoadingState(true);
         
+        // Reset and show real-time status
+        hideRealtimeStatus();
+        
         Utils.showToast('Starting image generation...', 'info');
         console.log('🎨 Starting image generation process');
 
@@ -1837,6 +2193,11 @@ async function generateImages(workflowData) {
 
         displayGeneratedImages(imageUrls);
         Utils.showToast(`Successfully generated ${imageUrls.length} image(s)!`, 'success');
+        
+        // Hide real-time status after a delay
+        setTimeout(() => {
+            hideRealtimeStatus();
+        }, 3000);
 
     } catch (error) {
         console.error('❌ Generation failed:', error);
@@ -1853,6 +2214,7 @@ async function generateImages(workflowData) {
     } finally {
         AppState.isGenerating = false;
         setGenerationLoadingState(false);
+        hideRealtimeStatus();
     }
 }
 
@@ -1897,12 +2259,12 @@ function displayGeneratedImages(imageUrls) {
                 <span class="image-index">Image ${index + 1} of ${imageCount}</span>
                 <button class="download-button" onclick="downloadImage('${imageData.url}', '${imageData.filename}')">
                     <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                        <path fill="currentColor" d="M14,3V5H17.59L7.76,14.83L9.17,16.24L19,6.41V10H21V3M19,19H5V5H12V3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V12H19V19Z" />
                     </svg>
-                    Download
+                    Open
                 </button>
             </div>
-            <img src="${imageData.url}" alt="Generated image ${index + 1}" class="generated-image" loading="lazy" />
+            <img src="${imageData.url}" alt="Generated image ${index + 1}" class="generated-image" loading="lazy" onclick="expandImage('${imageData.url}', '${imageData.filename}')" />
             <div class="image-info">
                 <span class="filename">${imageData.filename}</span>
             </div>
@@ -1912,7 +2274,7 @@ function displayGeneratedImages(imageUrls) {
     elements.resultsArea.innerHTML = `
         <div class="results-header">
             <h3>Generated Images (${imageCount})</h3>
-            <button id="download-all" class="secondary-button" onclick="downloadAllImages()">Download All</button>
+            <button id="download-all" class="secondary-button" onclick="downloadAllImages()">Open All</button>
         </div>
         <div class="images-grid">
             ${imagesHtml}
@@ -1961,13 +2323,9 @@ function showGenerationError(errorClassification) {
 
 // Download Functions
 window.downloadImage = function(url, filename) {
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    Utils.showToast(`Downloading ${filename}`, 'success');
+    // Open image in new window/tab instead of downloading
+    window.open(url, '_blank');
+    Utils.showToast(`Opening ${filename} in new window`, 'success');
 };
 
 window.downloadAllImages = function() {
@@ -1975,9 +2333,64 @@ window.downloadAllImages = function() {
         window.generatedImages.forEach((imageData, index) => {
             setTimeout(() => {
                 downloadImage(imageData.url, imageData.filename);
-            }, index * 500); // Stagger downloads
+            }, index * 200); // Stagger window opening (reduced delay)
         });
-        Utils.showToast(`Downloading ${window.generatedImages.length} images`, 'success');
+        Utils.showToast(`Opening ${window.generatedImages.length} images in new windows`, 'success');
+    }
+};
+
+// Image Modal Functions
+window.expandImage = function(url, filename) {
+    // Create modal if it doesn't exist
+    let modal = document.getElementById('image-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'image-modal';
+        modal.className = 'image-modal';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <button class="modal-close" onclick="closeImageModal()">&times;</button>
+                <img class="expanded-image" src="" alt="" />
+                <div class="modal-info">
+                    <div class="modal-filename"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        
+        // Close modal when clicking outside the image
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeImageModal();
+            }
+        });
+        
+        // Close modal with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal.classList.contains('active')) {
+                closeImageModal();
+            }
+        });
+    }
+    
+    // Update modal content
+    const modalImage = modal.querySelector('.expanded-image');
+    const modalFilename = modal.querySelector('.modal-filename');
+    
+    modalImage.src = url;
+    modalImage.alt = `Expanded view of ${filename}`;
+    modalFilename.textContent = filename;
+    
+    // Show modal
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden'; // Prevent background scrolling
+};
+
+window.closeImageModal = function() {
+    const modal = document.getElementById('image-modal');
+    if (modal) {
+        modal.classList.remove('active');
+        document.body.style.overflow = ''; // Restore scrolling
     }
 };
 
@@ -1992,8 +2405,15 @@ function initializeFormSubmission() {
         }
         
         if (!AppState.isConnected) {
-            Utils.showToast('Please test API connection first', 'error');
-            return;
+            // Check if WebSocket is connected as fallback
+            const wsConnected = AppState.websocket && AppState.websocket.isConnected();
+            if (wsConnected) {
+                console.log('💡 HTTP test failed but WebSocket is connected - allowing generation');
+                Utils.showToast('Using WebSocket connection for generation', 'info');
+            } else {
+                Utils.showToast('Please test API connection first', 'error');
+                return;
+            }
         }
         
         // Task 10: Comprehensive validation before submission
@@ -2108,6 +2528,9 @@ function initializeApp() {
         initializeClearResults();
         initializePromptToolbar();
         
+        // Initialize WebSocket connection
+        initializeWebSocket();
+        
         // Show welcome message
         Utils.showToast('ComfyUI Workflow Runner initialized', 'success');
         
@@ -2118,6 +2541,219 @@ function initializeApp() {
         alert(`Application failed to initialize: ${error.message}`);
     }
 }
+
+// WebSocket Integration with Application Lifecycle
+function initializeWebSocket() {
+    console.log('🔌 Initializing WebSocket connection...');
+    
+    // Create WebSocket service instance
+    const wsUrl = AppState.apiEndpoint.replace('http', 'ws') + '/ws';
+    AppState.websocket = new WebSocketService({
+        url: wsUrl,
+        reconnectInterval: 3000,
+        maxRetryAttempts: 5
+    });
+    
+    // Subscribe to WebSocket events
+    setupWebSocketEventHandlers();
+    
+    // Start connection
+    AppState.websocket.connect();
+}
+
+function setupWebSocketEventHandlers() {
+    const ws = AppState.websocket;
+    
+    // Connection state changes
+    ws.on('stateChange', ({ oldState, newState }) => {
+        console.log(`🔌 WebSocket state: ${oldState} → ${newState}`);
+        updateConnectionStatus(newState);
+    });
+    
+    // Connection established
+    ws.on('connected', ({ url }) => {
+        console.log(`🔌 Connected to ComfyUI WebSocket: ${url}`);
+        
+        // Set connected state for WebSocket connection
+        AppState.isConnected = true;
+        AppState.apiEndpoint = AppState.apiEndpoint || url.replace('ws://', 'http://').replace('/ws', '');
+        
+        // Update connection status display
+        updateConnectionStatus(WebSocketState.CONNECTED);
+        
+        Utils.showToast('Real-time connection established', 'success');
+        console.log('✅ WebSocket connection enables API functionality');
+    });
+    
+    // Connection lost
+    ws.on('disconnected', ({ code, reason }) => {
+        console.log(`🔌 Disconnected: ${code} - ${reason}`);
+        
+        // Only reset connection state if this was not a manual disconnect
+        // and there's no other successful connection method
+        if (code !== 1000) { // Not a normal closure
+            Utils.showToast('Real-time connection lost, attempting to reconnect...', 'info');
+            // Don't immediately set isConnected = false, let reconnection attempt first
+        }
+    });
+    
+    // WebSocket errors
+    ws.on('error', ({ type, error }) => {
+        console.error(`🔌 WebSocket error (${type}):`, error);
+        if (type === 'connection_error') {
+            Utils.showToast('Failed to establish real-time connection', 'error');
+        }
+    });
+    
+    // Progress updates
+    ws.on('progress', (event) => {
+        console.log(`🔌 Progress: ${event.percentage}% (${event.value}/${event.max})`);
+        updateProgressIndicator(event.percentage, event.value, event.max);
+    });
+    
+    // Execution events
+    ws.on('executing', (event) => {
+        console.log(`🔌 Executing node ${event.nodeId} for prompt ${event.promptId}`);
+        updateExecutionStatus('executing', event.nodeId);
+    });
+    
+    ws.on('executed', (event) => {
+        console.log(`🔌 Executed node ${event.nodeId} for prompt ${event.promptId}`);
+        updateExecutionStatus('executed', event.nodeId);
+        
+        // Check if this might be the final node
+        if (event.output && Object.keys(event.output).length > 0) {
+            console.log('🔌 Node produced output, checking for images...');
+        }
+    });
+    
+    // Execution errors
+    ws.on('execution_error', (event) => {
+        console.error(`🔌 Execution error in node ${event.nodeId}:`, event.error);
+        Utils.showToast(`Error in ${event.nodeType || 'unknown'} node: ${event.error}`, 'error');
+        AppState.isGenerating = false;
+        setGenerationLoadingState(false);
+    });
+    
+    // Status updates
+    ws.on('status', (event) => {
+        console.log('🔌 Status update:', event.status);
+    });
+}
+
+function updateConnectionStatus(state) {
+    // Update main connection status
+    if (elements.connectionStatus) {
+        const httpConnected = AppState.isConnected;
+        const wsConnected = AppState.websocket && AppState.websocket.isConnected();
+        
+        let statusText = '';
+        let statusClass = '';
+        
+        if (httpConnected && wsConnected) {
+            statusText = 'Connected (HTTP + Real-time)';
+            statusClass = 'connected';
+        } else if (wsConnected) {
+            statusText = 'Connected (Real-time only)';
+            statusClass = 'connected';
+        } else if (httpConnected) {
+            statusText = 'Connected (HTTP only)';
+            statusClass = 'connected';
+        } else {
+            const statusMap = {
+                [WebSocketState.CONNECTING]: { text: 'Connecting...', class: 'connecting' },
+                [WebSocketState.DISCONNECTED]: { text: 'Disconnected', class: 'disconnected' },
+                [WebSocketState.ERROR]: { text: 'Connection Error', class: 'error' }
+            };
+            const status = statusMap[state] || { text: 'Not Connected', class: 'disconnected' };
+            statusText = status.text;
+            statusClass = status.class;
+        }
+        
+        elements.connectionStatus.textContent = statusText;
+        elements.connectionStatus.className = `connection-status ${statusClass}`;
+        
+        console.log(`📊 Connection status updated: ${statusText} (HTTP: ${httpConnected}, WS: ${wsConnected})`);
+    }
+    
+    // Update WebSocket indicator in real-time status
+    if (elements.websocketIndicator) {
+        elements.websocketIndicator.className = `websocket-indicator ${state}`;
+    }
+}
+
+function updateProgressIndicator(percentage, value, max) {
+    if (!elements.progressContainer || !elements.progressBar) return;
+    
+    // Show progress container
+    elements.progressContainer.style.display = 'block';
+    
+    // Update progress bar
+    elements.progressBar.style.width = `${percentage}%`;
+    
+    // Update text displays
+    if (elements.progressPercentage) {
+        elements.progressPercentage.textContent = `${percentage}%`;
+    }
+    
+    if (elements.progressStep) {
+        elements.progressStep.textContent = `${value} / ${max}`;
+    }
+    
+    console.log(`📊 Progress: ${percentage}% (${value}/${max})`);
+}
+
+function updateExecutionStatus(status, nodeId) {
+    if (!elements.currentNodeName) return;
+    
+    // Show real-time status panel when generation starts
+    if (elements.realtimeStatus && status === 'executing') {
+        elements.realtimeStatus.style.display = 'block';
+    }
+    
+    // Update current node display
+    if (status === 'executing') {
+        elements.currentNodeName.textContent = nodeId || 'Unknown';
+        elements.currentNodeName.style.color = '#1f77b4'; // Blue for executing
+    } else if (status === 'executed') {
+        elements.currentNodeName.style.color = '#22c55e'; // Green for completed
+        
+        // Hide progress after a delay if execution is complete
+        setTimeout(() => {
+            if (elements.progressContainer) {
+                elements.progressContainer.style.display = 'none';
+            }
+        }, 2000);
+    }
+    
+    console.log(`⚙️ Node ${nodeId}: ${status}`);
+}
+
+function hideRealtimeStatus() {
+    if (elements.realtimeStatus) {
+        elements.realtimeStatus.style.display = 'none';
+    }
+    if (elements.progressContainer) {
+        elements.progressContainer.style.display = 'none';
+    }
+    if (elements.currentNodeName) {
+        elements.currentNodeName.textContent = '-';
+        elements.currentNodeName.style.color = '#1f77b4';
+    }
+}
+
+function cleanupWebSocket() {
+    if (AppState.websocket) {
+        console.log('🔌 Cleaning up WebSocket connection...');
+        AppState.websocket.disconnect();
+        AppState.websocket = null;
+    }
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', () => {
+    cleanupWebSocket();
+});
 
 // Start the application when DOM is loaded
 if (document.readyState === 'loading') {

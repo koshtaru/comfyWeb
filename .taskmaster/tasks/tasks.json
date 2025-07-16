@@ -195,7 +195,7 @@
         "testStrategy": "Unit tests for WebSocket service connection handling, event parsing, and reconnection logic. Integration tests with mock ComfyUI WebSocket server. E2E tests verifying real-time updates during actual generation workflow.",
         "priority": "high",
         "dependencies": [],
-        "status": "pending",
+        "status": "done",
         "subtasks": [
           {
             "id": 1,
@@ -203,7 +203,7 @@
             "description": "Design and implement the core WebSocket service class with connection management and event handling capabilities",
             "dependencies": [],
             "details": "Create a WebSocketService class that encapsulates WebSocket connection logic to ComfyUI's endpoint (ws://localhost:8188/ws). Implement connection state enum (CONNECTING, CONNECTED, DISCONNECTED, ERROR). Add event emitter pattern for broadcasting WebSocket events to UI components. Create typed interfaces for ComfyUI WebSocket messages including 'executing', 'progress', 'executed', and 'error' events. Include connection configuration options such as URL, reconnect interval, and max retry attempts.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for WebSocket service initialization and configuration. Mock WebSocket connection tests for state transitions. Test event emitter subscription and unsubscription patterns. Verify proper TypeScript typing for all event interfaces."
           },
           {
@@ -214,7 +214,7 @@
               1
             ],
             "details": "Implement exponential backoff algorithm for reconnection attempts (start at 1s, max 30s). Add connection health check with ping/pong frames or heartbeat mechanism. Create reconnection state management to track attempt count and backoff timing. Implement circuit breaker pattern to prevent infinite reconnection loops. Add connection quality indicators and emit reconnection events for UI feedback. Handle both unexpected disconnections and server-initiated closures differently.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for exponential backoff calculations and retry logic. Integration tests simulating connection drops and recovery. Test circuit breaker activation after max retries. Verify proper cleanup of timers and listeners during reconnection cycles."
           },
           {
@@ -225,7 +225,7 @@
               1
             ],
             "details": "Implement message parser for ComfyUI WebSocket protocol including 'executing' (node execution start), 'progress' (generation progress updates), 'executed' (node completion), and 'execution_error' events. Create typed event handlers for each message type with proper payload validation. Add event buffering for messages received during reconnection. Implement error handling for malformed messages. Create event transformation layer to convert raw WebSocket data to application-friendly formats.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for parsing each ComfyUI event type with sample payloads. Test malformed message handling and validation. Integration tests with mock WebSocket server sending various event sequences. Verify event buffering during connection interruptions."
           },
           {
@@ -236,8 +236,8 @@
               1,
               2
             ],
-            "details": "Create WebSocket initialization on application mount/start with proper error handling. Implement clean disconnection on application unmount/close to prevent memory leaks. Add WebSocket connection status to global application state (Redux/Context). Create hooks or HOCs for components to subscribe to WebSocket events. Implement connection pooling if multiple WebSocket connections are needed. Add development mode features like connection debugging and event logging.",
-            "status": "pending",
+            "details": "Create WebSocket initialization on application mount/start with proper error handling. Implement clean disconnection on application unmount/close to prevent memory leaks. Add WebSocket connection status to global application state (Redux/Context). Create hooks or HOCs for components to subscribe to WebSocket events. Implement connection pooling if multiple WebSocket connections are needed. Add development mode features like connection debugging and event logging.\n<info added on 2025-07-16T05:55:01.402Z>\nFixed WebSocket connection test button reliability issue by resolving browser compatibility problem with AbortSignal.timeout(5000). Replaced with manual AbortController + setTimeout pattern that works across all browsers including Safari. Added fail-safe 30-second timeout mechanism to prevent button from getting permanently stuck in loading state. Enhanced error handling to specifically detect and report timeout errors with descriptive messages. Added browser compatibility logging to aid debugging efforts. Connection testing now works reliably across all browsers with proper error recovery and timeout protection.\n</info added on 2025-07-16T05:55:01.402Z>",
+            "status": "done",
             "testStrategy": "Integration tests for application lifecycle hooks. Test memory leak prevention with mounting/unmounting cycles. Verify proper state updates in Redux/Context during connection changes. Test concurrent component subscriptions to WebSocket events."
           },
           {
@@ -249,7 +249,7 @@
               4
             ],
             "details": "Build ConnectionStatus component showing WebSocket connection state with visual indicators. Create ProgressTracker component that updates based on 'progress' events with percentage and ETA. Implement NodeExecutionStatus component showing currently executing nodes. Add event log component for debugging in development mode. Create toast notifications for connection status changes. Ensure all components properly unsubscribe from events on unmount.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Component tests for each UI element with mocked WebSocket events. Test proper re-rendering on event updates. Verify component cleanup and event unsubscription. E2E tests with real ComfyUI WebSocket connection showing live updates during generation."
           }
         ]
@@ -866,11 +866,85 @@
             "testStrategy": "Unit tests for feature detection logic. Integration tests with various ComfyUI configurations and versions. E2E tests verifying UI adaptation to missing features. User testing for clarity of degraded experiences and alternative workflows."
           }
         ]
+      },
+      {
+        "id": 21,
+        "title": "Implement Workflow Preset Management System",
+        "description": "Create functionality to save uploaded JSON workflows as named presets/templates that can be reused without re-uploading, including local storage persistence, preset selection UI, and metadata management",
+        "details": "Build a comprehensive workflow preset management system with the following components:\n\n1. **Local Storage Service**: Create a service class to handle localStorage operations for workflow presets. Implement methods for saving, loading, updating, and deleting presets with error handling for storage quota limits. Use a structured key format like 'comfyui_preset_{id}' and maintain an index of all presets.\n\n2. **Preset Data Model**: Define TypeScript interfaces for preset structure including: id (UUID), name, description, tags array, createdAt timestamp, updatedAt timestamp, workflow JSON object, thumbnail (optional base64 preview), usage count, and isFavorite flag.\n\n3. **Preset Management UI**: Create a modal or sidebar component for preset management. Include:\n   - Save current workflow as preset with name/description input\n   - Grid/list view toggle for preset gallery\n   - Search/filter by name, tags, or date\n   - Quick actions: load, duplicate, delete, export\n   - Favorite/star functionality for quick access\n   - Sort options: name, date, usage frequency\n\n4. **Preset Selection Component**: Build a dropdown/combobox in the main UI for quick preset selection. Show recently used presets at the top, include search functionality within dropdown, display preset metadata on hover, and add 'Manage Presets' option to open full management UI.\n\n5. **Import/Export Functionality**: Implement export as .json file with preset metadata, bulk export to zip file, import validation for preset format, conflict resolution for duplicate names, and shareable preset URLs using base64 encoding.\n\n6. **Default Workflow Handling**: Allow users to set a default preset that loads on app start. Include reset to factory default option and quick-load keyboard shortcuts (Ctrl+1-9 for top presets).\n\n7. **Integration Points**: Modify existing file upload to offer 'Save as Preset' after upload. Auto-generate preset names from workflow content. Update workflow modification functions to work with loaded presets. Add preset usage analytics for popular workflows.\n\n8. **Storage Management**: Implement storage quota monitoring with warnings at 80% capacity. Add cleanup tools for old/unused presets. Include export all/backup functionality. Handle storage errors gracefully with user notifications.",
+        "testStrategy": "1. **Unit Testing**: Test localStorage service CRUD operations, preset data validation, storage quota handling, and import/export format validation.\n\n2. **Component Testing**: Verify preset gallery rendering with various data sets, test search/filter functionality, validate modal form submissions, and test keyboard navigation in dropdown.\n\n3. **Integration Testing**: Test full flow from workflow upload to preset save to reload, verify preset loading updates all UI parameters correctly, test import/export round trips preserve all data, and validate conflict resolution during imports.\n\n4. **Storage Testing**: Test behavior at storage limits, verify cleanup functionality, test data persistence across sessions, and validate error handling for corrupted data.\n\n5. **Performance Testing**: Test UI responsiveness with 100+ presets, measure search/filter performance, test thumbnail rendering optimization, and verify no memory leaks from repeated load/save cycles.\n\n6. **User Experience Testing**: Validate intuitive preset naming and organization, test discoverability of features, verify helpful error messages, and test mobile responsiveness of preset gallery.",
+        "status": "pending",
+        "dependencies": [
+          3,
+          5,
+          10,
+          20
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Preset Data Model and Storage Service",
+            "description": "Define TypeScript interfaces for preset structure and implement a localStorage service class with CRUD operations",
+            "dependencies": [],
+            "details": "Create interfaces for PresetData (id, name, description, tags, timestamps, workflow JSON, thumbnail, usage count, isFavorite) and PresetIndex. Implement PresetStorageService class with methods: savePreset(), loadPreset(), updatePreset(), deletePreset(), getAllPresets(), getPresetIndex(). Include storage quota monitoring, error handling for quota limits, and key format management using 'comfyui_preset_{id}'. Implement index maintenance for efficient preset listing.",
+            "status": "pending",
+            "testStrategy": "Unit test all CRUD operations with mock localStorage, test storage quota handling and error scenarios, verify index consistency after operations, test data validation and serialization"
+          },
+          {
+            "id": 2,
+            "title": "Build Preset Management Modal UI",
+            "description": "Create a comprehensive modal component for managing workflow presets with gallery view, search, and actions",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement PresetManagerModal component with grid/list view toggle, search bar for filtering by name/tags/date, preset cards showing name/description/thumbnail/metadata, quick action buttons (load, duplicate, delete, export, favorite). Add 'Save Current Workflow' form with name, description, and tags input. Include sort options dropdown (name, date created, usage frequency, favorites first). Style with consistent design system and responsive layout.",
+            "status": "pending",
+            "testStrategy": "Component tests for rendering with various preset counts, test search/filter functionality, verify action button behaviors, test form validation and submission, check responsive layout behavior"
+          },
+          {
+            "id": 3,
+            "title": "Implement Preset Selection Dropdown Component",
+            "description": "Create a quick-access dropdown in the main UI for selecting and loading presets",
+            "dependencies": [
+              1
+            ],
+            "details": "Build PresetSelector dropdown component positioned near file upload area. Display recently used presets at top of list, implement type-ahead search within dropdown, show preset metadata (description, last used) on hover/focus. Include 'Manage Presets' option to open full modal. Add keyboard navigation support and integrate with main workflow loading logic. Style to match existing UI components with smooth animations.",
+            "status": "pending",
+            "testStrategy": "Test dropdown interaction and keyboard navigation, verify preset loading integration, test search functionality within dropdown, check accessibility compliance"
+          },
+          {
+            "id": 4,
+            "title": "Add Import/Export and Default Preset Features",
+            "description": "Implement functionality for exporting/importing presets and setting default workflows",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create export functionality for single preset as JSON with metadata, bulk export as ZIP archive with all presets. Implement import with validation for preset format/structure, conflict resolution UI for duplicate names. Add default preset selection in settings with localStorage persistence, auto-load on app start. Include keyboard shortcuts (Ctrl+1-9) for loading top 9 presets. Generate shareable URLs using base64-encoded preset data.",
+            "status": "pending",
+            "testStrategy": "Test export file format and content validity, verify import validation and error handling, test default preset persistence and loading, validate keyboard shortcut functionality"
+          },
+          {
+            "id": 5,
+            "title": "Integrate Preset System with Existing Workflow Features",
+            "description": "Connect preset management to file upload, workflow modification, and add storage management utilities",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Modify file upload handler to show 'Save as Preset' button after successful upload. Auto-generate preset names from workflow content or filename. Update workflow modification functions to work seamlessly with loaded presets. Add preset usage tracking for analytics. Implement storage management utilities: quota monitoring with visual indicator, cleanup tool for removing old/unused presets, backup all functionality. Display storage warnings at 80% capacity with cleanup suggestions.",
+            "status": "pending",
+            "testStrategy": "Integration tests for preset creation from upload, test workflow modification with presets, verify usage tracking accuracy, test storage management tools and warnings"
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-16T05:21:42.326Z",
+      "updated": "2025-07-16T06:25:41.745Z",
       "description": "Tasks for master context"
     }
   }
