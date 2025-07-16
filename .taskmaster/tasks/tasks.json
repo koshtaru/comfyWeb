@@ -940,11 +940,25 @@
             "testStrategy": "Integration tests for preset creation from upload, test workflow modification with presets, verify usage tracking accuracy, test storage management tools and warnings"
           }
         ]
+      },
+      {
+        "id": 22,
+        "title": "Implement Advanced Sequence Seed Generator integration with AdvancedSequenceSeedNode",
+        "description": "Replace basic seed control with sophisticated sequence-based seed generation supporting Fibonacci, Random, Linear, and Custom sequences. Include seed range controls, noise factors, sequence navigation, and collapsible UI panel.",
+        "details": "Create a comprehensive seed generation system with the following components:\n\n1. **AdvancedSequenceSeedNode Integration**: Implement TypeScript interface for AdvancedSequenceSeedNode matching ComfyUI's node structure. Create service class to manage seed sequence generation with methods for each sequence type (Fibonacci, Random, Linear, Custom). Include seed caching mechanism to maintain sequence state across generations.\n\n2. **Sequence Generation Algorithms**:\n   - Fibonacci: Implement F(n) = F(n-1) + F(n-2) with configurable starting seeds\n   - Linear: Create arithmetic progression with configurable step size\n   - Random: Use cryptographically secure random generation with range constraints\n   - Custom: Parse user-defined comma-separated seed lists with validation\n\n3. **UI Components**:\n   - Create collapsible panel component using existing design system patterns (dark theme #1f2937 background)\n   - Implement sequence type dropdown with icons for each mode\n   - Add dual number inputs for seed range (min/max) with validation\n   - Create noise factor slider (0-1) with real-time preview\n   - Build sequence navigation controls (prev/next/reset) with disabled states\n   - Display current seed value and position in sequence\n\n4. **Workflow Integration**:\n   - Detect and update seed values in workflow JSON for all nodes supporting seed parameters\n   - Implement seed synchronization across multiple nodes when 'sync seeds' option is enabled\n   - Create seed history tracking for undo/redo functionality\n   - Add seed export/import for sequence persistence\n\n5. **State Management**:\n   - Store sequence state in component with React hooks\n   - Implement sequence position tracking and boundary handling\n   - Add noise application logic: finalSeed = baseSeed + (noise * randomFactor)\n   - Create seed preview system showing next 5 seeds in sequence\n\n6. **Error Handling**:\n   - Validate seed ranges (min <= max, positive values)\n   - Handle custom sequence parsing errors gracefully\n   - Implement overflow protection for Fibonacci sequences\n   - Add clear error messages following existing UI patterns",
+        "testStrategy": "1. **Unit Tests**: Test each sequence generation algorithm with edge cases (overflow, negative values, empty custom lists). Verify noise factor application produces expected variations. Test seed range validation and clamping logic.\n\n2. **Component Tests**: Verify collapsible panel animations and state persistence. Test sequence navigation controls enable/disable correctly at boundaries. Validate dropdown selection updates UI and generates correct sequences. Test number input validation and error display.\n\n3. **Integration Tests**: Verify workflow JSON is correctly updated with generated seeds. Test seed synchronization across multiple nodes. Validate sequence state persists across component re-renders. Test seed history and undo/redo functionality.\n\n4. **E2E Tests**: Generate images with each sequence type and verify seed progression. Test sequence reset and navigation during active generation. Verify UI updates in real-time during sequence progression. Test edge cases like switching sequence types mid-generation.\n\n5. **Performance Tests**: Measure Fibonacci calculation performance for large indices. Test UI responsiveness with rapid sequence navigation. Verify memory usage remains stable with long sequence histories.",
+        "status": "done",
+        "dependencies": [
+          5,
+          20
+        ],
+        "priority": "medium",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-16T06:25:41.745Z",
+      "updated": "2025-07-16T07:14:02.459Z",
       "description": "Tasks for master context"
     }
   }

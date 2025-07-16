@@ -334,20 +334,11 @@ const elements = {
     progressPercentage: document.getElementById('progress-percentage'),
     progressBar: document.getElementById('progress-bar'),
     progressStep: document.getElementById('progress-step'),
-    // Advanced seed control elements
-    seedCollapseToggle: document.getElementById('seed-collapse-toggle'),
-    currentSeedDisplay: document.getElementById('current-seed-display'),
-    sequenceInfo: document.getElementById('sequence-info'),
-    advancedSeedControls: document.getElementById('advanced-seed-controls'),
-    sequenceType: document.getElementById('sequence-type'),
-    seedRangeStart: document.getElementById('seed-range-start'),
-    seedRangeEnd: document.getElementById('seed-range-end'),
-    maxSequenceLength: document.getElementById('max-sequence-length'),
-    currentSeed: document.getElementById('current-seed'),
-    seedPrev: document.getElementById('seed-prev'),
-    seedNext: document.getElementById('seed-next'),
-    noiseFactor: document.getElementById('noise-factor'),
-    forceRecalculation: document.getElementById('force-recalculation')
+    // Simple seed control elements
+    seedInput: document.getElementById('seed-input'),
+    randomSeedButton: document.getElementById('random-seed-button'),
+    seedDisplay: document.getElementById('seed-display'),
+    randomSeedCheckbox: document.getElementById('random-seed-checkbox')
 };
 
 // Utility Functions
@@ -795,14 +786,8 @@ const Utils = {
                 height: parseInt(document.querySelector('[data-linked="height"]')?.value) || 512,
                 batchSize: parseInt(document.querySelector('[data-linked="batch-size"]')?.value) || 1,
                 positivePrompt: document.getElementById('positive-prompt')?.value?.trim() || '',
-                // Advanced seed parameters
-                sequenceType: elements.sequenceType?.value || 'Fibonacci',
-                maxSequenceLength: parseInt(elements.maxSequenceLength?.value) || 20,
-                seedRangeStart: parseInt(elements.seedRangeStart?.value) || 10,
-                seedRangeEnd: parseInt(elements.seedRangeEnd?.value) || 1000,
-                currentSeed: parseInt(elements.currentSeed?.value) || 0,
-                noiseFactor: parseFloat(elements.noiseFactor?.value) || 0,
-                forceRecalculation: elements.forceRecalculation?.checked || false
+                // Simple seed parameter
+                seed: parseInt(elements.seedInput?.value) || 0
             };
             
             console.log('📊 Collected form data:', formData);
@@ -863,54 +848,8 @@ const Utils = {
                 
                 const nodeRef = isOldFormat ? modifiedWorkflow[node.nodeId] : node;
                 
-                // Modify AdvancedSequenceSeedNode parameters
-                if (nodeType === 'AdvancedSequenceSeedNode') {
-                    if (nodeRef.inputs) {
-                        // Get current seed from sequence
-                        const currentSeed = AdvancedSeedUtils.updateSequence(formData.forceRecalculation);
-                        
-                        if (nodeRef.inputs.sequence_type !== undefined) {
-                            const oldType = nodeRef.inputs.sequence_type;
-                            nodeRef.inputs.sequence_type = formData.sequenceType;
-                            console.log(`  🎲 Updated sequence type: ${oldType} → ${formData.sequenceType}`);
-                        }
-                        if (nodeRef.inputs.max_sequence_length !== undefined) {
-                            const oldLength = nodeRef.inputs.max_sequence_length;
-                            nodeRef.inputs.max_sequence_length = formData.maxSequenceLength;
-                            console.log(`  🎲 Updated max sequence length: ${oldLength} → ${formData.maxSequenceLength}`);
-                        }
-                        if (nodeRef.inputs.seed_range_start !== undefined) {
-                            const oldStart = nodeRef.inputs.seed_range_start;
-                            nodeRef.inputs.seed_range_start = formData.seedRangeStart;
-                            console.log(`  🎲 Updated seed range start: ${oldStart} → ${formData.seedRangeStart}`);
-                        }
-                        if (nodeRef.inputs.seed_range_end !== undefined) {
-                            const oldEnd = nodeRef.inputs.seed_range_end;
-                            nodeRef.inputs.seed_range_end = formData.seedRangeEnd;
-                            console.log(`  🎲 Updated seed range end: ${oldEnd} → ${formData.seedRangeEnd}`);
-                        }
-                        if (nodeRef.inputs.current_seed !== undefined) {
-                            const oldCurrent = nodeRef.inputs.current_seed;
-                            nodeRef.inputs.current_seed = formData.currentSeed;
-                            console.log(`  🎲 Updated current seed position: ${oldCurrent} → ${formData.currentSeed}`);
-                        }
-                        if (nodeRef.inputs.noise_factor !== undefined) {
-                            const oldNoise = nodeRef.inputs.noise_factor;
-                            nodeRef.inputs.noise_factor = formData.noiseFactor;
-                            console.log(`  🎲 Updated noise factor: ${oldNoise} → ${formData.noiseFactor}`);
-                        }
-                        if (nodeRef.inputs.force_recalculation !== undefined) {
-                            const oldForce = nodeRef.inputs.force_recalculation;
-                            nodeRef.inputs.force_recalculation = formData.forceRecalculation;
-                            console.log(`  🎲 Updated force recalculation: ${oldForce} → ${formData.forceRecalculation}`);
-                        }
-                        
-                        modifications.advancedSeedNode++;
-                    }
-                }
-                
-                // Modify KSampler parameters (keep for backward compatibility)
-                else if (nodeType === 'KSampler' || nodeType === 'KSamplerAdvanced') {
+                // Modify KSampler parameters
+                if (nodeType === 'KSampler' || nodeType === 'KSamplerAdvanced') {
                     if (nodeRef.inputs) {
                         if (nodeRef.inputs.steps !== undefined) {
                             const oldSteps = nodeRef.inputs.steps;
@@ -921,6 +860,11 @@ const Utils = {
                             const oldCfg = nodeRef.inputs.cfg;
                             nodeRef.inputs.cfg = formData.cfg;
                             console.log(`  ⚙️ Updated KSampler CFG: ${oldCfg} → ${formData.cfg}`);
+                        }
+                        if (nodeRef.inputs.seed !== undefined) {
+                            const oldSeed = nodeRef.inputs.seed;
+                            nodeRef.inputs.seed = formData.seed;
+                            console.log(`  🎲 Updated KSampler seed: ${oldSeed} → ${formData.seed}`);
                         }
                         modifications.ksampler++;
                     }
@@ -940,6 +884,11 @@ const Utils = {
                             const oldCfg = nodeRef.inputs[cfgKey];
                             nodeRef.inputs[cfgKey] = formData.cfg;
                             console.log(`  ⚙️ Updated FluxSampler CFG: ${oldCfg} → ${formData.cfg}`);
+                        }
+                        if (nodeRef.inputs.seed !== undefined) {
+                            const oldSeed = nodeRef.inputs.seed;
+                            nodeRef.inputs.seed = formData.seed;
+                            console.log(`  🎲 Updated FluxSampler seed: ${oldSeed} → ${formData.seed}`);
                         }
                         modifications.ksampler++;
                     }
@@ -1303,11 +1252,16 @@ const Utils = {
         const imageUrls = [];
         
         try {
+            console.log('🔍 Extracting images from outputs:', outputs);
+            
             for (const nodeId in outputs) {
                 const nodeOutput = outputs[nodeId];
+                console.log(`🔍 Checking node ${nodeId}:`, nodeOutput);
                 
                 if (nodeOutput.images && Array.isArray(nodeOutput.images)) {
+                    console.log(`📷 Found ${nodeOutput.images.length} images in node ${nodeId}`);
                     for (const image of nodeOutput.images) {
+                        console.log('🖼️ Processing image:', image);
                         if (image.filename) {
                             const imageUrl = `${AppState.apiEndpoint}/view?filename=${encodeURIComponent(image.filename)}&type=output`;
                             imageUrls.push({
@@ -1318,6 +1272,8 @@ const Utils = {
                             });
                         }
                     }
+                } else {
+                    console.log(`❌ Node ${nodeId} has no images array or is not an array`);
                 }
             }
             
@@ -1341,189 +1297,48 @@ const Utils = {
     }
 };
 
-// Advanced Seed Utility Functions
-const AdvancedSeedUtils = {
-    // Current sequence cache
-    currentSequence: [],
-    currentPosition: 0,
+// Simple Seed Utility Functions
+const SeedUtils = {
+    // Generate random seed within user-friendly range
+    generateRandomSeed() {
+        const MIN_SEED = 1;
+        const MAX_SEED = 999999;
+        return Math.floor(Math.random() * (MAX_SEED - MIN_SEED + 1)) + MIN_SEED;
+    },
     
-    // Sequence generation algorithms
-    generateSequence(type, length, rangeStart, rangeEnd) {
-        const sequence = [];
+    // Validate seed value for user-friendly range
+    validateSeed(seed) {
+        const MIN_SEED = 1;
+        const MAX_SEED = 999999;
+        const numSeed = parseInt(seed);
         
-        switch (type) {
-            case 'Fibonacci':
-                return this.generateFibonacci(length, rangeStart, rangeEnd);
-            case 'Random':
-                return this.generateRandom(length, rangeStart, rangeEnd);
-            case 'Linear':
-                return this.generateLinear(length, rangeStart, rangeEnd);
-            case 'Custom':
-                return this.generateCustom(length, rangeStart, rangeEnd);
-            default:
-                return this.generateFibonacci(length, rangeStart, rangeEnd);
+        if (isNaN(numSeed)) {
+            return { valid: false, message: 'Seed must be a valid number' };
+        }
+        
+        if (numSeed < MIN_SEED || numSeed > MAX_SEED) {
+            return { valid: false, message: `Seed must be between ${MIN_SEED} and ${MAX_SEED}` };
+        }
+        
+        return { valid: true };
+    },
+    
+    // Update seed display
+    updateSeedDisplay(seed) {
+        if (elements.seedDisplay) {
+            elements.seedDisplay.textContent = `Current seed: ${seed}`;
         }
     },
     
-    // Generate Fibonacci sequence within range
-    generateFibonacci(length, rangeStart, rangeEnd) {
-        const sequence = [];
-        let a = 0, b = 1;
-        
-        for (let i = 0; i < length; i++) {
-            // Scale Fibonacci number to range
-            const scaledValue = Math.floor((a / (a + b || 1)) * (rangeEnd - rangeStart)) + rangeStart;
-            sequence.push(Math.max(rangeStart, Math.min(rangeEnd, scaledValue)));
-            
-            // Next Fibonacci number
-            const temp = a + b;
-            a = b;
-            b = temp;
+    // Set random seed and update display
+    setRandomSeed() {
+        const randomSeed = this.generateRandomSeed();
+        if (elements.seedInput) {
+            elements.seedInput.value = randomSeed;
+            this.updateSeedDisplay(randomSeed);
         }
-        
-        return sequence;
-    },
-    
-    // Generate random sequence
-    generateRandom(length, rangeStart, rangeEnd) {
-        const sequence = [];
-        for (let i = 0; i < length; i++) {
-            sequence.push(Math.floor(Math.random() * (rangeEnd - rangeStart + 1)) + rangeStart);
-        }
-        return sequence;
-    },
-    
-    // Generate linear sequence
-    generateLinear(length, rangeStart, rangeEnd) {
-        const sequence = [];
-        const step = (rangeEnd - rangeStart) / (length - 1);
-        
-        for (let i = 0; i < length; i++) {
-            sequence.push(Math.floor(rangeStart + (step * i)));
-        }
-        
-        return sequence;
-    },
-    
-    // Generate custom sequence (placeholder)
-    generateCustom(length, rangeStart, rangeEnd) {
-        // For now, return linear sequence
-        return this.generateLinear(length, rangeStart, rangeEnd);
-    },
-    
-    // Apply noise factor to seed
-    applyNoise(seed, noiseFactor) {
-        if (noiseFactor === 0) return seed;
-        
-        const range = Math.abs(seed) * noiseFactor;
-        const noise = (Math.random() - 0.5) * 2 * range;
-        return Math.floor(seed + noise);
-    },
-    
-    // Update sequence and get current seed
-    updateSequence(forceRecalculation = false) {
-        const sequenceType = elements.sequenceType?.value || 'Fibonacci';
-        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
-        const rangeStart = parseInt(elements.seedRangeStart?.value) || 10;
-        const rangeEnd = parseInt(elements.seedRangeEnd?.value) || 1000;
-        const position = parseInt(elements.currentSeed?.value) || 0;
-        const noiseFactor = parseFloat(elements.noiseFactor?.value) || 0;
-        
-        // Regenerate sequence if needed
-        if (forceRecalculation || this.currentSequence.length === 0 || this.currentSequence.length !== maxLength) {
-            this.currentSequence = this.generateSequence(sequenceType, maxLength, rangeStart, rangeEnd);
-            console.log(`🎲 Generated ${sequenceType} sequence:`, this.currentSequence);
-        }
-        
-        // Get current seed with noise
-        const baseSeed = this.currentSequence[position] || 0;
-        const finalSeed = this.applyNoise(baseSeed, noiseFactor);
-        
-        // Update display
-        this.updateDisplay(finalSeed, sequenceType, position, maxLength);
-        
-        return finalSeed;
-    },
-    
-    // Update display elements
-    updateDisplay(seed, sequenceType, position, maxLength) {
-        if (elements.currentSeedDisplay) {
-            elements.currentSeedDisplay.textContent = seed.toString();
-        }
-        
-        if (elements.sequenceInfo) {
-            elements.sequenceInfo.textContent = `(${sequenceType} sequence, position ${position + 1}/${maxLength})`;
-        }
-        
-        // Update navigation button states
-        if (elements.seedPrev) {
-            elements.seedPrev.disabled = position === 0;
-        }
-        
-        if (elements.seedNext) {
-            elements.seedNext.disabled = position >= maxLength - 1;
-        }
-    },
-    
-    // Navigate to previous seed
-    navigatePrevious() {
-        const currentPos = parseInt(elements.currentSeed?.value) || 0;
-        if (currentPos > 0) {
-            elements.currentSeed.value = currentPos - 1;
-            this.updateSequence();
-        }
-    },
-    
-    // Navigate to next seed
-    navigateNext() {
-        const currentPos = parseInt(elements.currentSeed?.value) || 0;
-        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
-        if (currentPos < maxLength - 1) {
-            elements.currentSeed.value = currentPos + 1;
-            this.updateSequence();
-        }
-    },
-    
-    // Toggle collapse state
-    toggleCollapse() {
-        const controls = elements.advancedSeedControls;
-        const toggle = elements.seedCollapseToggle;
-        
-        if (controls && toggle) {
-            const isCollapsed = controls.classList.contains('collapsed');
-            
-            if (isCollapsed) {
-                controls.classList.remove('collapsed');
-                toggle.classList.remove('collapsed');
-            } else {
-                controls.classList.add('collapsed');
-                toggle.classList.add('collapsed');
-            }
-        }
-    },
-    
-    // Validate sequence parameters
-    validateSequenceParams() {
-        const rangeStart = parseInt(elements.seedRangeStart?.value) || 10;
-        const rangeEnd = parseInt(elements.seedRangeEnd?.value) || 1000;
-        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
-        const position = parseInt(elements.currentSeed?.value) || 0;
-        
-        const errors = [];
-        
-        if (rangeStart >= rangeEnd) {
-            errors.push('Range start must be less than range end');
-        }
-        
-        if (maxLength < 1 || maxLength > 100) {
-            errors.push('Max sequence length must be between 1 and 100');
-        }
-        
-        if (position >= maxLength) {
-            errors.push('Current position must be less than max sequence length');
-        }
-        
-        return { valid: errors.length === 0, errors };
+        console.log(`🎲 Generated random seed: ${randomSeed}`);
+        return randomSeed;
     }
 };
 
@@ -1710,11 +1525,6 @@ const Validation = {
                 return { isValid: false, errors };
             }
             
-            // Validate advanced seed parameters
-            const seedValidation = AdvancedSeedUtils.validateSequenceParams();
-            if (!seedValidation.valid) {
-                errors.push(...seedValidation.errors);
-            }
             
             // Check for basic workflow structure issues
             let nodeCount = 0;
@@ -2581,9 +2391,11 @@ async function generateImages(workflowData) {
         console.log('🖼️ Generation completed successfully:', pollResult);
         
         // Extract and display images
+        console.log('📊 Poll result outputs:', pollResult.outputs);
         const imageUrls = Utils.extractImageUrls(pollResult.outputs);
         
         if (imageUrls.length === 0) {
+            console.error('❌ No images found in outputs. Full poll result:', pollResult);
             throw new Error('No images were generated');
         }
 
@@ -2874,6 +2686,16 @@ function initializeFormSubmission() {
         console.log('✅ All form fields and workflow validated successfully');
         Validation.clearValidationErrors();
         
+        // Auto-generate seed if Random checkbox is checked
+        if (elements.randomSeedCheckbox && elements.randomSeedCheckbox.checked) {
+            const randomSeed = SeedUtils.generateRandomSeed();
+            if (elements.seedInput) {
+                elements.seedInput.value = randomSeed;
+                SeedUtils.updateSeedDisplay(randomSeed);
+                console.log(`🎲 Auto-generated random seed: ${randomSeed}`);
+            }
+        }
+        
         // Collect current form data
         const formData = Utils.collectFormData();
         if (!formData) {
@@ -2927,102 +2749,43 @@ function initializePromptToolbar() {
     });
 }
 
-// Initialize Advanced Seed Controls
+// Initialize Simple Seed Controls
 function initializeSeedControls() {
-    console.log('🎲 Initializing advanced seed controls...');
+    console.log('🎲 Initializing simple seed controls...');
     
-    // Initialize sequence and display
-    AdvancedSeedUtils.updateSequence(true);
-    
-    // Collapse toggle
-    if (elements.seedCollapseToggle) {
-        elements.seedCollapseToggle.addEventListener('click', () => {
-            AdvancedSeedUtils.toggleCollapse();
+    // Initialize seed display
+    if (elements.seedInput) {
+        const currentSeed = elements.seedInput.value || 1;
+        SeedUtils.updateSeedDisplay(currentSeed);
+        
+        // Update display when seed input changes
+        elements.seedInput.addEventListener('input', () => {
+            const seed = elements.seedInput.value || 1;
+            SeedUtils.updateSeedDisplay(seed);
         });
-        console.log('✅ Seed collapse toggle initialized');
+        console.log('✅ Seed input initialized');
     }
     
-    // Navigation buttons
-    if (elements.seedPrev) {
-        elements.seedPrev.addEventListener('click', () => {
-            AdvancedSeedUtils.navigatePrevious();
+    // Random seed button
+    if (elements.randomSeedButton) {
+        elements.randomSeedButton.addEventListener('click', () => {
+            SeedUtils.setRandomSeed();
         });
-        console.log('✅ Seed previous button initialized');
+        console.log('✅ Random seed button initialized');
     }
     
-    if (elements.seedNext) {
-        elements.seedNext.addEventListener('click', () => {
-            AdvancedSeedUtils.navigateNext();
-        });
-        console.log('✅ Seed next button initialized');
-    }
-    
-    // Current seed position input
-    if (elements.currentSeed) {
-        elements.currentSeed.addEventListener('input', () => {
-            AdvancedSeedUtils.updateSequence();
-        });
-        console.log('✅ Current seed position initialized');
-    }
-    
-    // Sequence type change
-    if (elements.sequenceType) {
-        elements.sequenceType.addEventListener('change', () => {
-            AdvancedSeedUtils.updateSequence(true);
-        });
-        console.log('✅ Sequence type selector initialized');
-    }
-    
-    // Range inputs
-    if (elements.seedRangeStart) {
-        elements.seedRangeStart.addEventListener('input', () => {
-            AdvancedSeedUtils.updateSequence(true);
-        });
-        console.log('✅ Seed range start initialized');
-    }
-    
-    if (elements.seedRangeEnd) {
-        elements.seedRangeEnd.addEventListener('input', () => {
-            AdvancedSeedUtils.updateSequence(true);
-        });
-        console.log('✅ Seed range end initialized');
-    }
-    
-    // Max sequence length change
-    if (elements.maxSequenceLength) {
-        elements.maxSequenceLength.addEventListener('input', () => {
-            const maxLength = parseInt(elements.maxSequenceLength.value);
-            const currentPos = parseInt(elements.currentSeed.value);
+    // Random seed checkbox
+    if (elements.randomSeedCheckbox) {
+        elements.randomSeedCheckbox.addEventListener('change', () => {
+            const isChecked = elements.randomSeedCheckbox.checked;
+            console.log(`🎲 Random seed checkbox ${isChecked ? 'enabled' : 'disabled'}`);
             
-            // Update current seed max value
-            elements.currentSeed.max = maxLength - 1;
-            
-            // Reset position if it exceeds new max
-            if (currentPos >= maxLength) {
-                elements.currentSeed.value = maxLength - 1;
-            }
-            
-            AdvancedSeedUtils.updateSequence(true);
-        });
-        console.log('✅ Max sequence length initialized');
-    }
-    
-    // Noise factor change
-    if (elements.noiseFactor) {
-        elements.noiseFactor.addEventListener('input', () => {
-            AdvancedSeedUtils.updateSequence();
-        });
-        console.log('✅ Noise factor initialized');
-    }
-    
-    // Force recalculation toggle
-    if (elements.forceRecalculation) {
-        elements.forceRecalculation.addEventListener('change', () => {
-            if (elements.forceRecalculation.checked) {
-                AdvancedSeedUtils.updateSequence(true);
+            // If checkbox is checked, generate a new random seed immediately
+            if (isChecked) {
+                SeedUtils.setRandomSeed();
             }
         });
-        console.log('✅ Force recalculation toggle initialized');
+        console.log('✅ Random seed checkbox initialized');
     }
 }
 
