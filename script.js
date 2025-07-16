@@ -333,7 +333,21 @@ const elements = {
     progressContainer: document.getElementById('progress-container'),
     progressPercentage: document.getElementById('progress-percentage'),
     progressBar: document.getElementById('progress-bar'),
-    progressStep: document.getElementById('progress-step')
+    progressStep: document.getElementById('progress-step'),
+    // Advanced seed control elements
+    seedCollapseToggle: document.getElementById('seed-collapse-toggle'),
+    currentSeedDisplay: document.getElementById('current-seed-display'),
+    sequenceInfo: document.getElementById('sequence-info'),
+    advancedSeedControls: document.getElementById('advanced-seed-controls'),
+    sequenceType: document.getElementById('sequence-type'),
+    seedRangeStart: document.getElementById('seed-range-start'),
+    seedRangeEnd: document.getElementById('seed-range-end'),
+    maxSequenceLength: document.getElementById('max-sequence-length'),
+    currentSeed: document.getElementById('current-seed'),
+    seedPrev: document.getElementById('seed-prev'),
+    seedNext: document.getElementById('seed-next'),
+    noiseFactor: document.getElementById('noise-factor'),
+    forceRecalculation: document.getElementById('force-recalculation')
 };
 
 // Utility Functions
@@ -494,6 +508,7 @@ const Utils = {
             width: 512,
             height: 512,
             batchSize: 1,
+            seed: -1,
             positivePrompt: '',
             foundNodes: {
                 ksampler: false,
@@ -561,6 +576,10 @@ const Utils = {
                         parameters.cfg = parseFloat(inputs.cfg) || parameters.cfg;
                         console.log(`  ⚙️ Found CFG (${nodeType}): ${parameters.cfg}`);
                     }
+                    if (inputs.seed !== undefined) {
+                        parameters.seed = parseInt(inputs.seed) || parameters.seed;
+                        console.log(`  🎲 Found seed (${nodeType}): ${parameters.seed}`);
+                    }
                 }
                 
                 // Extract FluxSampler parameters
@@ -577,6 +596,10 @@ const Utils = {
                         const cfgValue = inputs.cfg || inputs.guidance || inputs.guidance_scale;
                         parameters.cfg = parseFloat(cfgValue) || parameters.cfg;
                         console.log(`  ⚙️ Found CFG/guidance (${nodeType}): ${parameters.cfg}`);
+                    }
+                    if (inputs.seed !== undefined) {
+                        parameters.seed = parseInt(inputs.seed) || parameters.seed;
+                        console.log(`  🎲 Found seed (${nodeType}): ${parameters.seed}`);
                     }
                 }
                 
@@ -771,7 +794,15 @@ const Utils = {
                 width: parseInt(document.querySelector('[data-linked="width"]')?.value) || 512,
                 height: parseInt(document.querySelector('[data-linked="height"]')?.value) || 512,
                 batchSize: parseInt(document.querySelector('[data-linked="batch-size"]')?.value) || 1,
-                positivePrompt: document.getElementById('positive-prompt')?.value?.trim() || ''
+                positivePrompt: document.getElementById('positive-prompt')?.value?.trim() || '',
+                // Advanced seed parameters
+                sequenceType: elements.sequenceType?.value || 'Fibonacci',
+                maxSequenceLength: parseInt(elements.maxSequenceLength?.value) || 20,
+                seedRangeStart: parseInt(elements.seedRangeStart?.value) || 10,
+                seedRangeEnd: parseInt(elements.seedRangeEnd?.value) || 1000,
+                currentSeed: parseInt(elements.currentSeed?.value) || 0,
+                noiseFactor: parseFloat(elements.noiseFactor?.value) || 0,
+                forceRecalculation: elements.forceRecalculation?.checked || false
             };
             
             console.log('📊 Collected form data:', formData);
@@ -819,7 +850,8 @@ const Utils = {
                 ksampler: 0,
                 emptyLatentImage: 0,
                 clipTextEncode: 0,
-                fluxGuidance: 0
+                fluxGuidance: 0,
+                advancedSeedNode: 0
             };
             
             // Modify each node as needed
@@ -831,8 +863,54 @@ const Utils = {
                 
                 const nodeRef = isOldFormat ? modifiedWorkflow[node.nodeId] : node;
                 
-                // Modify KSampler parameters
-                if (nodeType === 'KSampler' || nodeType === 'KSamplerAdvanced') {
+                // Modify AdvancedSequenceSeedNode parameters
+                if (nodeType === 'AdvancedSequenceSeedNode') {
+                    if (nodeRef.inputs) {
+                        // Get current seed from sequence
+                        const currentSeed = AdvancedSeedUtils.updateSequence(formData.forceRecalculation);
+                        
+                        if (nodeRef.inputs.sequence_type !== undefined) {
+                            const oldType = nodeRef.inputs.sequence_type;
+                            nodeRef.inputs.sequence_type = formData.sequenceType;
+                            console.log(`  🎲 Updated sequence type: ${oldType} → ${formData.sequenceType}`);
+                        }
+                        if (nodeRef.inputs.max_sequence_length !== undefined) {
+                            const oldLength = nodeRef.inputs.max_sequence_length;
+                            nodeRef.inputs.max_sequence_length = formData.maxSequenceLength;
+                            console.log(`  🎲 Updated max sequence length: ${oldLength} → ${formData.maxSequenceLength}`);
+                        }
+                        if (nodeRef.inputs.seed_range_start !== undefined) {
+                            const oldStart = nodeRef.inputs.seed_range_start;
+                            nodeRef.inputs.seed_range_start = formData.seedRangeStart;
+                            console.log(`  🎲 Updated seed range start: ${oldStart} → ${formData.seedRangeStart}`);
+                        }
+                        if (nodeRef.inputs.seed_range_end !== undefined) {
+                            const oldEnd = nodeRef.inputs.seed_range_end;
+                            nodeRef.inputs.seed_range_end = formData.seedRangeEnd;
+                            console.log(`  🎲 Updated seed range end: ${oldEnd} → ${formData.seedRangeEnd}`);
+                        }
+                        if (nodeRef.inputs.current_seed !== undefined) {
+                            const oldCurrent = nodeRef.inputs.current_seed;
+                            nodeRef.inputs.current_seed = formData.currentSeed;
+                            console.log(`  🎲 Updated current seed position: ${oldCurrent} → ${formData.currentSeed}`);
+                        }
+                        if (nodeRef.inputs.noise_factor !== undefined) {
+                            const oldNoise = nodeRef.inputs.noise_factor;
+                            nodeRef.inputs.noise_factor = formData.noiseFactor;
+                            console.log(`  🎲 Updated noise factor: ${oldNoise} → ${formData.noiseFactor}`);
+                        }
+                        if (nodeRef.inputs.force_recalculation !== undefined) {
+                            const oldForce = nodeRef.inputs.force_recalculation;
+                            nodeRef.inputs.force_recalculation = formData.forceRecalculation;
+                            console.log(`  🎲 Updated force recalculation: ${oldForce} → ${formData.forceRecalculation}`);
+                        }
+                        
+                        modifications.advancedSeedNode++;
+                    }
+                }
+                
+                // Modify KSampler parameters (keep for backward compatibility)
+                else if (nodeType === 'KSampler' || nodeType === 'KSamplerAdvanced') {
                     if (nodeRef.inputs) {
                         if (nodeRef.inputs.steps !== undefined) {
                             const oldSteps = nodeRef.inputs.steps;
@@ -920,6 +998,7 @@ const Utils = {
             if (modifications.fluxGuidance > 0) modifiedFields.push('Flux Guidance');
             if (modifications.emptyLatentImage > 0) modifiedFields.push('Image Dimensions');
             if (modifications.clipTextEncode > 0) modifiedFields.push('Prompt');
+            if (modifications.advancedSeedNode > 0) modifiedFields.push('Advanced Seed Sequence');
             
             if (modifiedFields.length > 0) {
                 Utils.showToast(`Modified: ${modifiedFields.join(', ')}`, 'success');
@@ -986,6 +1065,13 @@ const Utils = {
                 console.log(`✅ Set batch size to: ${parameters.batchSize}`);
             }
             
+            // Update seed
+            if (elements.seedInput) {
+                elements.seedInput.value = parameters.seed;
+                SeedUtils.updateSeedDisplay(parameters.seed);
+                console.log(`✅ Set seed to: ${parameters.seed}`);
+            }
+            
             // Update positive prompt
             const promptTextarea = document.getElementById('positive-prompt');
             if (promptTextarea && parameters.positivePrompt) {
@@ -998,8 +1084,8 @@ const Utils = {
             const controllableFields = [];
             
             if (parameters.foundNodes.ksampler) {
-                populatedFields.push('Steps & CFG');
-                controllableFields.push('Steps & CFG');
+                populatedFields.push('Steps, CFG & Seed');
+                controllableFields.push('Steps, CFG & Seed');
             }
             if (parameters.foundNodes.emptyLatentImage) {
                 populatedFields.push('Dimensions & Batch Size');
@@ -1085,6 +1171,13 @@ const Utils = {
         console.log(`🚀 Submitting workflow to ComfyUI: ${url}`);
 
         try {
+            // Create manual AbortController for cross-browser compatibility
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.log('⏱️ ComfyUI submission timeout after 30 seconds');
+                controller.abort();
+            }, 30000); // 30 second timeout
+
             const response = await fetch(url, {
                 method: 'POST',
                 headers: {
@@ -1095,8 +1188,11 @@ const Utils = {
                     prompt: workflowData,
                     client_id: this.generateClientId()
                 }),
-                signal: AbortSignal.timeout(30000) // 30 second timeout
+                signal: controller.signal // Manual timeout for browser compatibility
             });
+
+            // Clear timeout if request succeeds
+            clearTimeout(timeoutId);
 
             if (!response.ok) {
                 const errorText = await response.text();
@@ -1128,13 +1224,23 @@ const Utils = {
         
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
+                // Create manual AbortController for cross-browser compatibility
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    console.log('⏱️ History polling timeout after 10 seconds');
+                    controller.abort();
+                }, 10000); // 10 second timeout
+
                 const response = await fetch(`${AppState.apiEndpoint}/history/${promptId}`, {
                     method: 'GET',
                     headers: {
                         'Accept': 'application/json'
                     },
-                    signal: AbortSignal.timeout(10000)
+                    signal: controller.signal // Manual timeout for browser compatibility
                 });
+
+                // Clear timeout if request succeeds
+                clearTimeout(timeoutId);
 
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -1235,6 +1341,192 @@ const Utils = {
     }
 };
 
+// Advanced Seed Utility Functions
+const AdvancedSeedUtils = {
+    // Current sequence cache
+    currentSequence: [],
+    currentPosition: 0,
+    
+    // Sequence generation algorithms
+    generateSequence(type, length, rangeStart, rangeEnd) {
+        const sequence = [];
+        
+        switch (type) {
+            case 'Fibonacci':
+                return this.generateFibonacci(length, rangeStart, rangeEnd);
+            case 'Random':
+                return this.generateRandom(length, rangeStart, rangeEnd);
+            case 'Linear':
+                return this.generateLinear(length, rangeStart, rangeEnd);
+            case 'Custom':
+                return this.generateCustom(length, rangeStart, rangeEnd);
+            default:
+                return this.generateFibonacci(length, rangeStart, rangeEnd);
+        }
+    },
+    
+    // Generate Fibonacci sequence within range
+    generateFibonacci(length, rangeStart, rangeEnd) {
+        const sequence = [];
+        let a = 0, b = 1;
+        
+        for (let i = 0; i < length; i++) {
+            // Scale Fibonacci number to range
+            const scaledValue = Math.floor((a / (a + b || 1)) * (rangeEnd - rangeStart)) + rangeStart;
+            sequence.push(Math.max(rangeStart, Math.min(rangeEnd, scaledValue)));
+            
+            // Next Fibonacci number
+            const temp = a + b;
+            a = b;
+            b = temp;
+        }
+        
+        return sequence;
+    },
+    
+    // Generate random sequence
+    generateRandom(length, rangeStart, rangeEnd) {
+        const sequence = [];
+        for (let i = 0; i < length; i++) {
+            sequence.push(Math.floor(Math.random() * (rangeEnd - rangeStart + 1)) + rangeStart);
+        }
+        return sequence;
+    },
+    
+    // Generate linear sequence
+    generateLinear(length, rangeStart, rangeEnd) {
+        const sequence = [];
+        const step = (rangeEnd - rangeStart) / (length - 1);
+        
+        for (let i = 0; i < length; i++) {
+            sequence.push(Math.floor(rangeStart + (step * i)));
+        }
+        
+        return sequence;
+    },
+    
+    // Generate custom sequence (placeholder)
+    generateCustom(length, rangeStart, rangeEnd) {
+        // For now, return linear sequence
+        return this.generateLinear(length, rangeStart, rangeEnd);
+    },
+    
+    // Apply noise factor to seed
+    applyNoise(seed, noiseFactor) {
+        if (noiseFactor === 0) return seed;
+        
+        const range = Math.abs(seed) * noiseFactor;
+        const noise = (Math.random() - 0.5) * 2 * range;
+        return Math.floor(seed + noise);
+    },
+    
+    // Update sequence and get current seed
+    updateSequence(forceRecalculation = false) {
+        const sequenceType = elements.sequenceType?.value || 'Fibonacci';
+        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
+        const rangeStart = parseInt(elements.seedRangeStart?.value) || 10;
+        const rangeEnd = parseInt(elements.seedRangeEnd?.value) || 1000;
+        const position = parseInt(elements.currentSeed?.value) || 0;
+        const noiseFactor = parseFloat(elements.noiseFactor?.value) || 0;
+        
+        // Regenerate sequence if needed
+        if (forceRecalculation || this.currentSequence.length === 0 || this.currentSequence.length !== maxLength) {
+            this.currentSequence = this.generateSequence(sequenceType, maxLength, rangeStart, rangeEnd);
+            console.log(`🎲 Generated ${sequenceType} sequence:`, this.currentSequence);
+        }
+        
+        // Get current seed with noise
+        const baseSeed = this.currentSequence[position] || 0;
+        const finalSeed = this.applyNoise(baseSeed, noiseFactor);
+        
+        // Update display
+        this.updateDisplay(finalSeed, sequenceType, position, maxLength);
+        
+        return finalSeed;
+    },
+    
+    // Update display elements
+    updateDisplay(seed, sequenceType, position, maxLength) {
+        if (elements.currentSeedDisplay) {
+            elements.currentSeedDisplay.textContent = seed.toString();
+        }
+        
+        if (elements.sequenceInfo) {
+            elements.sequenceInfo.textContent = `(${sequenceType} sequence, position ${position + 1}/${maxLength})`;
+        }
+        
+        // Update navigation button states
+        if (elements.seedPrev) {
+            elements.seedPrev.disabled = position === 0;
+        }
+        
+        if (elements.seedNext) {
+            elements.seedNext.disabled = position >= maxLength - 1;
+        }
+    },
+    
+    // Navigate to previous seed
+    navigatePrevious() {
+        const currentPos = parseInt(elements.currentSeed?.value) || 0;
+        if (currentPos > 0) {
+            elements.currentSeed.value = currentPos - 1;
+            this.updateSequence();
+        }
+    },
+    
+    // Navigate to next seed
+    navigateNext() {
+        const currentPos = parseInt(elements.currentSeed?.value) || 0;
+        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
+        if (currentPos < maxLength - 1) {
+            elements.currentSeed.value = currentPos + 1;
+            this.updateSequence();
+        }
+    },
+    
+    // Toggle collapse state
+    toggleCollapse() {
+        const controls = elements.advancedSeedControls;
+        const toggle = elements.seedCollapseToggle;
+        
+        if (controls && toggle) {
+            const isCollapsed = controls.classList.contains('collapsed');
+            
+            if (isCollapsed) {
+                controls.classList.remove('collapsed');
+                toggle.classList.remove('collapsed');
+            } else {
+                controls.classList.add('collapsed');
+                toggle.classList.add('collapsed');
+            }
+        }
+    },
+    
+    // Validate sequence parameters
+    validateSequenceParams() {
+        const rangeStart = parseInt(elements.seedRangeStart?.value) || 10;
+        const rangeEnd = parseInt(elements.seedRangeEnd?.value) || 1000;
+        const maxLength = parseInt(elements.maxSequenceLength?.value) || 20;
+        const position = parseInt(elements.currentSeed?.value) || 0;
+        
+        const errors = [];
+        
+        if (rangeStart >= rangeEnd) {
+            errors.push('Range start must be less than range end');
+        }
+        
+        if (maxLength < 1 || maxLength > 100) {
+            errors.push('Max sequence length must be between 1 and 100');
+        }
+        
+        if (position >= maxLength) {
+            errors.push('Current position must be less than max sequence length');
+        }
+        
+        return { valid: errors.length === 0, errors };
+    }
+};
+
 // Form Validation
 const Validation = {
     validateSteps(value) {
@@ -1288,6 +1580,7 @@ const Validation = {
         const width = widthElement?.value || '';
         const height = heightElement?.value || '';
         const batchSize = batchSizeElement?.value || '';
+        const seed = elements.seedInput?.value || '';
         const prompt = promptElement?.value?.trim() || '';
 
         // Validate each field with null checks
@@ -1296,7 +1589,8 @@ const Validation = {
             { field: 'cfg', value: cfg, validator: this.validateCFG, element: cfgElement },
             { field: 'width', value: width, validator: this.validateDimensions, element: widthElement },
             { field: 'height', value: height, validator: this.validateDimensions, element: heightElement },
-            { field: 'batch-size', value: batchSize, validator: this.validateBatchSize, element: batchSizeElement }
+            { field: 'batch-size', value: batchSize, validator: this.validateBatchSize, element: batchSizeElement },
+            { field: 'seed', value: seed, validator: SeedUtils.validateSeed, element: elements.seedInput }
         ];
 
         validations.forEach(({ field, value, validator, element }) => {
@@ -1397,6 +1691,70 @@ const Validation = {
             const errorMsg = group.querySelector('.error-message');
             if (errorMsg) errorMsg.remove();
         });
+    },
+
+    // Validate workflow compatibility with current form values
+    validateWorkflowCompatibility(workflowData) {
+        const errors = [];
+        
+        if (!workflowData) {
+            errors.push('No workflow data provided');
+            return { isValid: false, errors };
+        }
+        
+        try {
+            // Get current form values
+            const formData = Utils.collectFormData();
+            if (!formData) {
+                errors.push('Could not collect form data');
+                return { isValid: false, errors };
+            }
+            
+            // Validate advanced seed parameters
+            const seedValidation = AdvancedSeedUtils.validateSequenceParams();
+            if (!seedValidation.valid) {
+                errors.push(...seedValidation.errors);
+            }
+            
+            // Check for basic workflow structure issues
+            let nodeCount = 0;
+            if (workflowData.nodes && Array.isArray(workflowData.nodes)) {
+                nodeCount = workflowData.nodes.length;
+            } else {
+                // Count numbered keys for old format
+                nodeCount = Object.keys(workflowData).filter(key => !isNaN(key)).length;
+            }
+            
+            if (nodeCount === 0) {
+                errors.push('Workflow contains no nodes');
+            } else if (nodeCount < 3) {
+                errors.push('Workflow appears incomplete (too few nodes)');
+            }
+            
+            // Check for extremely large values that might cause issues
+            if (formData.width > 2048 || formData.height > 2048) {
+                errors.push('Image dimensions are very large - this may cause memory issues');
+            }
+            
+            if (formData.steps > 100) {
+                errors.push('Step count is very high - this may take a long time to generate');
+            }
+            
+            if (formData.cfg > 30) {
+                errors.push('CFG scale is very high - this may produce poor quality images');
+            }
+            
+            if (formData.batchSize > 4) {
+                errors.push('Large batch size may cause memory issues');
+            }
+            
+            return { isValid: errors.length === 0, errors };
+            
+        } catch (error) {
+            console.error('Error validating workflow compatibility:', error);
+            errors.push('Failed to validate workflow compatibility');
+            return { isValid: false, errors };
+        }
     }
 };
 
@@ -1980,6 +2338,21 @@ function initializeConnectionTest() {
 function classifyError(error) {
     const message = error.message.toLowerCase();
     
+    // Timeout errors
+    if (message.includes('aborted') || message.includes('timeout')) {
+        return {
+            title: 'Request Timeout',
+            details: 'The request to ComfyUI took too long to complete',
+            suggestions: [
+                'Check if ComfyUI is running and responding',
+                'Verify your network connection is stable',
+                'Try a simpler workflow to test connectivity',
+                'Consider increasing timeout settings if using complex workflows'
+            ],
+            type: 'timeout'
+        };
+    }
+    
     // Network and connection errors
     if (message.includes('failed to fetch') || message.includes('network error')) {
         return {
@@ -1995,17 +2368,40 @@ function classifyError(error) {
         };
     }
     
-    // HTTP status errors
+    // HTTP status errors - Enhanced error messages
     if (message.includes('http 400')) {
+        let details = 'The workflow contains invalid parameters or missing nodes';
+        let suggestions = [
+            'Check that all required nodes are present in your workflow',
+            'Verify parameter values are within valid ranges',
+            'Try uploading a different workflow file',
+            'Check ComfyUI console for detailed validation errors'
+        ];
+        
+        // Try to provide more specific error information
+        if (message.includes('missing')) {
+            details = 'Required nodes or connections are missing from the workflow';
+            suggestions = [
+                'Ensure all nodes referenced in the workflow are present',
+                'Check for broken connections between nodes',
+                'Verify that all required custom nodes are installed',
+                'Try regenerating the workflow from ComfyUI'
+            ];
+        } else if (message.includes('invalid') || message.includes('error')) {
+            details = 'Parameter values are outside valid ranges or incompatible';
+            suggestions = [
+                'Check if seed value is within valid range (-2,147,483,648 to 2,147,483,647)',
+                'Verify image dimensions are appropriate (e.g., 512x512, 1024x1024)',
+                'Ensure CFG scale is reasonable (typically 1-20)',
+                'Check that steps count is appropriate (typically 20-150)',
+                'Verify prompt length is not too long'
+            ];
+        }
+        
         return {
             title: 'Invalid Workflow Configuration',
-            details: 'The workflow contains invalid parameters or missing nodes',
-            suggestions: [
-                'Check that all required nodes are present in your workflow',
-                'Verify parameter values are within valid ranges',
-                'Try uploading a different workflow file',
-                'Check ComfyUI console for detailed validation errors'
-            ],
+            details: details,
+            suggestions: suggestions,
             type: 'validation'
         };
     }
@@ -2312,14 +2708,55 @@ function showGenerationError(errorClassification) {
             </div>
             
             <div class="error-actions">
-                <button class="primary-button" onclick="location.reload()">Try Again</button>
-                <button class="secondary-button" onclick="Validation.clearValidationErrors(); Utils.showToast('Error cleared', 'info');">Clear Error</button>
+                <button class="primary-button" onclick="clearErrorAndRetry()">Try Again</button>
+                <button class="secondary-button" onclick="clearErrorDisplay()">Clear Error</button>
             </div>
         </div>
     `;
     
     elements.resultsArea.innerHTML = errorHtml;
 }
+
+// Error Recovery Functions
+window.clearErrorAndRetry = function() {
+    // Clear any validation errors
+    Validation.clearValidationErrors();
+    
+    // Reset the results area to empty state
+    elements.resultsArea.innerHTML = `
+        <div class="empty-state">
+            <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                <path fill="currentColor" d="M21,17H7V3A1,1 0 0,1 8,2H20A1,1 0 0,1 21,3V17M19,19H5V5H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19H19M11,6H18V8H11V6M11,10H18V12H11V10M11,14H18V16H11V14Z" />
+            </svg>
+            <p class="empty-text">Upload a workflow and click Generate to see results here</p>
+        </div>
+    `;
+    
+    // Show helpful message
+    Utils.showToast('Error cleared - ready to try again', 'info');
+    
+    // Focus on the generate button
+    if (elements.generateButton) {
+        elements.generateButton.focus();
+    }
+};
+
+window.clearErrorDisplay = function() {
+    // Clear any validation errors
+    Validation.clearValidationErrors();
+    
+    // Reset the results area to empty state
+    elements.resultsArea.innerHTML = `
+        <div class="empty-state">
+            <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                <path fill="currentColor" d="M21,17H7V3A1,1 0 0,1 8,2H20A1,1 0 0,1 21,3V17M19,19H5V5H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19H19M11,6H18V8H11V6M11,10H18V12H11V10M11,14H18V16H11V14Z" />
+            </svg>
+            <p class="empty-text">Upload a workflow and click Generate to see results here</p>
+        </div>
+    `;
+    
+    Utils.showToast('Error cleared', 'info');
+};
 
 // Download Functions
 window.downloadImage = function(url, filename) {
@@ -2426,7 +2863,15 @@ function initializeFormSubmission() {
             return;
         }
         
-        console.log('✅ All form fields validated successfully');
+        // Additional workflow-specific validation
+        const workflowValidation = Validation.validateWorkflowCompatibility(AppState.workflowData);
+        if (!workflowValidation.isValid) {
+            console.warn('❌ Workflow validation failed:', workflowValidation.errors);
+            Utils.showToast(`Workflow validation failed: ${workflowValidation.errors.join(', ')}`, 'error');
+            return;
+        }
+        
+        console.log('✅ All form fields and workflow validated successfully');
         Validation.clearValidationErrors();
         
         // Collect current form data
@@ -2482,6 +2927,105 @@ function initializePromptToolbar() {
     });
 }
 
+// Initialize Advanced Seed Controls
+function initializeSeedControls() {
+    console.log('🎲 Initializing advanced seed controls...');
+    
+    // Initialize sequence and display
+    AdvancedSeedUtils.updateSequence(true);
+    
+    // Collapse toggle
+    if (elements.seedCollapseToggle) {
+        elements.seedCollapseToggle.addEventListener('click', () => {
+            AdvancedSeedUtils.toggleCollapse();
+        });
+        console.log('✅ Seed collapse toggle initialized');
+    }
+    
+    // Navigation buttons
+    if (elements.seedPrev) {
+        elements.seedPrev.addEventListener('click', () => {
+            AdvancedSeedUtils.navigatePrevious();
+        });
+        console.log('✅ Seed previous button initialized');
+    }
+    
+    if (elements.seedNext) {
+        elements.seedNext.addEventListener('click', () => {
+            AdvancedSeedUtils.navigateNext();
+        });
+        console.log('✅ Seed next button initialized');
+    }
+    
+    // Current seed position input
+    if (elements.currentSeed) {
+        elements.currentSeed.addEventListener('input', () => {
+            AdvancedSeedUtils.updateSequence();
+        });
+        console.log('✅ Current seed position initialized');
+    }
+    
+    // Sequence type change
+    if (elements.sequenceType) {
+        elements.sequenceType.addEventListener('change', () => {
+            AdvancedSeedUtils.updateSequence(true);
+        });
+        console.log('✅ Sequence type selector initialized');
+    }
+    
+    // Range inputs
+    if (elements.seedRangeStart) {
+        elements.seedRangeStart.addEventListener('input', () => {
+            AdvancedSeedUtils.updateSequence(true);
+        });
+        console.log('✅ Seed range start initialized');
+    }
+    
+    if (elements.seedRangeEnd) {
+        elements.seedRangeEnd.addEventListener('input', () => {
+            AdvancedSeedUtils.updateSequence(true);
+        });
+        console.log('✅ Seed range end initialized');
+    }
+    
+    // Max sequence length change
+    if (elements.maxSequenceLength) {
+        elements.maxSequenceLength.addEventListener('input', () => {
+            const maxLength = parseInt(elements.maxSequenceLength.value);
+            const currentPos = parseInt(elements.currentSeed.value);
+            
+            // Update current seed max value
+            elements.currentSeed.max = maxLength - 1;
+            
+            // Reset position if it exceeds new max
+            if (currentPos >= maxLength) {
+                elements.currentSeed.value = maxLength - 1;
+            }
+            
+            AdvancedSeedUtils.updateSequence(true);
+        });
+        console.log('✅ Max sequence length initialized');
+    }
+    
+    // Noise factor change
+    if (elements.noiseFactor) {
+        elements.noiseFactor.addEventListener('input', () => {
+            AdvancedSeedUtils.updateSequence();
+        });
+        console.log('✅ Noise factor initialized');
+    }
+    
+    // Force recalculation toggle
+    if (elements.forceRecalculation) {
+        elements.forceRecalculation.addEventListener('change', () => {
+            if (elements.forceRecalculation.checked) {
+                AdvancedSeedUtils.updateSequence(true);
+            }
+        });
+        console.log('✅ Force recalculation toggle initialized');
+    }
+}
+
 // Initialize Application
 function initializeApp() {
     console.log('🚀 Initializing ComfyUI JSON Workflow Runner...');
@@ -2527,6 +3071,7 @@ function initializeApp() {
         initializeFormSubmission();
         initializeClearResults();
         initializePromptToolbar();
+        initializeSeedControls();
         
         // Initialize WebSocket connection
         initializeWebSocket();
