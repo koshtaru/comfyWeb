@@ -1160,8 +1160,16 @@ function initializeSliders() {
 }
 
 // File Upload Handling
+let fileUploadInitialized = false;
+
 function initializeFileUpload() {
     console.log('🔧 Initializing file upload...');
+    
+    // Prevent duplicate initialization
+    if (fileUploadInitialized) {
+        console.log('⚠️ File upload already initialized, skipping...');
+        return;
+    }
     
     const fileInput = elements.fileUpload;
     const uploadArea = elements.fileUploadArea;
@@ -1182,10 +1190,39 @@ function initializeFileUpload() {
     console.log('✅ File upload DOM elements found');
     
     try {
-        // Click to upload
-        uploadArea.addEventListener('click', () => {
+        let lastClickTime = 0;
+        const debounceDelay = 500; // 500ms debounce
+        
+        // Click to upload with debouncing
+        uploadArea.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const now = Date.now();
+            if (now - lastClickTime < debounceDelay) {
+                console.log('🚫 Click ignored due to debouncing');
+                return;
+            }
+            lastClickTime = now;
+            
             console.log('📁 Upload area clicked, triggering file input');
-            fileInput.click();
+            
+            // Enhanced file input triggering with fallback
+            try {
+                fileInput.click();
+                console.log('✅ File input click triggered successfully');
+            } catch (error) {
+                console.error('❌ Failed to trigger file input click:', error);
+                // Fallback: focus and then trigger
+                try {
+                    fileInput.focus();
+                    fileInput.click();
+                    console.log('✅ File input click triggered via fallback method');
+                } catch (fallbackError) {
+                    console.error('❌ Fallback file input trigger also failed:', fallbackError);
+                    Utils.showToast('Unable to open file dialog. Please try refreshing the page.', 'error');
+                }
+            }
         });
         
         // Drag and drop
@@ -1212,16 +1249,28 @@ function initializeFileUpload() {
             }
         });
         
-        // File input change
+        // File input change with enhanced logging
         fileInput.addEventListener('change', (e) => {
             console.log(`📁 File input changed: ${e.target.files.length} file(s)`);
+            console.log('📁 File input element:', e.target);
+            console.log('📁 Files object:', e.target.files);
+            
             if (e.target.files.length > 0) {
-                console.log(`📁 Processing selected file: ${e.target.files[0].name}`);
-                handleFileUpload(e.target.files[0]);
+                const file = e.target.files[0];
+                console.log(`📁 Processing selected file: ${file.name}`, {
+                    name: file.name,
+                    size: file.size,
+                    type: file.type,
+                    lastModified: new Date(file.lastModified)
+                });
+                handleFileUpload(file);
+            } else {
+                console.warn('⚠️ No files selected from file input');
             }
         });
         
         console.log('✅ File upload event listeners attached successfully');
+        fileUploadInitialized = true;
     } catch (error) {
         console.error('❌ Error setting up file upload event listeners:', error);
         Utils.showToast('File upload initialization failed', 'error');
