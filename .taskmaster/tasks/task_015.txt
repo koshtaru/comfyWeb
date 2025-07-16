@@ -9,3 +9,35 @@ Create styled dropdown component for sampler selection: DPM++ 2M, DPM++ SDE, DPM
 
 # Test Strategy:
 Unit tests for sampler detection and workflow updating. Component tests for dropdown functionality and validation. Integration tests with workflow modification system. Manual testing with different workflow structures containing KSampler nodes.
+
+# Subtasks:
+## 1. Define Sampler Data Structure and Constants [pending]
+### Dependencies: None
+### Description: Create comprehensive data structure containing all ComfyUI sampler configurations with metadata
+### Details:
+Define TypeScript interface for sampler options including id, display name, description, and characteristics. Create constant array with all 13 samplers: DPM++ 2M, DPM++ SDE, DPM++ 2M Karras, DPM++ SDE Karras, Euler, Euler A, LMS, Heun, DPM2, DPM2 A, DDIM, PLMS, UniPC. Include detailed tooltips explaining each sampler's strengths, use cases, and performance characteristics. Organize samplers into logical groups (DPM variants, classic samplers, modern samplers) for better UI organization.
+
+## 2. Build Styled Dropdown Component with Dark Theme [pending]
+### Dependencies: 15.1
+### Description: Implement custom dropdown component matching Stable Diffusion WebUI design system
+### Details:
+Create React dropdown component with dark theme styling (#1f2937 background, #ff7c00 hover states). Implement custom dropdown arrow, smooth open/close animations, and proper z-index layering. Add search/filter functionality for quick sampler selection. Style dropdown options with proper padding, hover effects, and selection indicators. Implement keyboard navigation (arrow keys, enter, escape) and ARIA attributes for accessibility. Include loading state for when samplers are being detected from workflow.
+
+## 3. Implement KSampler Detection and Value Extraction [pending]
+### Dependencies: None
+### Description: Create robust workflow parser to detect KSampler nodes and extract current sampler values
+### Details:
+Develop utility functions to traverse ComfyUI workflow JSON structure and locate all KSampler nodes. Extract sampler_name field from node inputs and handle various workflow formats. Support detection of multiple KSampler nodes and determine primary sampler. Handle edge cases: missing sampler field, invalid sampler names, corrupted workflow JSON. Create fallback mechanism to use default sampler (DPM++ 2M Karras) when detection fails. Log detection results for debugging.
+
+## 4. Create Workflow Update Logic with Validation [pending]
+### Dependencies: 15.3
+### Description: Implement functionality to update workflow JSON when sampler selection changes
+### Details:
+Build workflow modification system that updates sampler_name in all detected KSampler nodes. Implement validation to ensure selected sampler is compatible with workflow configuration. Create deep copy of workflow before modifications to support undo functionality. Handle nested node structures and preserve all other workflow settings. Emit events for workflow changes to trigger UI updates. Add error handling for update failures with user-friendly error messages.
+
+## 5. Integrate Sampler Component with Advanced Parameters Section [pending]
+### Dependencies: 15.2, 15.4
+### Description: Connect sampler dropdown to Advanced Parameters UI section with proper state management
+### Details:
+Integrate sampler dropdown into Advanced Parameters accordion section with consistent spacing and alignment. Implement state management to sync sampler selection with workflow state. Add informative label 'Sampling Method' with help icon linking to detailed sampler guide. Create smooth transitions when sampler changes update other UI elements. Connect to existing form validation system to ensure sampler compatibility. Add visual feedback (green checkmark) when sampler is successfully detected from workflow.
+

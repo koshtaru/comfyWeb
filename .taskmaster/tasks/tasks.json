@@ -401,7 +401,63 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Metadata Parser Module",
+            "description": "Build a robust parser to extract metadata from ComfyUI history API responses",
+            "dependencies": [],
+            "details": "Create a metadata parser module that handles various ComfyUI response formats. Parse workflow execution data to extract: prompt text, negative prompt, model name/hash, sampler type, scheduler, CFG scale, steps, seed values, image dimensions (width/height), batch size, clip skip, VAE settings. Handle nested JSON structures and optional fields gracefully. Create type definitions for metadata structure. Implement error handling for malformed or incomplete responses.",
+            "status": "pending",
+            "testStrategy": "Unit tests with sample ComfyUI responses covering different workflow types. Test parsing of all standard parameters and edge cases with missing fields. Validate type safety and error handling."
+          },
+          {
+            "id": 2,
+            "title": "Implement Timing Information Calculator",
+            "description": "Create functions to calculate and format generation timing data from ComfyUI responses",
+            "dependencies": [
+              1
+            ],
+            "details": "Extract timestamp data from ComfyUI history responses including start time, end time, and node execution times. Calculate total generation duration in seconds/minutes. Format timestamps for display (e.g., '2 min 34 sec' or 'Started at 14:23:45'). Calculate per-step timing if available. Handle timezone conversions for accurate local time display. Create utility functions for consistent time formatting across the UI.",
+            "status": "pending",
+            "testStrategy": "Unit tests for timing calculations with various duration ranges. Test timestamp formatting and timezone handling. Validate accuracy of duration calculations."
+          },
+          {
+            "id": 3,
+            "title": "Design Metadata Display Component Structure",
+            "description": "Create React component architecture for the metadata panel with proper state management",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Design MetadataPanel component with collapsible/expandable sections. Create sub-components for parameter groups: Generation Settings (model, sampler, steps, CFG), Prompt Information (positive/negative with truncation), Image Properties (dimensions, batch size), Timing Data (start, duration, completion). Implement component state for expand/collapse functionality. Use React hooks for state management and memoization for performance. Structure components for reusability and maintainability.",
+            "status": "pending",
+            "testStrategy": "Component tests for state management and prop handling. Test expand/collapse functionality and data flow between components. Validate component rendering with various metadata configurations."
+          },
+          {
+            "id": 4,
+            "title": "Implement Dark Theme Styling and Layout",
+            "description": "Apply consistent dark theme styling to metadata panel matching the design system",
+            "dependencies": [
+              3
+            ],
+            "details": "Style metadata panel with dark theme colors: background #181825, borders #2A2A40, text hierarchy using #FFFFFF, #8B8B9A. Implement collapsible sections with smooth CSS transitions. Create organized layout with proper spacing: 16px padding, 8px between items. Style parameter labels with #8B8B9A and values with #FFFFFF. Add hover states for interactive elements. Implement responsive layout for mobile screens. Use CSS Grid or Flexbox for parameter organization. Add subtle shadows and rounded corners matching design system.",
+            "status": "pending",
+            "testStrategy": "Visual regression tests for styling consistency. Test responsive behavior across screen sizes. Validate color contrast for accessibility. Manual testing of animations and transitions."
+          },
+          {
+            "id": 5,
+            "title": "Add Copy-to-Clipboard and Integration Features",
+            "description": "Implement clipboard functionality and integrate metadata panel with existing UI",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Add copy buttons for individual parameters and full metadata export. Implement clipboard API with fallback for older browsers. Create formatted text output for sharing (JSON or readable text format). Show success feedback on copy actions. Integrate metadata panel into main UI layout, positioning below image display. Connect to WebSocket service to receive and display metadata for completed generations. Update panel automatically when new images are generated. Add loading states while fetching metadata.",
+            "status": "pending",
+            "testStrategy": "Integration tests for clipboard functionality across browsers. Test metadata updates from WebSocket events. User testing for copy feature usability. Test panel integration with existing UI components."
+          }
+        ]
       },
       {
         "id": 15,
@@ -412,7 +468,60 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define Sampler Data Structure and Constants",
+            "description": "Create comprehensive data structure containing all ComfyUI sampler configurations with metadata",
+            "dependencies": [],
+            "details": "Define TypeScript interface for sampler options including id, display name, description, and characteristics. Create constant array with all 13 samplers: DPM++ 2M, DPM++ SDE, DPM++ 2M Karras, DPM++ SDE Karras, Euler, Euler A, LMS, Heun, DPM2, DPM2 A, DDIM, PLMS, UniPC. Include detailed tooltips explaining each sampler's strengths, use cases, and performance characteristics. Organize samplers into logical groups (DPM variants, classic samplers, modern samplers) for better UI organization.",
+            "status": "pending",
+            "testStrategy": "Unit tests to verify sampler data structure completeness and accuracy. Validate all sampler IDs match ComfyUI's expected values. Test tooltip content for clarity and technical accuracy."
+          },
+          {
+            "id": 2,
+            "title": "Build Styled Dropdown Component with Dark Theme",
+            "description": "Implement custom dropdown component matching Stable Diffusion WebUI design system",
+            "dependencies": [
+              1
+            ],
+            "details": "Create React dropdown component with dark theme styling (#1f2937 background, #ff7c00 hover states). Implement custom dropdown arrow, smooth open/close animations, and proper z-index layering. Add search/filter functionality for quick sampler selection. Style dropdown options with proper padding, hover effects, and selection indicators. Implement keyboard navigation (arrow keys, enter, escape) and ARIA attributes for accessibility. Include loading state for when samplers are being detected from workflow.",
+            "status": "pending",
+            "testStrategy": "Component tests for dropdown open/close behavior, option selection, and keyboard navigation. Visual regression tests for styling consistency. Accessibility tests with screen readers."
+          },
+          {
+            "id": 3,
+            "title": "Implement KSampler Detection and Value Extraction",
+            "description": "Create robust workflow parser to detect KSampler nodes and extract current sampler values",
+            "dependencies": [],
+            "details": "Develop utility functions to traverse ComfyUI workflow JSON structure and locate all KSampler nodes. Extract sampler_name field from node inputs and handle various workflow formats. Support detection of multiple KSampler nodes and determine primary sampler. Handle edge cases: missing sampler field, invalid sampler names, corrupted workflow JSON. Create fallback mechanism to use default sampler (DPM++ 2M Karras) when detection fails. Log detection results for debugging.",
+            "status": "pending",
+            "testStrategy": "Unit tests with various workflow JSON structures including single/multiple KSampler nodes. Test edge cases with missing or malformed sampler data. Integration tests with real ComfyUI workflow files."
+          },
+          {
+            "id": 4,
+            "title": "Create Workflow Update Logic with Validation",
+            "description": "Implement functionality to update workflow JSON when sampler selection changes",
+            "dependencies": [
+              3
+            ],
+            "details": "Build workflow modification system that updates sampler_name in all detected KSampler nodes. Implement validation to ensure selected sampler is compatible with workflow configuration. Create deep copy of workflow before modifications to support undo functionality. Handle nested node structures and preserve all other workflow settings. Emit events for workflow changes to trigger UI updates. Add error handling for update failures with user-friendly error messages.",
+            "status": "pending",
+            "testStrategy": "Unit tests for workflow update logic with various node configurations. Test preservation of other workflow parameters during updates. Integration tests with workflow modification system."
+          },
+          {
+            "id": 5,
+            "title": "Integrate Sampler Component with Advanced Parameters Section",
+            "description": "Connect sampler dropdown to Advanced Parameters UI section with proper state management",
+            "dependencies": [
+              2,
+              4
+            ],
+            "details": "Integrate sampler dropdown into Advanced Parameters accordion section with consistent spacing and alignment. Implement state management to sync sampler selection with workflow state. Add informative label 'Sampling Method' with help icon linking to detailed sampler guide. Create smooth transitions when sampler changes update other UI elements. Connect to existing form validation system to ensure sampler compatibility. Add visual feedback (green checkmark) when sampler is successfully detected from workflow.",
+            "status": "pending",
+            "testStrategy": "Integration tests for sampler component within Advanced Parameters section. Test state synchronization between dropdown and workflow. Manual testing of UI interactions and visual feedback."
+          }
+        ]
       },
       {
         "id": 16,
@@ -425,7 +534,63 @@
           15
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Scheduler Dropdown Component",
+            "description": "Build the core dropdown component for scheduler selection with all supported scheduler options",
+            "dependencies": [],
+            "details": "Create a React component that renders a dropdown/select element populated with all supported scheduler types: normal, karras, exponential, sgm_uniform, simple, ddim_uniform, and beta. Implement basic state management for selected scheduler. Style the component to match the existing sampler dropdown in the Advanced Parameters section, maintaining consistent spacing, borders, and typography.",
+            "status": "pending",
+            "testStrategy": "Unit tests for component rendering with all scheduler options. Test dropdown interaction and state changes. Verify styling matches design system specifications."
+          },
+          {
+            "id": 2,
+            "title": "Implement Sampler-Scheduler Compatibility Validation",
+            "description": "Create validation logic to prevent invalid sampler-scheduler combinations",
+            "dependencies": [
+              1
+            ],
+            "details": "Build a compatibility matrix or validation function that defines which schedulers are compatible with which samplers. Research ComfyUI's sampler-scheduler compatibility rules to ensure accuracy. Implement validation that runs when either sampler or scheduler changes, disabling incompatible options in the scheduler dropdown and showing visual indicators for invalid selections. Create clear error messages when incompatible combinations are selected.",
+            "status": "pending",
+            "testStrategy": "Unit tests for compatibility validation logic with all sampler-scheduler combinations. Test edge cases and ensure no valid combinations are incorrectly flagged. Verify error messages are helpful and accurate."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Scheduler Selection with Workflow JSON",
+            "description": "Connect the scheduler dropdown to read from and write to the workflow JSON structure",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement functionality to read the current scheduler value from the KSampler node in the workflow JSON and populate the dropdown on component mount. Create an update handler that modifies the scheduler field in the appropriate KSampler node when the user selects a new scheduler. Ensure the modification preserves all other workflow data and handles cases where multiple KSampler nodes exist.",
+            "status": "pending",
+            "testStrategy": "Integration tests verifying scheduler value is correctly read from workflow JSON. Test workflow updates preserve all other data. Verify handling of multiple KSampler nodes."
+          },
+          {
+            "id": 4,
+            "title": "Add Scheduler Tooltips and Help Information",
+            "description": "Implement informative tooltips explaining each scheduler type and their differences",
+            "dependencies": [
+              1
+            ],
+            "details": "Create tooltip components that appear on hover or click for each scheduler option. Research and write clear, concise explanations for each scheduler type (normal, karras, exponential, etc.) focusing on their practical differences and use cases. Include information about performance implications and recommended scenarios for each scheduler. Implement accessible tooltip behavior with keyboard navigation support.",
+            "status": "pending",
+            "testStrategy": "Unit tests for tooltip display logic and content rendering. Accessibility tests for keyboard navigation. User testing to verify tooltip clarity and helpfulness."
+          },
+          {
+            "id": 5,
+            "title": "Complete Integration Testing and UI Polish",
+            "description": "Perform comprehensive testing of the scheduler component with the full application workflow",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "Conduct end-to-end testing of the scheduler selection feature within the complete generation workflow. Verify the component integrates smoothly with existing sampler selection and other advanced parameters. Test cross-browser compatibility for dropdown styling and behavior. Ensure smooth state transitions and proper error handling when switching between valid and invalid combinations. Polish any UI inconsistencies and ensure responsive design works correctly.",
+            "status": "pending",
+            "testStrategy": "E2E tests for complete generation workflow with scheduler selection. Cross-browser testing on Chrome, Firefox, Safari, and Edge. Performance testing for dropdown responsiveness with validation. User acceptance testing for overall experience."
+          }
+        ]
       },
       {
         "id": 17,
@@ -436,7 +601,64 @@
         "priority": "medium",
         "dependencies": [],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Seed Input Component with Validation",
+            "description": "Build the core seed input field with proper validation rules and visual feedback",
+            "dependencies": [],
+            "details": "Implement a controlled input component that accepts seed values from -1 to 2^32-1 (4294967295). Add real-time validation with error messages for out-of-range values. Style the input field using the dark theme design system with proper borders, padding, and typography. Include proper type conversion to handle string inputs and convert to numbers. Add visual indicators for special -1 value (random seed) vs fixed seed values with different border colors or icons.",
+            "status": "pending",
+            "testStrategy": "Unit tests for validation logic covering edge cases (-2, 0, 2^32, strings, decimals). Component tests for input behavior, error display, and visual states. Test type conversion and number formatting."
+          },
+          {
+            "id": 2,
+            "title": "Implement Random Seed Generator with Crypto API",
+            "description": "Add button to generate cryptographically secure random seed values",
+            "dependencies": [
+              1
+            ],
+            "details": "Create a button component that uses the Web Crypto API (crypto.getRandomValues) to generate secure random numbers within the valid seed range (0 to 2^32-1). Style the button with dark theme consistency and add appropriate icons. Implement click handler that generates new seed and updates the input field. Add visual feedback (animation or state change) when generating. Handle browser compatibility for crypto API with fallback to Math.random if needed.",
+            "status": "pending",
+            "testStrategy": "Unit tests for random number generation within valid range. Mock crypto API for consistent testing. Verify button click updates input field correctly. Test fallback behavior for browsers without crypto API support."
+          },
+          {
+            "id": 3,
+            "title": "Build Increment/Decrement Controls for Seed Manipulation",
+            "description": "Create +/- buttons for fine-tuning seed values with proper boundary handling",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement increment (+1) and decrement (-1) buttons positioned adjacent to the seed input. Handle edge cases: wrapping from max value to 0, preventing negative values below -1, and special behavior at -1 (skip to 0 when incrementing). Style buttons with consistent dark theme, proper sizing, and hover states. Add keyboard shortcuts (up/down arrows) when input is focused. Implement hold-to-repeat functionality for rapid value changes.",
+            "status": "pending",
+            "testStrategy": "Unit tests for increment/decrement logic at boundaries. Component tests for button interactions and keyboard shortcuts. Test hold-to-repeat timing and acceleration. Verify proper value wrapping and -1 special case handling."
+          },
+          {
+            "id": 4,
+            "title": "Integrate localStorage Persistence for Seed Values",
+            "description": "Implement automatic saving and loading of seed values across browser sessions",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Create a custom React hook (useSeedPersistence) that automatically saves seed values to localStorage whenever they change. Load saved seed on component mount, with proper error handling for corrupted data. Implement debouncing to avoid excessive localStorage writes during rapid changes. Add migration logic for future schema changes. Create utility functions for seed storage with proper key namespacing to avoid conflicts.",
+            "status": "pending",
+            "testStrategy": "Unit tests for localStorage read/write operations with mocked storage. Test error handling for quota exceeded and corrupted data. Verify debouncing behavior. Test migration scenarios and namespace isolation."
+          },
+          {
+            "id": 5,
+            "title": "Connect Seed Control to Workflow JSON Updates",
+            "description": "Implement bidirectional synchronization between seed input and workflow JSON",
+            "dependencies": [
+              1,
+              4
+            ],
+            "details": "Create functions to detect and extract seed values from KSampler nodes in the workflow JSON. Implement automatic population of seed input when workflow is loaded or changed. Add real-time updates to workflow JSON when seed value changes, maintaining proper node structure. Handle multiple KSampler nodes by updating all instances. Preserve other node parameters when updating seed. Add error handling for malformed workflow JSON or missing nodes.",
+            "status": "pending",
+            "testStrategy": "Integration tests with sample workflow JSON containing various KSampler configurations. Test seed extraction and update logic. Verify multiple node handling. Test error cases with malformed JSON. Ensure other parameters remain unchanged during seed updates."
+          }
+        ]
       },
       {
         "id": 18,
@@ -451,7 +673,61 @@
           17
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Workflow Modification Service",
+            "description": "Build a service layer that extends the existing parseAndModifyWorkflow function to handle advanced parameters",
+            "dependencies": [],
+            "details": "Create a WorkflowModificationService class that encapsulates all workflow modification logic. Extend the existing parseAndModifyWorkflow function to accept advanced parameters (sampler name, scheduler, seed mode, seed value). Implement methods for parameter validation before modification. Create a unified interface for all parameter updates including basic and advanced parameters. Ensure the service maintains backward compatibility with existing workflow modification functionality.",
+            "status": "pending",
+            "testStrategy": "Unit tests for service initialization and method signatures. Test parameter validation logic with valid and invalid inputs. Verify backward compatibility with existing workflow modifications. Test service integration with current workflow modification pipeline."
+          },
+          {
+            "id": 2,
+            "title": "Implement Advanced Parameter Node Detection",
+            "description": "Develop detection logic for KSampler nodes to identify and extract advanced parameter fields",
+            "dependencies": [
+              1
+            ],
+            "details": "Enhance node detection to identify sampler_name, scheduler, seed_mode, and seed fields in KSampler nodes. Build robust traversal logic that handles nested node structures and varying workflow formats. Create helper functions to extract current advanced parameter values from detected nodes. Implement fallback mechanisms for workflows that may have different node structures or missing fields. Add support for detecting multiple KSampler nodes and tracking their relationships.",
+            "status": "pending",
+            "testStrategy": "Test detection with various ComfyUI workflow structures including simple and complex multi-node setups. Verify accurate extraction of all advanced parameters. Test edge cases with malformed or legacy workflow formats. Validate handling of workflows with multiple KSampler nodes."
+          },
+          {
+            "id": 3,
+            "title": "Build Advanced Parameter Injection System",
+            "description": "Create the mechanism to inject advanced parameters into KSampler nodes while preserving workflow integrity",
+            "dependencies": [
+              2
+            ],
+            "details": "Implement injection logic that updates sampler_name, scheduler, and seed configuration in KSampler node inputs. Handle seed mode switching between 'fixed', 'random', and 'increment' with appropriate seed value updates. Preserve all other node parameters and connections unchanged. Create conflict resolution logic for multiple KSampler nodes based on user preferences or node hierarchy. Ensure injected parameters maintain proper data types and value ranges.",
+            "status": "pending",
+            "testStrategy": "Integration tests verifying parameter injection accuracy. Test preservation of unmodified workflow elements. Validate data type consistency after injection. Test multi-node workflows with different parameter combinations. Verify seed mode switching functionality."
+          },
+          {
+            "id": 4,
+            "title": "Implement Parameter Validation and Compatibility Checks",
+            "description": "Create comprehensive validation system for advanced parameter combinations and workflow compatibility",
+            "dependencies": [
+              3
+            ],
+            "details": "Build validation rules for sampler-scheduler compatibility based on ComfyUI requirements. Implement seed value validation for different seed modes (e.g., positive integers for fixed/increment modes). Create compatibility matrix for valid parameter combinations. Add workflow structure validation to ensure target nodes support advanced parameters. Implement clear error messaging for validation failures with suggested corrections. Create validation bypass options for experimental parameter combinations.",
+            "status": "pending",
+            "testStrategy": "Unit tests for individual validation rules. Test invalid parameter combinations and error message clarity. Verify compatibility matrix accuracy with known ComfyUI constraints. Test validation performance with large workflows. Validate error handling and recovery mechanisms."
+          },
+          {
+            "id": 5,
+            "title": "Integrate with Workflow Submission Pipeline",
+            "description": "Connect the advanced parameter system to the existing workflow submission and persistence infrastructure",
+            "dependencies": [
+              4
+            ],
+            "details": "Integrate WorkflowModificationService into the existing workflow submission pipeline. Ensure advanced parameters are applied before workflow submission to ComfyUI. Implement parameter persistence in localStorage alongside basic parameters. Add advanced parameter state to workflow history tracking. Create hooks for the UI to trigger advanced parameter updates. Ensure seamless integration with existing error handling and recovery mechanisms. Add logging for parameter modifications for debugging.",
+            "status": "pending",
+            "testStrategy": "E2E tests verifying parameters persist through complete generation pipeline. Test parameter recovery after page refresh. Verify integration with existing submission error handling. Test concurrent parameter updates and submissions. Validate logging output for troubleshooting."
+          }
+        ]
       },
       {
         "id": 19,
@@ -466,7 +742,61 @@
           17
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Advanced Parameters Container Component",
+            "description": "Build the main collapsible container component for housing all advanced parameter controls with dark theme styling",
+            "dependencies": [],
+            "details": "Create a React component that serves as the collapsible container for advanced parameters. Implement accordion-style expansion/collapse functionality with smooth CSS transitions. Style with dark theme colors (#181825 background, #0b0f19 borders) and proper spacing (16px padding). Add chevron icon that rotates on expand/collapse. Implement state persistence in localStorage to remember expanded/collapsed state between sessions. Include proper ARIA attributes (aria-expanded, aria-controls) for accessibility.",
+            "status": "pending",
+            "testStrategy": "Unit tests for expand/collapse logic and localStorage persistence. Visual regression tests for styling and animations. Accessibility tests for ARIA attributes and keyboard navigation (Enter/Space to toggle)."
+          },
+          {
+            "id": 2,
+            "title": "Design Parameter Grouping Layout System",
+            "description": "Create a flexible layout system for organizing parameter controls into logical groups with responsive behavior",
+            "dependencies": [
+              1
+            ],
+            "details": "Implement a grid-based layout system within the advanced parameters container. Create visual groupings for sampler controls, scheduler options, and seed/randomization settings using subtle borders (#1f2937) and spacing. Design responsive breakpoints (mobile: single column, tablet: 2 columns, desktop: 3 columns). Add group headers with consistent typography (14px, #94a3b8 color). Ensure proper spacing between groups (24px) and within groups (12px). Implement CSS Grid or Flexbox for flexible, maintainable layouts.",
+            "status": "pending",
+            "testStrategy": "Visual tests across different screen sizes and orientations. Component tests for responsive breakpoint behavior. Manual testing on various devices to ensure proper grouping and readability."
+          },
+          {
+            "id": 3,
+            "title": "Integrate Parameter Components into Section",
+            "description": "Mount existing sampler, scheduler, and seed components within the advanced parameters section with proper styling integration",
+            "dependencies": [
+              2
+            ],
+            "details": "Import and integrate the sampler selection dropdown (Task 15), scheduler component (Task 16), and seed control (Task 17) into their designated groups. Ensure consistent styling by applying section-specific CSS classes. Wire up component props and state management. Verify that all components inherit the dark theme styling properly. Add wrapper divs with appropriate spacing and alignment. Ensure form controls maintain their functionality within the new layout structure.",
+            "status": "pending",
+            "testStrategy": "Integration tests verifying all parameter components function correctly within the section. Visual tests ensuring consistent styling across all integrated components. State management tests for parameter value updates."
+          },
+          {
+            "id": 4,
+            "title": "Implement Help Tooltips and Parameter Documentation",
+            "description": "Add contextual help tooltips and explanations for each parameter group to improve user understanding",
+            "dependencies": [
+              3
+            ],
+            "details": "Create a reusable tooltip component with dark theme styling (#1f2937 background, white text). Add info icons (?) next to each parameter group header. Write concise, helpful explanations for samplers (algorithm differences, use cases), schedulers (noise schedule effects), and seed controls (reproducibility concepts). Implement hover/focus triggers with proper delay (300ms show, 100ms hide). Position tooltips intelligently to avoid viewport edges. Include keyboard accessibility (focus shows tooltip).",
+            "status": "pending",
+            "testStrategy": "Component tests for tooltip positioning logic. Accessibility tests for keyboard navigation and screen reader compatibility. Content review for tooltip clarity and accuracy. Cross-browser testing for consistent rendering."
+          },
+          {
+            "id": 5,
+            "title": "Add Accessibility and Keyboard Navigation",
+            "description": "Ensure complete accessibility compliance with ARIA labels, keyboard navigation, and screen reader support",
+            "dependencies": [
+              4
+            ],
+            "details": "Implement full keyboard navigation for the advanced parameters section. Add Tab navigation through all controls in logical order. Implement Enter/Space to expand/collapse the section. Add descriptive ARIA labels for all controls and groups. Ensure proper heading hierarchy (h3 for section title, h4 for group headers). Test with screen readers (NVDA, JAWS) and fix any announcement issues. Add focus indicators that meet WCAG contrast requirements. Include skip links for keyboard users to bypass the section if collapsed.",
+            "status": "pending",
+            "testStrategy": "Automated accessibility testing with axe-core. Manual testing with keyboard-only navigation. Screen reader testing with multiple assistive technologies. WCAG 2.1 AA compliance validation."
+          }
+        ]
       },
       {
         "id": 20,
@@ -483,7 +813,59 @@
           18
         ],
         "status": "pending",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create Global Error Boundary Component",
+            "description": "Build a React error boundary component to catch and handle errors across the entire application",
+            "dependencies": [],
+            "details": "Implement a comprehensive error boundary component that wraps the main App component. Include error logging, fallback UI with retry capability, and error reporting. Add specific error handling for common scenarios like network failures, invalid JSON parsing, and component crashes. Integrate with existing design system for consistent error UI styling.",
+            "status": "pending",
+            "testStrategy": "Unit tests for error boundary lifecycle methods. Integration tests simulating various error types (network, parsing, component errors). E2E tests verifying error recovery flows and user interactions with fallback UI."
+          },
+          {
+            "id": 2,
+            "title": "Implement Toast Notification System",
+            "description": "Create a centralized toast notification service for displaying error and success messages",
+            "dependencies": [],
+            "details": "Build a toast notification system using React context and hooks. Support multiple toast types (error, success, warning, info) with appropriate styling from design system. Implement auto-dismiss with configurable durations, manual dismiss capability, and stacking for multiple simultaneous notifications. Include accessibility features like screen reader announcements and keyboard navigation.",
+            "status": "pending",
+            "testStrategy": "Component tests for toast rendering and animations. Unit tests for notification queue management and timing. Accessibility testing for screen reader compatibility. Integration tests for toast display across different app states."
+          },
+          {
+            "id": 3,
+            "title": "Add WebSocket Error Handling and Retry Logic",
+            "description": "Enhance WebSocket connection manager with comprehensive error handling and automatic retry mechanisms",
+            "dependencies": [
+              2
+            ],
+            "details": "Extend the WebSocket service to handle connection failures, unexpected disconnections, and invalid message formats. Implement exponential backoff for reconnection attempts with configurable max retries. Add connection state indicators and user-friendly error messages via toast notifications. Include manual reconnection option and connection health monitoring.",
+            "status": "pending",
+            "testStrategy": "Unit tests for retry logic with various failure scenarios. Integration tests simulating network interruptions and server errors. E2E tests verifying reconnection behavior and user notifications during connection issues."
+          },
+          {
+            "id": 4,
+            "title": "Create Loading States for Async Operations",
+            "description": "Implement loading indicators and skeleton screens for all asynchronous operations in Phase 2 features",
+            "dependencies": [],
+            "details": "Design and implement loading states for queue operations, parameter updates, scheduler changes, and seed randomization. Create reusable loading components including spinners, skeleton screens, and progress indicators. Ensure loading states prevent duplicate actions and provide clear visual feedback. Integrate with existing UI components maintaining design consistency.",
+            "status": "pending",
+            "testStrategy": "Component tests for loading state transitions. Performance tests ensuring smooth animations. Integration tests verifying loading states during actual API calls. User testing for loading indicator clarity and placement."
+          },
+          {
+            "id": 5,
+            "title": "Implement Graceful Degradation and Feature Detection",
+            "description": "Add capability detection and fallback behaviors when ComfyUI features are unavailable",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Create a feature detection service that checks ComfyUI endpoint availability and capabilities on startup. Implement graceful degradation for missing features: disable unavailable controls, show informative messages, and provide alternative workflows. Add version compatibility checks and feature flags. Include clear user guidance when features are limited or unavailable.",
+            "status": "pending",
+            "testStrategy": "Unit tests for feature detection logic. Integration tests with various ComfyUI configurations and versions. E2E tests verifying UI adaptation to missing features. User testing for clarity of degraded experiences and alternative workflows."
+          }
+        ]
       }
     ],
     "metadata": {

@@ -9,3 +9,35 @@ Create scheduler dropdown component supporting: normal, karras, exponential, sgm
 
 # Test Strategy:
 Unit tests for scheduler-sampler compatibility logic. Component tests for dropdown behavior and validation. Integration tests with workflow JSON modification. Cross-browser testing for dropdown styling and behavior.
+
+# Subtasks:
+## 1. Create Scheduler Dropdown Component [pending]
+### Dependencies: None
+### Description: Build the core dropdown component for scheduler selection with all supported scheduler options
+### Details:
+Create a React component that renders a dropdown/select element populated with all supported scheduler types: normal, karras, exponential, sgm_uniform, simple, ddim_uniform, and beta. Implement basic state management for selected scheduler. Style the component to match the existing sampler dropdown in the Advanced Parameters section, maintaining consistent spacing, borders, and typography.
+
+## 2. Implement Sampler-Scheduler Compatibility Validation [pending]
+### Dependencies: 16.1
+### Description: Create validation logic to prevent invalid sampler-scheduler combinations
+### Details:
+Build a compatibility matrix or validation function that defines which schedulers are compatible with which samplers. Research ComfyUI's sampler-scheduler compatibility rules to ensure accuracy. Implement validation that runs when either sampler or scheduler changes, disabling incompatible options in the scheduler dropdown and showing visual indicators for invalid selections. Create clear error messages when incompatible combinations are selected.
+
+## 3. Integrate Scheduler Selection with Workflow JSON [pending]
+### Dependencies: 16.1
+### Description: Connect the scheduler dropdown to read from and write to the workflow JSON structure
+### Details:
+Implement functionality to read the current scheduler value from the KSampler node in the workflow JSON and populate the dropdown on component mount. Create an update handler that modifies the scheduler field in the appropriate KSampler node when the user selects a new scheduler. Ensure the modification preserves all other workflow data and handles cases where multiple KSampler nodes exist.
+
+## 4. Add Scheduler Tooltips and Help Information [pending]
+### Dependencies: 16.1
+### Description: Implement informative tooltips explaining each scheduler type and their differences
+### Details:
+Create tooltip components that appear on hover or click for each scheduler option. Research and write clear, concise explanations for each scheduler type (normal, karras, exponential, etc.) focusing on their practical differences and use cases. Include information about performance implications and recommended scenarios for each scheduler. Implement accessible tooltip behavior with keyboard navigation support.
+
+## 5. Complete Integration Testing and UI Polish [pending]
+### Dependencies: 16.2, 16.3, 16.4
+### Description: Perform comprehensive testing of the scheduler component with the full application workflow
+### Details:
+Conduct end-to-end testing of the scheduler selection feature within the complete generation workflow. Verify the component integrates smoothly with existing sampler selection and other advanced parameters. Test cross-browser compatibility for dropdown styling and behavior. Ensure smooth state transitions and proper error handling when switching between valid and invalid combinations. Polish any UI inconsistencies and ensure responsive design works correctly.
+

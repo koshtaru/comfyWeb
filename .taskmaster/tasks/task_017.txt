@@ -9,3 +9,35 @@ Create seed input component with validation (range: -1 to 2^32-1). Add random se
 
 # Test Strategy:
 Unit tests for seed validation, generation, and persistence. Component tests for input field behavior and button interactions. Integration tests with workflow modification and localStorage. Edge case testing for seed value limits and special values.
+
+# Subtasks:
+## 1. Create Seed Input Component with Validation [pending]
+### Dependencies: None
+### Description: Build the core seed input field with proper validation rules and visual feedback
+### Details:
+Implement a controlled input component that accepts seed values from -1 to 2^32-1 (4294967295). Add real-time validation with error messages for out-of-range values. Style the input field using the dark theme design system with proper borders, padding, and typography. Include proper type conversion to handle string inputs and convert to numbers. Add visual indicators for special -1 value (random seed) vs fixed seed values with different border colors or icons.
+
+## 2. Implement Random Seed Generator with Crypto API [pending]
+### Dependencies: 17.1
+### Description: Add button to generate cryptographically secure random seed values
+### Details:
+Create a button component that uses the Web Crypto API (crypto.getRandomValues) to generate secure random numbers within the valid seed range (0 to 2^32-1). Style the button with dark theme consistency and add appropriate icons. Implement click handler that generates new seed and updates the input field. Add visual feedback (animation or state change) when generating. Handle browser compatibility for crypto API with fallback to Math.random if needed.
+
+## 3. Build Increment/Decrement Controls for Seed Manipulation [pending]
+### Dependencies: 17.1
+### Description: Create +/- buttons for fine-tuning seed values with proper boundary handling
+### Details:
+Implement increment (+1) and decrement (-1) buttons positioned adjacent to the seed input. Handle edge cases: wrapping from max value to 0, preventing negative values below -1, and special behavior at -1 (skip to 0 when incrementing). Style buttons with consistent dark theme, proper sizing, and hover states. Add keyboard shortcuts (up/down arrows) when input is focused. Implement hold-to-repeat functionality for rapid value changes.
+
+## 4. Integrate localStorage Persistence for Seed Values [pending]
+### Dependencies: 17.1, 17.2, 17.3
+### Description: Implement automatic saving and loading of seed values across browser sessions
+### Details:
+Create a custom React hook (useSeedPersistence) that automatically saves seed values to localStorage whenever they change. Load saved seed on component mount, with proper error handling for corrupted data. Implement debouncing to avoid excessive localStorage writes during rapid changes. Add migration logic for future schema changes. Create utility functions for seed storage with proper key namespacing to avoid conflicts.
+
+## 5. Connect Seed Control to Workflow JSON Updates [pending]
+### Dependencies: 17.1, 17.4
+### Description: Implement bidirectional synchronization between seed input and workflow JSON
+### Details:
+Create functions to detect and extract seed values from KSampler nodes in the workflow JSON. Implement automatic population of seed input when workflow is loaded or changed. Add real-time updates to workflow JSON when seed value changes, maintaining proper node structure. Handle multiple KSampler nodes by updating all instances. Preserve other node parameters when updating seed. Add error handling for malformed workflow JSON or missing nodes.
+

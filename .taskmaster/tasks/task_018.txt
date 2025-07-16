@@ -9,3 +9,35 @@ Create workflow modification service to update JSON with advanced parameters. Im
 
 # Test Strategy:
 Integration tests with various workflow JSON structures. Unit tests for node detection and parameter injection. E2E tests verifying parameters persist through generation pipeline. Validation testing for complex multi-node workflows.
+
+# Subtasks:
+## 1. Create Workflow Modification Service [pending]
+### Dependencies: None
+### Description: Build a service layer that extends the existing parseAndModifyWorkflow function to handle advanced parameters
+### Details:
+Create a WorkflowModificationService class that encapsulates all workflow modification logic. Extend the existing parseAndModifyWorkflow function to accept advanced parameters (sampler name, scheduler, seed mode, seed value). Implement methods for parameter validation before modification. Create a unified interface for all parameter updates including basic and advanced parameters. Ensure the service maintains backward compatibility with existing workflow modification functionality.
+
+## 2. Implement Advanced Parameter Node Detection [pending]
+### Dependencies: 18.1
+### Description: Develop detection logic for KSampler nodes to identify and extract advanced parameter fields
+### Details:
+Enhance node detection to identify sampler_name, scheduler, seed_mode, and seed fields in KSampler nodes. Build robust traversal logic that handles nested node structures and varying workflow formats. Create helper functions to extract current advanced parameter values from detected nodes. Implement fallback mechanisms for workflows that may have different node structures or missing fields. Add support for detecting multiple KSampler nodes and tracking their relationships.
+
+## 3. Build Advanced Parameter Injection System [pending]
+### Dependencies: 18.2
+### Description: Create the mechanism to inject advanced parameters into KSampler nodes while preserving workflow integrity
+### Details:
+Implement injection logic that updates sampler_name, scheduler, and seed configuration in KSampler node inputs. Handle seed mode switching between 'fixed', 'random', and 'increment' with appropriate seed value updates. Preserve all other node parameters and connections unchanged. Create conflict resolution logic for multiple KSampler nodes based on user preferences or node hierarchy. Ensure injected parameters maintain proper data types and value ranges.
+
+## 4. Implement Parameter Validation and Compatibility Checks [pending]
+### Dependencies: 18.3
+### Description: Create comprehensive validation system for advanced parameter combinations and workflow compatibility
+### Details:
+Build validation rules for sampler-scheduler compatibility based on ComfyUI requirements. Implement seed value validation for different seed modes (e.g., positive integers for fixed/increment modes). Create compatibility matrix for valid parameter combinations. Add workflow structure validation to ensure target nodes support advanced parameters. Implement clear error messaging for validation failures with suggested corrections. Create validation bypass options for experimental parameter combinations.
+
+## 5. Integrate with Workflow Submission Pipeline [pending]
+### Dependencies: 18.4
+### Description: Connect the advanced parameter system to the existing workflow submission and persistence infrastructure
+### Details:
+Integrate WorkflowModificationService into the existing workflow submission pipeline. Ensure advanced parameters are applied before workflow submission to ComfyUI. Implement parameter persistence in localStorage alongside basic parameters. Add advanced parameter state to workflow history tracking. Create hooks for the UI to trigger advanced parameter updates. Ensure seamless integration with existing error handling and recovery mechanisms. Add logging for parameter modifications for debugging.
+
