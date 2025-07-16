@@ -1,0 +1,11 @@
+# Task ID: 4
+# Title: Create Parameter Detection and Auto-Population with Styled Forms
+# Status: done
+# Dependencies: 3
+# Priority: medium
+# Description: Parse uploaded JSON to detect and populate current parameter values using design system form components
+# Details:
+Implement functions to traverse workflow JSON and find KSampler nodes (for steps, cfg), EmptyLatentImage nodes (for width, height, batch_size), and CLIPTextEncode nodes (for positive prompt). Auto-populate styled form fields with detected values or use defaults. Style input fields with dark theme (#1f2937 background), blue accent focus states, proper Helvetica Neue typography, and consistent hover effects. Handle cases where target nodes are not found with styled feedback messages.
+
+# Test Strategy:
+Test with various ComfyUI workflow files, verify parameter detection accuracy, test with workflows missing expected node types, validate form styling consistency

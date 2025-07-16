@@ -1,0 +1,212 @@
+# Simplified ComfyUI Frontend - Product Requirements Document
+
+## Project Overview
+
+**Project Name:** ComfyUI JSON Workflow Runner  
+**Version:** 1.0  
+**Date:** July 2025  
+**Goal:** Build a minimal web interface to upload ComfyUI workflow JSON files, modify key parameters, and execute workflows via ComfyUI API.
+
+## Problem Statement
+
+Create a simple web interface that allows users to upload ComfyUI workflow JSON files, modify essential parameters (steps, CFG, image size, prompts, batch size), and execute the workflow through the ComfyUI API.
+
+## Core Objectives
+
+1. **JSON Upload**: Accept ComfyUI workflow JSON files
+2. **Parameter Modification**: Edit key parameters without understanding the full workflow
+3. **API Execution**: Send modified workflow to ComfyUI and display results
+4. **Minimal Complexity**: Keep the interface as simple as possible for easy debugging
+
+## Functional Requirements
+
+### 1. Connection Configuration
+- **Requirement ID:** FR-001
+- **Description:** Set ComfyUI API endpoint
+- **Acceptance Criteria:**
+  - Single input field for API URL (default: `http://localhost:8188`)
+  - Test connection option ("Test" button?)
+  - Visual indicator for connection status
+  - Store endpoint in localStorage
+
+### 2. Workflow JSON Upload
+- **Requirement ID:** FR-002
+- **Description:** Upload and parse ComfyUI workflow JSON
+- **Acceptance Criteria:**
+  - File upload button for JSON files
+  - Display upload status
+  - Basic JSON validation
+  - Show error messages for invalid JSON
+
+### 3. Parameter Controls
+- **Requirement ID:** FR-003
+- **Description:** Modify key workflow parameters
+- **Acceptance Criteria:**
+  - **Steps**: Number input (1-150) (default: 20)
+  - **CFG Scale**: Number input (1-30) (default: 1)
+  - **Width**: Number input (64-2048, increments of 8)
+  - **Height**: Number input (64-2048, increments of 8)
+  - **Positive Prompt**: Text area
+  - **Batch Size**: Number input (1-10)
+  - Auto-detect and populate current values from uploaded JSON
+
+### 4. Workflow Execution
+- **Requirement ID:** FR-004
+- **Description:** Submit modified workflow to ComfyUI
+- **Acceptance Criteria:**
+  - "Generate" button to submit workflow
+  - Loading indicator during generation
+  - Display generation progress if available
+  - Show any API errors clearly
+
+### 5. Image Display
+- **Requirement ID:** FR-005
+- **Description:** Show generated images
+- **Acceptance Criteria:**
+  - Display all generated images (based on batch size)
+  - Download button for each image
+  - Clear previous results option
+
+## Technical Requirements
+
+### Frontend Technology Stack
+- **Framework:** Vanilla HTML/CSS/JavaScript (for simplicity)
+- **Styling:** Basic CSS (no frameworks needed)
+- **HTTP Client:** Fetch API
+- **WebSocket:** Optional - only if progress updates are critical
+
+### ComfyUI API Integration
+- **Base URL:** User configurable
+- **Required Endpoints:**
+  - `POST /prompt` - Submit workflow
+  - `GET /history/{prompt_id}` - Check generation status
+  - `GET /view` - Retrieve generated images
+
+### Workflow JSON Modification Strategy
+The app will:
+1. Parse the uploaded JSON
+2. Search for common node types and update their values:
+   - KSampler nodes → steps, cfg
+   - Empty Latent Image nodes → width, height, batch_size
+   - CLIP Text Encode nodes → text (for positive prompt)
+3. Keep all other workflow parts unchanged
+
+### Example JSON Path Updates
+```javascript
+// Find and update KSampler nodes
+if (node.class_type === "KSampler") {
+  node.inputs.steps = userSteps;
+  node.inputs.cfg = userCFG;
+}
+
+// Find and update Empty Latent Image nodes
+if (node.class_type === "EmptyLatentImage") {
+  node.inputs.width = userWidth;
+  node.inputs.height = userHeight;
+  node.inputs.batch_size = userBatchSize;
+}
+
+// Find and update positive prompt (first CLIP Text Encode)
+if (node.class_type === "CLIPTextEncode" && !foundPositivePrompt) {
+  node.inputs.text = userPositivePrompt;
+  foundPositivePrompt = true;
+}
+```
+
+## User Interface Design
+
+### Single Page Layout
+```
+┌─────────────────────────────────────┐
+│ ComfyUI Workflow Runner             │
+├─────────────────────────────────────┤
+│ API URL: [___________________]      │
+│ Status: ● Connected                 │
+├─────────────────────────────────────┤
+│ Upload Workflow: [Choose File]      │
+│ Status: workflow.json loaded ✓      │
+├─────────────────────────────────────┤
+│ Parameters:                         │
+│   Steps: [20]                       │
+│   CFG: [7.0]                        │
+│   Width: [512]                      │
+│   Height: [512]                     │
+│   Batch Size: [1]                   │
+│   Positive Prompt:                  │
+│   [________________________]        │
+│   [________________________]        │
+├─────────────────────────────────────┤
+│ [Generate] [Clear Results]          │
+├─────────────────────────────────────┤
+│ Results:                            │
+│ [Image] [Image] [Image]             │
+│ [Download] [Download] [Download]    │
+└─────────────────────────────────────┘
+```
+
+## Implementation Steps
+
+1. **Create HTML structure** with form elements
+2. **Add JSON upload handler** with basic validation
+3. **Implement JSON parser** to find and modify target nodes
+4. **Create API communication** functions
+5. **Add image display** functionality
+6. **Test with various workflow JSONs**
+
+## Error Handling
+
+- Invalid JSON format → Show clear error message
+- Missing target nodes → Warn user that parameter couldn't be found
+- API connection errors → Display connection status
+- Generation failures → Show API error response
+
+## Success Criteria
+
+- [ ] Can upload any ComfyUI workflow JSON
+- [ ] Successfully modifies the 6 key parameters
+- [ ] Submits workflow to ComfyUI API
+- [ ] Displays generated images
+- [ ] Total code under 500 lines
+- [ ] No external dependencies except standard web APIs
+
+## Out of Scope
+
+- Workflow creation or visual editing
+- Model/sampler selection
+- Negative prompt modification
+- Image-to-image workflows
+- Workflow validation beyond basic JSON parsing
+- Progress bars (unless trivial to implement)
+- Image gallery or history
+- Preset management
+- Any authentication
+
+## Sample Code Structure
+
+```
+index.html
+├── Basic form UI
+├── File upload input
+├── Parameter inputs
+└── Results display area
+
+script.js
+├── uploadJSON()
+├── parseAndModifyWorkflow()
+├── submitToComfyUI()
+├── pollForResults()
+└── displayImages()
+
+style.css
+└── Minimal styling for clarity
+```
+
+## Development Time Estimate
+
+- **Basic Implementation:** 3-4 hours
+- **Testing & Debugging:** 1-2 hours
+- **Total:** ~5-6 hours
+
+---
+
+*This simplified PRD focuses on the essential functionality needed to run ComfyUI workflows with parameter modifications. The implementation should prioritize simplicity and debuggability over features.*

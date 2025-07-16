@@ -1,0 +1,11 @@
+# Task ID: 6
+# Title: Build ComfyUI API Communication Layer with Loading States
+# Status: pending
+# Dependencies: 2, 5
+# Priority: high
+# Description: Implement functions to submit workflows and retrieve results from ComfyUI API with styled loading indicators
+# Details:
+Create submitToComfyUI() function using POST /prompt endpoint, implement pollForResults() using GET /history/{prompt_id}, handle API response parsing, manage prompt IDs for tracking. Implement styled loading states during API calls using design system patterns - dark backgrounds, blue accent spinners, proper typography for status messages. Add comprehensive error handling for API failures with styled error messages matching the WebUI design patterns.
+
+# Test Strategy:
+Test workflow submission with valid ComfyUI instance, verify prompt ID tracking, test error handling with API failures, validate loading state styling consistency

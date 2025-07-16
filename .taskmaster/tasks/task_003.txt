@@ -1,0 +1,11 @@
+# Task ID: 3
+# Title: Build JSON Workflow Upload and Validation with Styled Components
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Implement file upload functionality with JSON parsing and validation using design system styling
+# Details:
+Create styled file upload handler that accepts only .json files, implement JSON.parse() with try-catch error handling, validate basic JSON structure. Style upload area with dark theme (#1f2937 input background), use blue accent colors for interactive elements, implement drag-and-drop styling with hover states. Display upload status and filename with proper typography (Helvetica Neue), show clear error messages using design system error styling. Store parsed workflow data in memory for modification.
+
+# Test Strategy:
+Test with valid ComfyUI workflow JSON files, test with invalid JSON, test with non-JSON files, verify error messages are clear and follow design patterns, validate visual consistency

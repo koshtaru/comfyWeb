@@ -1,0 +1,197 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": 1,
+        "title": "Create Basic HTML Structure and Project Files",
+        "description": "Set up the fundamental project structure with comprehensive Stable Diffusion WebUI design system implementation",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "details": "Create index.html with two-panel layout: left panel (600px) for controls and right panel for output using flexbox. Include form elements for API URL input, file upload, parameter controls (steps, CFG, width, height, batch size, positive prompt), generate button, and results display area. Implement complete CSS design system with dark theme (#0b0f19 background, #181825 panels), orange gradient generate button (#ff7c00), blue accents (#1f77b4), Helvetica Neue typography, and styled components (sliders, inputs, buttons). Include responsive behavior and interactive states. Create script.js for application logic with semantic HTML structure and proper form validation.",
+        "testStrategy": "Verify HTML renders correctly with proper two-panel layout, all form elements are accessible and styled according to design specifications, responsive behavior works across different screen sizes, hover/focus states function properly, and file structure is organized",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create HTML structure with two-panel flex layout",
+            "description": "Build index.html with left panel (600px) for controls and right panel for output using flexbox layout",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement comprehensive CSS design system",
+            "description": "Create style.css with complete design system: dark theme colors (#0b0f19, #181825), Helvetica Neue typography, component styling for all form elements",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Style generate button with orange gradient",
+            "description": "Implement #ff7c00 orange gradient generate button with hover states and proper typography",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Create styled form controls",
+            "description": "Style sliders, inputs, dropdowns, and other form elements with blue accents (#1f77b4) and consistent design language",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement responsive behavior and interactive states",
+            "description": "Add responsive layout adjustments, hover/focus states, and ensure design system works across different screen sizes",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Create script.js foundation",
+            "description": "Set up basic JavaScript file structure for application logic with proper form validation framework",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Implement API Connection Management with Design System UI",
+        "description": "Build functionality to configure and test ComfyUI API endpoint connection using Stable Diffusion WebUI design patterns",
+        "status": "done",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "details": "Create functions to handle API URL configuration with default value 'http://localhost:8188', implement connection testing via fetch API, add visual status indicators (connected/disconnected) using blue accent colors (#1f77b4) for connected state and red for disconnected. Store endpoint in localStorage for persistence. Style the API configuration panel with dark theme (#181825 panel background), use Helvetica Neue typography, and implement hover/focus states consistent with design system. Include error handling for network failures and invalid URLs with styled error messages.",
+        "testStrategy": "Test connection with valid ComfyUI instance, verify localStorage persistence, test with invalid URLs and offline scenarios, validate design consistency with WebUI components",
+        "subtasks": []
+      },
+      {
+        "id": 3,
+        "title": "Build JSON Workflow Upload and Validation with Styled Components",
+        "description": "Implement file upload functionality with JSON parsing and validation using design system styling",
+        "status": "done",
+        "dependencies": [
+          1
+        ],
+        "priority": "high",
+        "details": "Create styled file upload handler that accepts only .json files, implement JSON.parse() with try-catch error handling, validate basic JSON structure. Style upload area with dark theme (#1f2937 input background), use blue accent colors for interactive elements, implement drag-and-drop styling with hover states. Display upload status and filename with proper typography (Helvetica Neue), show clear error messages using design system error styling. Store parsed workflow data in memory for modification.",
+        "testStrategy": "Test with valid ComfyUI workflow JSON files, test with invalid JSON, test with non-JSON files, verify error messages are clear and follow design patterns, validate visual consistency",
+        "subtasks": []
+      },
+      {
+        "id": 4,
+        "title": "Create Parameter Detection and Auto-Population with Styled Forms",
+        "description": "Parse uploaded JSON to detect and populate current parameter values using design system form components",
+        "status": "done",
+        "dependencies": [
+          3
+        ],
+        "priority": "medium",
+        "details": "Implement functions to traverse workflow JSON and find KSampler nodes (for steps, cfg), EmptyLatentImage nodes (for width, height, batch_size), and CLIPTextEncode nodes (for positive prompt). Auto-populate styled form fields with detected values or use defaults. Style input fields with dark theme (#1f2937 background), blue accent focus states, proper Helvetica Neue typography, and consistent hover effects. Handle cases where target nodes are not found with styled feedback messages.",
+        "testStrategy": "Test with various ComfyUI workflow files, verify parameter detection accuracy, test with workflows missing expected node types, validate form styling consistency",
+        "subtasks": []
+      },
+      {
+        "id": 5,
+        "title": "Implement JSON Workflow Modification Engine",
+        "description": "Build the core functionality to modify workflow parameters in the JSON structure",
+        "status": "pending",
+        "dependencies": [
+          4
+        ],
+        "priority": "high",
+        "details": "Create parseAndModifyWorkflow() function that updates KSampler nodes with user-provided steps and cfg values, updates EmptyLatentImage nodes with width, height, and batch_size, updates first CLIPTextEncode node with positive prompt text. Preserve all other workflow data unchanged. Handle edge cases where multiple nodes of the same type exist. This engine focuses on data manipulation and doesn't require UI styling changes.",
+        "testStrategy": "Verify parameter modifications are applied correctly, test with complex workflows, ensure unmodified parts remain intact",
+        "subtasks": []
+      },
+      {
+        "id": 6,
+        "title": "Build ComfyUI API Communication Layer with Loading States",
+        "description": "Implement functions to submit workflows and retrieve results from ComfyUI API with styled loading indicators",
+        "status": "pending",
+        "dependencies": [
+          2,
+          5
+        ],
+        "priority": "high",
+        "details": "Create submitToComfyUI() function using POST /prompt endpoint, implement pollForResults() using GET /history/{prompt_id}, handle API response parsing, manage prompt IDs for tracking. Implement styled loading states during API calls using design system patterns - dark backgrounds, blue accent spinners, proper typography for status messages. Add comprehensive error handling for API failures with styled error messages matching the WebUI design patterns.",
+        "testStrategy": "Test workflow submission with valid ComfyUI instance, verify prompt ID tracking, test error handling with API failures, validate loading state styling consistency",
+        "subtasks": []
+      },
+      {
+        "id": 7,
+        "title": "Implement Image Retrieval and Display System with Design Consistency",
+        "description": "Build functionality to fetch and display generated images from ComfyUI using styled image galleries",
+        "status": "pending",
+        "dependencies": [
+          6
+        ],
+        "priority": "medium",
+        "details": "Create displayImages() function that retrieves images via GET /view endpoint, handle multiple images based on batch size. Create styled dynamic img elements in results area with dark theme panel backgrounds (#181825), implement blue accent borders for selected/hover states, add proper spacing and typography. Implement styled image loading states with design system spinners, handle image fetch errors gracefully with consistent error styling.",
+        "testStrategy": "Test image display with various batch sizes, verify image loading and error states, test with different image formats, validate visual consistency with design system",
+        "subtasks": []
+      },
+      {
+        "id": 8,
+        "title": "Add Image Download and Results Management with Styled Controls",
+        "description": "Implement download functionality and results clearing options using design system button styles",
+        "status": "pending",
+        "dependencies": [
+          7
+        ],
+        "priority": "medium",
+        "details": "Add styled download buttons for each generated image using orange gradient primary button styling, implement blob URLs and anchor download attributes. Create styled clearResults() function button with secondary styling, manage memory cleanup for blob URLs. Add batch download option with consistent button styling if multiple images exist. All buttons should follow design system patterns with proper hover states, Helvetica Neue typography, and consistent spacing.",
+        "testStrategy": "Test individual image downloads, verify results clearing functionality, test memory management with multiple generations, validate button styling consistency",
+        "subtasks": []
+      },
+      {
+        "id": 9,
+        "title": "Implement User Interface State Management with Design System Feedback",
+        "description": "Add loading indicators, progress states, and user feedback throughout the workflow using consistent styling",
+        "status": "pending",
+        "dependencies": [
+          6,
+          7
+        ],
+        "priority": "medium",
+        "details": "Add styled loading spinners during API calls using blue accent colors, disable generate button during processing with proper disabled state styling. Show generation progress if available from API using styled progress bars with design system colors. Implement comprehensive user feedback for all operations (upload success, parameter changes, generation start/complete) using consistent toast/notification styling with dark backgrounds and proper typography. Add visual states for different application phases maintaining design consistency.",
+        "testStrategy": "Test all loading states and user feedback, verify UI remains responsive during operations, test progress indicators with actual generations, validate all feedback styling matches design system",
+        "subtasks": []
+      },
+      {
+        "id": 10,
+        "title": "Add Comprehensive Error Handling and Validation with Styled Messages",
+        "description": "Implement robust error handling across all application features with design system consistent error styling",
+        "status": "pending",
+        "dependencies": [
+          8,
+          9
+        ],
+        "priority": "high",
+        "details": "Add styled input validation for all parameter fields (steps 1-150, CFG 1-30, dimensions 64-2048 in increments of 8, batch size 1-10) with consistent error styling using red accent colors and proper typography. Implement comprehensive error handling for API failures, JSON parsing errors, network issues, and missing workflow nodes. Display clear, actionable error messages to users using design system error message components with dark backgrounds, proper spacing, and Helvetica Neue font. Ensure all error states maintain visual consistency with the overall design.",
+        "testStrategy": "Test all validation rules, verify error handling for all failure scenarios, ensure error messages are user-friendly and actionable, validate all error styling matches design system patterns",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "created": "2025-07-15T23:00:34.353Z",
+      "updated": "2025-07-16T03:59:00.898Z",
+      "description": "Tasks for master context"
+    }
+  }
+}

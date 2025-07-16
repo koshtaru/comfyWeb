@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComfyUI JSON Workflow Runner</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="main-container">
+        <!-- Left Panel: Controls -->
+        <section class="left-panel" role="region" aria-label="Workflow Controls">
+            <header class="panel-header">
+                <h1 class="visually-hidden">ComfyUI Workflow Runner</h1>
+                <h2 class="panel-title">Workflow Controls</h2>
+            </header>
+
+            <!-- API Connection Section -->
+            <section class="api-section">
+                <h3 class="section-title">API Connection</h3>
+                <div class="control-group">
+                    <label for="api-url" class="control-label">ComfyUI API Endpoint</label>
+                    <div class="input-with-button">
+                        <input 
+                            type="url" 
+                            id="api-url" 
+                            name="api_url" 
+                            class="api-input"
+                            value="http://192.168.10.15:8188"
+                            placeholder="http://192.168.10.15:8188"
+                            required
+                        >
+                        <button type="button" class="test-button" id="test-connection">
+                            Test
+                        </button>
+                    </div>
+                    <div class="connection-status" id="connection-status">
+                        <span class="status-indicator" data-status="unknown"></span>
+                        <span class="status-text">Not tested</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Workflow Upload Section -->
+            <section class="upload-section">
+                <h3 class="section-title">Workflow Upload</h3>
+                <div class="control-group">
+                    <label for="workflow-file" class="control-label">ComfyUI Workflow JSON</label>
+                    <div class="file-upload-area" id="file-upload-area">
+                        <input 
+                            type="file" 
+                            id="workflow-file" 
+                            name="workflow_file" 
+                            accept=".json"
+                            class="file-input"
+                        >
+                        <div class="upload-content">
+                            <svg class="upload-icon" viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z" />
+                            </svg>
+                            <span class="upload-text">Drop JSON file here or click to browse</span>
+                        </div>
+                    </div>
+                    <div class="upload-status" id="upload-status"></div>
+                </div>
+            </section>
+
+            <!-- Generation Form -->
+            <form class="generation-form" id="workflow-form">
+                <!-- Parameters Section -->
+                <section class="parameters-section">
+                    <h3 class="section-title">Generation Parameters</h3>
+                    
+                    <!-- Prompt Controls -->
+                    <fieldset class="prompt-controls">
+                        <legend class="control-label">Prompt</legend>
+                        <div class="control-group">
+                            <label for="positive-prompt" class="control-label">Positive Prompt</label>
+                            <div class="prompt-container">
+                                <textarea 
+                                    id="positive-prompt" 
+                                    name="positive_prompt" 
+                                    class="prompt-textarea"
+                                    placeholder="Describe what you want to generate..."
+                                    rows="3"
+                                ></textarea>
+                                <div class="prompt-toolbar">
+                                    <button type="button" class="icon-button" title="Clear prompt">
+                                        <svg viewBox="0 0 24 24" width="16" height="16">
+                                            <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                        </svg>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </fieldset>
+
+                    <!-- Parameter Grid -->
+                    <div class="control-grid">
+                        <!-- Steps Control -->
+                        <div class="control-group">
+                            <label for="steps" class="control-label">Steps</label>
+                            <div class="slider-container">
+                                <input 
+                                    type="range" 
+                                    id="steps" 
+                                    name="steps" 
+                                    class="slider"
+                                    min="1" 
+                                    max="150" 
+                                    value="20"
+                                    data-default="20"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="slider-value" 
+                                    min="1" 
+                                    max="150" 
+                                    value="20"
+                                    data-linked="steps"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- CFG Scale Control -->
+                        <div class="control-group">
+                            <label for="cfg" class="control-label">CFG Scale</label>
+                            <div class="slider-container">
+                                <input 
+                                    type="range" 
+                                    id="cfg" 
+                                    name="cfg" 
+                                    class="slider"
+                                    min="1" 
+                                    max="30" 
+                                    step="0.1"
+                                    value="7.0"
+                                    data-default="7.0"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="slider-value" 
+                                    min="1" 
+                                    max="30" 
+                                    step="0.1"
+                                    value="7.0"
+                                    data-linked="cfg"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Width Control -->
+                        <div class="control-group">
+                            <label for="width" class="control-label">Width</label>
+                            <div class="slider-container">
+                                <input 
+                                    type="range" 
+                                    id="width" 
+                                    name="width" 
+                                    class="slider"
+                                    min="64" 
+                                    max="2048" 
+                                    step="8"
+                                    value="512"
+                                    data-default="512"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="slider-value" 
+                                    min="64" 
+                                    max="2048" 
+                                    step="8"
+                                    value="512"
+                                    data-linked="width"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Height Control -->
+                        <div class="control-group">
+                            <label for="height" class="control-label">Height</label>
+                            <div class="slider-container">
+                                <input 
+                                    type="range" 
+                                    id="height" 
+                                    name="height" 
+                                    class="slider"
+                                    min="64" 
+                                    max="2048" 
+                                    step="8"
+                                    value="512"
+                                    data-default="512"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="slider-value" 
+                                    min="64" 
+                                    max="2048" 
+                                    step="8"
+                                    value="512"
+                                    data-linked="height"
+                                >
+                            </div>
+                        </div>
+
+                        <!-- Batch Size Control -->
+                        <div class="control-group">
+                            <label for="batch-size" class="control-label">Batch Size</label>
+                            <div class="slider-container">
+                                <input 
+                                    type="range" 
+                                    id="batch-size" 
+                                    name="batch_size" 
+                                    class="slider"
+                                    min="1" 
+                                    max="10" 
+                                    value="1"
+                                    data-default="1"
+                                >
+                                <input 
+                                    type="number" 
+                                    class="slider-value" 
+                                    min="1" 
+                                    max="10" 
+                                    value="1"
+                                    data-linked="batch-size"
+                                >
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Generate Button -->
+                <div class="generate-section">
+                    <button type="submit" class="generate-button" id="generate-button">
+                        <span class="button-text">Generate</span>
+                        <span class="button-spinner" style="display: none;">
+                            <svg class="spinner" viewBox="0 0 50 50">
+                                <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="80 20" stroke-linecap="round"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                    <div class="generation-progress" id="generation-progress" style="display: none;"></div>
+                </div>
+            </form>
+        </section>
+
+        <!-- Right Panel: Output -->
+        <section class="right-panel" role="region" aria-label="Generated Images">
+            <header class="panel-header">
+                <h2 class="panel-title">Generated Images</h2>
+                <div class="panel-actions">
+                    <button type="button" class="action-button" id="clear-results" disabled>
+                        Clear Results
+                    </button>
+                </div>
+            </header>
+
+            <!-- Results Area -->
+            <output class="results-area" form="workflow-form" id="results-area">
+                <div class="empty-state">
+                    <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                        <path fill="currentColor" d="M21,17H7V3A1,1 0 0,1 8,2H20A1,1 0 0,1 21,3V17M19,19H5V5H3V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19H19M11,6H18V8H11V6M11,10H18V12H11V10M11,14H18V16H11V14Z" />
+                    </svg>
+                    <p class="empty-text">Upload a workflow and click Generate to see results here</p>
+                </div>
+            </output>
+        </section>
+    </main>
+
+    <!-- Toast Notifications Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
