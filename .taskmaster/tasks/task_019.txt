@@ -1,0 +1,11 @@
+# Task ID: 19
+# Title: Create Advanced Parameters UI Section
+# Status: pending
+# Dependencies: 15, 16, 17
+# Priority: medium
+# Description: Build organized UI section housing all advanced controls with consistent design system styling
+# Details:
+Create collapsible 'Advanced Parameters' section with accordion-style expansion. Organize sampler, scheduler, and seed controls in logical groupings. Implement responsive layout for different screen sizes. Style with dark theme consistency and proper spacing. Add section state persistence in localStorage. Include help tooltips and parameter explanations. Ensure accessibility with proper ARIA labels and keyboard navigation.
+
+# Test Strategy:
+Visual regression tests for section styling and responsive behavior. Accessibility testing with screen readers and keyboard navigation. User testing for parameter organization and discoverability. Cross-browser compatibility testing.

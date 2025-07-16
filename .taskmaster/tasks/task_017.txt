@@ -1,0 +1,11 @@
+# Task ID: 17
+# Title: Build Comprehensive Seed Control System
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Create seed input field with random generation, increment/decrement controls, and persistence
+# Details:
+Create seed input component with validation (range: -1 to 2^32-1). Add random seed generator button creating cryptographically strong random numbers. Implement increment/decrement buttons for seed variations (+1/-1). Add special handling for -1 (random seed) vs fixed seeds with visual indicators. Integrate with localStorage for seed persistence across sessions. Auto-populate seed from workflow JSON and update workflow when changed.
+
+# Test Strategy:
+Unit tests for seed validation, generation, and persistence. Component tests for input field behavior and button interactions. Integration tests with workflow modification and localStorage. Edge case testing for seed value limits and special values.

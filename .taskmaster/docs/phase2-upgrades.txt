@@ -1,0 +1,142 @@
+# ComfyUI JSON Workflow Runner - Phase 2 Upgrades
+
+## Project Overview
+
+**Project Name:** ComfyUI JSON Workflow Runner - Phase 2 Enhancements
+**Version:** 2.0
+**Date:** July 2025
+**Goal:** Add advanced workflow management, real-time progress tracking, metadata display, and enhanced parameter controls to the existing ComfyUI web interface.
+
+## Problem Statement
+
+Enhance the current minimal ComfyUI interface with professional-grade features including queue management, real-time progress tracking, comprehensive metadata display, advanced sampler/scheduler options, and seed control for improved user experience and workflow control.
+
+## Phase 2 Objectives
+
+1. **Queue Management**: Provide cancellation control for active generations
+2. **Real-time Progress**: Visual progress tracking with live updates
+3. **Metadata Display**: Comprehensive generation information and parameters
+4. **Advanced Controls**: Professional sampler, scheduler, and seed options
+5. **Enhanced UX**: Maintain design system consistency while adding powerful features
+
+## Functional Requirements
+
+### 1. Queue Management with Cancel Button
+- **Requirement ID:** FR-011
+- **Description:** Add cancellation control for active ComfyUI generations
+- **Acceptance Criteria:**
+  - Cancel button appears during active generation
+  - Button integrates with ComfyUI `/interrupt` endpoint
+  - Immediate UI feedback when cancellation is triggered
+  - Proper error handling for failed cancellation attempts
+  - Visual state management (enabled/disabled/loading)
+  - Button styled with design system (red accent, stop icon)
+  - Button disappears when generation completes naturally
+
+### 2. Real-time Progress Bar with Green Completion
+- **Requirement ID:** FR-012
+- **Description:** Implement live progress tracking during image generation
+- **Acceptance Criteria:**
+  - Connect to ComfyUI WebSocket for real-time updates
+  - Parse `executing`, `progress`, and `executed` events
+  - Display animated progress bar with percentage completion
+  - Show current step and total steps information
+  - Green fill color for progress indication
+  - Smooth progress animations and transitions
+  - Handle WebSocket connection errors gracefully
+  - Progress bar styled with design system colors and typography
+
+### 3. Image Metadata Display Panel
+- **Requirement ID:** FR-013
+- **Description:** Show comprehensive metadata for generated images
+- **Acceptance Criteria:**
+  - Extract metadata from ComfyUI history responses
+  - Display generation parameters (steps, CFG, dimensions, prompt)
+  - Show generation timing (start time, duration)
+  - Display model information and workflow details
+  - Show seed value and sampler settings
+  - Metadata linked to specific generated images
+  - Expandable/collapsible metadata panel
+  - Copy metadata to clipboard functionality
+  - Styled with dark theme and proper typography
+  - Organized parameter grouping for readability
+
+### 4. Advanced Scheduler & Sampler Options
+- **Requirement ID:** FR-014
+- **Description:** Expose advanced ComfyUI sampler and scheduler controls
+- **Acceptance Criteria:**
+  - Detect KSampler nodes in workflow JSON
+  - Add sampler dropdown (DPM++ 2M, DPM++ SDE, Euler, Euler A, LMS, DDIM, UniPC, etc.)
+  - Add scheduler dropdown (normal, karras, exponential, sgm_uniform, simple, ddim_uniform)
+  - Validate sampler/scheduler compatibility combinations
+  - Auto-populate current values from workflow
+  - Update workflow JSON with selected options
+  - Grouped in "Advanced Parameters" section
+  - Styled dropdowns with design system consistency
+  - Tooltips explaining sampler/scheduler differences
+
+### 5. Seed Control and Management
+- **Requirement ID:** FR-015
+- **Description:** Comprehensive seed control for reproducible generations
+- **Acceptance Criteria:**
+  - Seed input field with validation (range: -1 to 2^32-1)
+  - Random seed generator button (generates large random number)
+  - Seed increment/decrement buttons for variations
+  - Display current seed in image metadata
+  - Save and restore seed values in localStorage
+  - Special handling for -1 (random seed) vs fixed seeds
+  - Seed field auto-populates from workflow JSON
+  - Visual indicators for random vs fixed seeds
+  - Styled with design system (input field, icon buttons)
+  - Integration with workflow modification engine
+
+## Technical Requirements
+
+### WebSocket Integration
+- Maintain persistent WebSocket connection to ComfyUI
+- Handle connection drops and reconnection
+- Parse real-time event stream for progress updates
+- Integrate with existing error handling system
+
+### API Extensions
+- Utilize ComfyUI `/interrupt` endpoint for cancellation
+- Enhanced `/history` response parsing for metadata
+- Maintain compatibility with existing API integration
+- Graceful degradation when features unavailable
+
+### UI/UX Consistency
+- All new features follow Stable Diffusion WebUI design system
+- Dark theme with existing color palette
+- Consistent typography (Helvetica Neue)
+- Responsive design for different screen sizes
+- Proper loading states and error feedback
+
+### Performance Considerations
+- Efficient WebSocket event handling
+- Minimal UI re-renders during progress updates
+- Optimized metadata extraction and display
+- Local storage management for seed persistence
+
+## Success Metrics
+
+1. **User Control**: Cancel functionality works reliably
+2. **Real-time Feedback**: Progress updates within 500ms of ComfyUI events
+3. **Information Display**: Complete metadata available for all generations
+4. **Parameter Control**: All major samplers and schedulers accessible
+5. **Reproducibility**: Seed control enables consistent generation results
+6. **Design Consistency**: New features seamlessly integrate with existing UI
+
+## Dependencies
+
+- ComfyUI WebSocket API availability
+- ComfyUI version with required endpoints
+- Existing Phase 1 functionality (Tasks 1-10)
+- Browser WebSocket support
+- LocalStorage for seed persistence
+
+## Risk Mitigation
+
+- WebSocket fallback to polling if connection fails
+- Graceful degradation for unsupported ComfyUI versions
+- Error boundaries for new features to protect core functionality
+- Progressive enhancement approach for optional features

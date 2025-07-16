@@ -1,0 +1,43 @@
+# Task ID: 13
+# Title: Implement Queue Management with Cancel Button
+# Status: pending
+# Dependencies: 11
+# Priority: high
+# Description: Add cancellation control for active ComfyUI generations using the /interrupt endpoint
+# Details:
+Create cancel button component with stop icon using design system red accent color. Integrate with ComfyUI /interrupt API endpoint. Implement button state management: hidden when idle, enabled during generation, loading state during cancellation. Add immediate UI feedback and error handling for failed cancellation attempts. Position button prominently near progress indicator. Include confirmation dialog for accidental cancellations.
+
+# Test Strategy:
+Unit tests for cancel API integration and button state logic. Integration tests with ComfyUI interrupt endpoint. User testing for cancel button placement and feedback. Error scenario testing for network failures during cancellation.
+
+# Subtasks:
+## 1. Create Cancel Button Component with Design System Integration [pending]
+### Dependencies: None
+### Description: Build a reusable cancel button component following the established design system with proper styling and icon implementation
+### Details:
+Create a new CancelButton component that uses the design system's red accent color (#ef4444) for the cancel action. Implement the button with a stop icon (using existing icon library or SVG). Include proper hover, active, and disabled states. Add support for loading state with spinner to show during cancellation process. Ensure the component is fully accessible with proper ARIA labels and keyboard navigation support.
+
+## 2. Implement ComfyUI Interrupt API Integration [pending]
+### Dependencies: None
+### Description: Create service layer for interacting with ComfyUI's /interrupt endpoint to cancel active generations
+### Details:
+Extend the existing ComfyUI API service to include an interrupt method that calls the /interrupt endpoint. Handle authentication if required by the ComfyUI server. Implement proper error handling for network failures, server errors, and edge cases like attempting to interrupt when no generation is active. Return appropriate response status to indicate success or failure of the interruption request.
+
+## 3. Implement Button State Management and Visibility Logic [pending]
+### Dependencies: 13.1, 13.2
+### Description: Create state management logic to control cancel button visibility and enabled state based on generation status
+### Details:
+Integrate the cancel button with the existing WebSocket connection to track generation state. Hide the button when no generation is active. Show and enable the button during active generation. Disable the button and show loading state when cancellation is in progress. Re-hide the button when generation completes or is successfully cancelled. Use the existing generation state management system to avoid duplicating state logic.
+
+## 4. Add Confirmation Dialog and User Feedback System [pending]
+### Dependencies: 13.3
+### Description: Implement a confirmation dialog for accidental cancellations and immediate feedback for user actions
+### Details:
+Create a lightweight confirmation modal that appears when the cancel button is clicked, asking 'Are you sure you want to cancel the current generation?'. Include 'Cancel Generation' and 'Continue' buttons in the dialog. Implement immediate visual feedback when cancellation is initiated (button loading state, progress bar changes). Add success/error toast notifications to inform users of cancellation status. Ensure the dialog is keyboard accessible and can be dismissed with Escape key.
+
+## 5. Position Cancel Button and Integrate with UI Layout [pending]
+### Dependencies: 13.4
+### Description: Integrate the cancel button into the existing UI layout near the progress indicator with proper responsive design
+### Details:
+Position the cancel button prominently near the existing progress indicator component. Ensure the button appears in a logical location that's easily accessible during generation. Implement responsive design so the button remains properly positioned on different screen sizes. Coordinate with the progress bar animations to ensure smooth visual transitions. Update any existing layout components to accommodate the new button without breaking the current design flow.
+

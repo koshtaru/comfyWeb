@@ -1,0 +1,11 @@
+# Task ID: 15
+# Title: Create Advanced Sampler Selection Component
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Implement dropdown component for selecting ComfyUI samplers with validation and workflow integration
+# Details:
+Create styled dropdown component for sampler selection: DPM++ 2M, DPM++ SDE, DPM++ 2M Karras, DPM++ SDE Karras, Euler, Euler A, LMS, Heun, DPM2, DPM2 A, DDIM, PLMS, UniPC. Detect KSampler nodes in workflow JSON and auto-populate current values. Update workflow JSON when selection changes. Add tooltips explaining sampler characteristics and use cases. Group in 'Advanced Parameters' section with consistent styling.
+
+# Test Strategy:
+Unit tests for sampler detection and workflow updating. Component tests for dropdown functionality and validation. Integration tests with workflow modification system. Manual testing with different workflow structures containing KSampler nodes.

@@ -1,6 +1,6 @@
 # Task ID: 6
 # Title: Build ComfyUI API Communication Layer with Loading States
-# Status: pending
+# Status: done
 # Dependencies: 2, 5
 # Priority: high
 # Description: Implement functions to submit workflows and retrieve results from ComfyUI API with styled loading indicators

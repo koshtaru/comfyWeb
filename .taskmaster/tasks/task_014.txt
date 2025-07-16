@@ -1,0 +1,11 @@
+# Task ID: 14
+# Title: Build Metadata Extraction and Display System
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Create comprehensive metadata display panel showing generation parameters, timing, and workflow details
+# Details:
+Build metadata parser for ComfyUI history responses. Extract generation parameters: steps, CFG, dimensions, prompt, negative prompt, model info, sampler settings, seed values. Calculate and display timing information: start time, duration, completion time. Create expandable/collapsible metadata panel with organized parameter grouping. Implement copy-to-clipboard functionality for metadata sharing. Style with dark theme and proper typography hierarchy.
+
+# Test Strategy:
+Unit tests for metadata parsing from various ComfyUI response formats. Component tests for metadata display and organization. User testing for metadata readability and usefulness. Integration tests with different workflow types.

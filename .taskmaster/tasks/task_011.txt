@@ -1,0 +1,43 @@
+# Task ID: 11
+# Title: Implement WebSocket Connection Manager for Real-time Updates
+# Status: pending
+# Dependencies: None
+# Priority: high
+# Description: Create a WebSocket connection manager to handle real-time communication with ComfyUI for progress tracking and queue management
+# Details:
+Create a WebSocket service class that connects to ComfyUI's WebSocket endpoint. Implement connection management with automatic reconnection, error handling, and event parsing. Parse 'executing', 'progress', and 'executed' events from ComfyUI. Include connection state management (connecting, connected, disconnected, error) and emit typed events for UI components to consume. Handle WebSocket lifecycle: connect on app start, reconnect on failures, clean disconnect on app close.
+
+# Test Strategy:
+Unit tests for WebSocket service connection handling, event parsing, and reconnection logic. Integration tests with mock ComfyUI WebSocket server. E2E tests verifying real-time updates during actual generation workflow.
+
+# Subtasks:
+## 1. Create WebSocket Service Class Architecture [pending]
+### Dependencies: None
+### Description: Design and implement the core WebSocket service class with connection management and event handling capabilities
+### Details:
+Create a WebSocketService class that encapsulates WebSocket connection logic to ComfyUI's endpoint (ws://localhost:8188/ws). Implement connection state enum (CONNECTING, CONNECTED, DISCONNECTED, ERROR). Add event emitter pattern for broadcasting WebSocket events to UI components. Create typed interfaces for ComfyUI WebSocket messages including 'executing', 'progress', 'executed', and 'error' events. Include connection configuration options such as URL, reconnect interval, and max retry attempts.
+
+## 2. Implement Automatic Reconnection Logic [pending]
+### Dependencies: 11.1
+### Description: Build robust reconnection mechanism with exponential backoff and connection health monitoring
+### Details:
+Implement exponential backoff algorithm for reconnection attempts (start at 1s, max 30s). Add connection health check with ping/pong frames or heartbeat mechanism. Create reconnection state management to track attempt count and backoff timing. Implement circuit breaker pattern to prevent infinite reconnection loops. Add connection quality indicators and emit reconnection events for UI feedback. Handle both unexpected disconnections and server-initiated closures differently.
+
+## 3. Parse and Handle ComfyUI WebSocket Events [pending]
+### Dependencies: 11.1
+### Description: Create event parsing system for ComfyUI-specific WebSocket messages with proper type safety
+### Details:
+Implement message parser for ComfyUI WebSocket protocol including 'executing' (node execution start), 'progress' (generation progress updates), 'executed' (node completion), and 'execution_error' events. Create typed event handlers for each message type with proper payload validation. Add event buffering for messages received during reconnection. Implement error handling for malformed messages. Create event transformation layer to convert raw WebSocket data to application-friendly formats.
+
+## 4. Integrate WebSocket Lifecycle with Application [pending]
+### Dependencies: 11.1, 11.2
+### Description: Connect WebSocket service to application lifecycle and implement proper resource management
+### Details:
+Create WebSocket initialization on application mount/start with proper error handling. Implement clean disconnection on application unmount/close to prevent memory leaks. Add WebSocket connection status to global application state (Redux/Context). Create hooks or HOCs for components to subscribe to WebSocket events. Implement connection pooling if multiple WebSocket connections are needed. Add development mode features like connection debugging and event logging.
+
+## 5. Build UI Components for Real-time Status Updates [pending]
+### Dependencies: 11.3, 11.4
+### Description: Create React components that consume WebSocket events and display real-time generation status
+### Details:
+Build ConnectionStatus component showing WebSocket connection state with visual indicators. Create ProgressTracker component that updates based on 'progress' events with percentage and ETA. Implement NodeExecutionStatus component showing currently executing nodes. Add event log component for debugging in development mode. Create toast notifications for connection status changes. Ensure all components properly unsubscribe from events on unmount.
+

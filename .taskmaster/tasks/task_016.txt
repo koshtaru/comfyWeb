@@ -1,0 +1,11 @@
+# Task ID: 16
+# Title: Implement Scheduler Selection Component
+# Status: pending
+# Dependencies: 15
+# Priority: medium
+# Description: Build scheduler dropdown with compatibility validation and workflow integration
+# Details:
+Create scheduler dropdown component supporting: normal, karras, exponential, sgm_uniform, simple, ddim_uniform, beta. Implement sampler-scheduler compatibility validation to prevent invalid combinations. Auto-populate current scheduler from workflow JSON. Update workflow JSON when scheduler changes. Add explanatory tooltips for scheduler differences. Style consistently with sampler dropdown in Advanced Parameters section.
+
+# Test Strategy:
+Unit tests for scheduler-sampler compatibility logic. Component tests for dropdown behavior and validation. Integration tests with workflow JSON modification. Cross-browser testing for dropdown styling and behavior.

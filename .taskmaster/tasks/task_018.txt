@@ -1,0 +1,11 @@
+# Task ID: 18
+# Title: Integrate Advanced Parameters with Workflow Engine
+# Status: pending
+# Dependencies: 15, 16, 17
+# Priority: high
+# Description: Connect all advanced parameter controls to the existing workflow modification system
+# Details:
+Create workflow modification service to update JSON with advanced parameters. Implement node detection and parameter injection for KSampler nodes. Handle multiple KSampler nodes in complex workflows. Add validation for parameter combinations and workflow compatibility. Integrate with existing workflow submission pipeline. Ensure parameter persistence across workflow loads and modifications.
+
+# Test Strategy:
+Integration tests with various workflow JSON structures. Unit tests for node detection and parameter injection. E2E tests verifying parameters persist through generation pipeline. Validation testing for complex multi-node workflows.
