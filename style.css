@@ -1024,6 +1024,64 @@ body {
     max-width: 400px;
 }
 
+/* Task 10: Enhanced error display */
+.error-suggestions {
+    text-align: left;
+    max-width: 500px;
+    margin: 20px 0;
+    padding: 16px;
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-error);
+}
+
+.error-suggestions h4 {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    margin: 0 0 12px 0;
+}
+
+.error-suggestions ul {
+    margin: 0;
+    padding-left: 16px;
+    list-style: none;
+}
+
+.error-suggestions li {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+    margin-bottom: 8px;
+    position: relative;
+}
+
+.error-suggestions li:before {
+    content: "•";
+    color: var(--color-error);
+    font-weight: bold;
+    position: absolute;
+    left: -12px;
+}
+
+.error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 20px;
+}
+
+.error-actions .secondary-button {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.error-actions .secondary-button:hover {
+    background: var(--color-border);
+    color: var(--color-text-primary);
+}
+
 /* Secondary Button for Download All */
 .secondary-button {
     padding: 8px 16px;

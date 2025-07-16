@@ -958,6 +958,111 @@ const Validation = {
             return { valid: false, message: 'Batch size must be between 1 and 10' };
         }
         return { valid: true };
+    },
+
+    // Task 10: Comprehensive form validation before submission
+    validateAllFields() {
+        const validationResults = [];
+        const errors = [];
+
+        // Get all form values
+        const steps = document.getElementById('steps-value').value;
+        const cfg = document.getElementById('cfg-value').value;
+        const width = document.getElementById('width-value').value;
+        const height = document.getElementById('height-value').value;
+        const batchSize = document.getElementById('batch-size-value').value;
+        const prompt = document.getElementById('positive-prompt').value.trim();
+
+        // Validate each field
+        const validations = [
+            { field: 'steps', value: steps, validator: this.validateSteps, element: document.getElementById('steps-value') },
+            { field: 'cfg', value: cfg, validator: this.validateCFG, element: document.getElementById('cfg-value') },
+            { field: 'width', value: width, validator: this.validateDimensions, element: document.getElementById('width-value') },
+            { field: 'height', value: height, validator: this.validateDimensions, element: document.getElementById('height-value') },
+            { field: 'batch-size', value: batchSize, validator: this.validateBatchSize, element: document.getElementById('batch-size-value') }
+        ];
+
+        validations.forEach(({ field, value, validator, element }) => {
+            const result = validator(value);
+            validationResults.push({ field, ...result, element });
+            
+            if (!result.valid) {
+                errors.push({ field, message: result.message, element });
+            }
+        });
+
+        // Validate prompt (minimum length)
+        if (prompt.length === 0) {
+            const promptElement = document.getElementById('positive-prompt');
+            const promptError = { field: 'prompt', message: 'Positive prompt is required', element: promptElement };
+            validationResults.push({ field: 'prompt', valid: false, message: 'Positive prompt is required', element: promptElement });
+            errors.push(promptError);
+        } else if (prompt.length < 3) {
+            const promptElement = document.getElementById('positive-prompt');
+            const promptError = { field: 'prompt', message: 'Prompt must be at least 3 characters long', element: promptElement };
+            validationResults.push({ field: 'prompt', valid: false, message: 'Prompt must be at least 3 characters long', element: promptElement });
+            errors.push(promptError);
+        } else {
+            validationResults.push({ field: 'prompt', valid: true, element: document.getElementById('positive-prompt') });
+        }
+
+        return {
+            isValid: errors.length === 0,
+            errors,
+            validationResults
+        };
+    },
+
+    // Show validation errors with styled feedback
+    showValidationErrors(errors) {
+        // Clear previous error states
+        document.querySelectorAll('.control-group.error').forEach(group => {
+            group.classList.remove('error');
+            const errorMsg = group.querySelector('.error-message');
+            if (errorMsg) errorMsg.remove();
+        });
+
+        // Clear prompt error state
+        const promptGroup = document.querySelector('.prompt-control');
+        if (promptGroup) {
+            promptGroup.classList.remove('error');
+            const errorMsg = promptGroup.querySelector('.error-message');
+            if (errorMsg) errorMsg.remove();
+        }
+
+        // Show new errors
+        errors.forEach(({ field, message, element }) => {
+            let controlGroup;
+            
+            if (field === 'prompt') {
+                controlGroup = document.querySelector('.prompt-control');
+            } else {
+                controlGroup = element.closest('.control-group');
+            }
+            
+            if (controlGroup) {
+                controlGroup.classList.add('error');
+                
+                const errorMsg = document.createElement('div');
+                errorMsg.className = 'error-message';
+                errorMsg.textContent = message;
+                controlGroup.appendChild(errorMsg);
+            }
+        });
+
+        // Show summary toast
+        const errorCount = errors.length;
+        const errorFields = errors.map(e => e.field).join(', ');
+        Utils.showToast(`${errorCount} validation error${errorCount > 1 ? 's' : ''}: ${errorFields}`, 'error');
+    },
+
+    // Clear all validation error states
+    clearValidationErrors() {
+        document.querySelectorAll('.control-group.error, .prompt-control.error').forEach(group => {
+            group.classList.remove('error');
+            const errorMsg = group.querySelector('.error-message');
+            if (errorMsg) errorMsg.remove();
+        });
     }
 };
 
@@ -1467,6 +1572,166 @@ function initializeConnectionTest() {
     });
 }
 
+// Error Classification for Task 10
+function classifyError(error) {
+    const message = error.message.toLowerCase();
+    
+    // Network and connection errors
+    if (message.includes('failed to fetch') || message.includes('network error')) {
+        return {
+            title: 'Connection Lost',
+            details: 'Unable to connect to ComfyUI server',
+            suggestions: [
+                'Check if ComfyUI is running at the configured endpoint',
+                'Verify your network connection',
+                'Ensure CORS headers are enabled in ComfyUI (--enable-cors-header)',
+                'Try refreshing the page and reconnecting'
+            ],
+            type: 'network'
+        };
+    }
+    
+    // HTTP status errors
+    if (message.includes('http 400')) {
+        return {
+            title: 'Invalid Workflow Configuration',
+            details: 'The workflow contains invalid parameters or missing nodes',
+            suggestions: [
+                'Check that all required nodes are present in your workflow',
+                'Verify parameter values are within valid ranges',
+                'Try uploading a different workflow file',
+                'Check ComfyUI console for detailed validation errors'
+            ],
+            type: 'validation'
+        };
+    }
+    
+    if (message.includes('http 401') || message.includes('unauthorized')) {
+        return {
+            title: 'Authorization Failed',
+            details: 'Access denied to ComfyUI API',
+            suggestions: [
+                'Check if ComfyUI requires authentication',
+                'Verify API key configuration if applicable',
+                'Contact system administrator for access'
+            ],
+            type: 'auth'
+        };
+    }
+    
+    if (message.includes('http 404')) {
+        return {
+            title: 'API Endpoint Not Found',
+            details: 'ComfyUI API endpoint is not available',
+            suggestions: [
+                'Verify the API URL is correct',
+                'Check if ComfyUI is running on the specified port',
+                'Ensure you\'re using the correct ComfyUI version'
+            ],
+            type: 'endpoint'
+        };
+    }
+    
+    if (message.includes('http 500') || message.includes('internal server error')) {
+        return {
+            title: 'ComfyUI Server Error',
+            details: 'Internal error occurred in ComfyUI',
+            suggestions: [
+                'Check ComfyUI console output for detailed error messages',
+                'Verify all required models and nodes are installed',
+                'Try restarting ComfyUI',
+                'Check system resources (memory, disk space, GPU)'
+            ],
+            type: 'server'
+        };
+    }
+    
+    if (message.includes('http 503') || message.includes('service unavailable')) {
+        return {
+            title: 'ComfyUI Temporarily Unavailable',
+            details: 'ComfyUI server is overloaded or restarting',
+            suggestions: [
+                'Wait a few moments and try again',
+                'Check if ComfyUI is processing other requests',
+                'Verify system resources are not exhausted'
+            ],
+            type: 'overload'
+        };
+    }
+    
+    // Timeout errors
+    if (message.includes('timeout') || message.includes('aborted')) {
+        return {
+            title: 'Generation Timed Out',
+            details: 'The generation process took too long to complete',
+            suggestions: [
+                'Try reducing image dimensions or batch size',
+                'Check if ComfyUI has sufficient system resources',
+                'Verify the workflow doesn\'t contain computationally expensive nodes',
+                'Consider increasing timeout settings if appropriate'
+            ],
+            type: 'timeout'
+        };
+    }
+    
+    // JSON parsing errors
+    if (message.includes('json') || message.includes('parse')) {
+        return {
+            title: 'Invalid Response Format',
+            details: 'ComfyUI returned invalid or corrupted data',
+            suggestions: [
+                'Try the request again',
+                'Check ComfyUI console for error messages',
+                'Verify ComfyUI is running the expected version'
+            ],
+            type: 'parsing'
+        };
+    }
+    
+    // Model or resource errors
+    if (message.includes('model') || message.includes('checkpoint') || message.includes('out of memory')) {
+        return {
+            title: 'Resource or Model Error',
+            details: 'Missing models or insufficient system resources',
+            suggestions: [
+                'Ensure all required models are downloaded and available',
+                'Check available GPU memory and system RAM',
+                'Try reducing batch size or image dimensions',
+                'Verify model paths in ComfyUI configuration'
+            ],
+            type: 'resources'
+        };
+    }
+    
+    // Generic workflow errors
+    if (message.includes('node') || message.includes('workflow')) {
+        return {
+            title: 'Workflow Execution Error',
+            details: 'Error occurred while processing the workflow',
+            suggestions: [
+                'Check the workflow for missing or incompatible nodes',
+                'Verify all node connections are valid',
+                'Try testing with a simpler workflow first',
+                'Check ComfyUI logs for specific node errors'
+            ],
+            type: 'workflow'
+        };
+    }
+    
+    // Default fallback
+    return {
+        title: 'Generation Failed',
+        details: error.message || 'An unexpected error occurred',
+        suggestions: [
+            'Try the operation again',
+            'Check ComfyUI console for detailed error information',
+            'Verify all settings and try with default values',
+            'Report the issue if it persists'
+        ],
+        type: 'unknown'
+    };
+}
+
 // Generation Functions (Task 6)
 async function generateImages(workflowData) {
     try {
@@ -1525,26 +1790,14 @@ async function generateImages(workflowData) {
     } catch (error) {
         console.error('❌ Generation failed:', error);
         
-        // Show user-friendly error messages
-        let errorMessage = 'Image generation failed';
-        let errorDetails = error.message;
-        
-        if (error.message.includes('HTTP 400')) {
-            errorMessage = 'Invalid workflow configuration';
-            errorDetails = 'The workflow contains invalid parameters or missing nodes';
-        } else if (error.message.includes('HTTP 500')) {
-            errorMessage = 'ComfyUI server error';
-            errorDetails = 'Check ComfyUI console for detailed error information';
-        } else if (error.message.includes('timeout')) {
-            errorMessage = 'Generation timed out';
-            errorDetails = 'The generation took too long to complete';
-        } else if (error.message.includes('Failed to fetch')) {
-            errorMessage = 'Connection lost';
-            errorDetails = 'Check if ComfyUI is still running and accessible';
-        }
+        // Task 10: Enhanced error classification and user-friendly messages
+        const errorClassification = classifyError(error);
+        const errorMessage = errorClassification.title;
+        const errorDetails = errorClassification.details;
+        const suggestions = errorClassification.suggestions;
         
         Utils.showToast(`${errorMessage}: ${errorDetails}`, 'error');
-        showGenerationError(error);
+        showGenerationError(errorClassification);
         
     } finally {
         AppState.isGenerating = false;
@@ -1622,7 +1875,12 @@ function displayGeneratedImages(imageUrls) {
     window.generatedImages = imageUrls;
 }
 
-function showGenerationError(error) {
+function showGenerationError(errorClassification) {
+    // Task 10: Enhanced error display with suggestions
+    const suggestionsHtml = errorClassification.suggestions.map(suggestion => 
+        `<li>${suggestion}</li>`
+    ).join('');
+    
     const errorHtml = `
         <div class="generation-error">
             <div class="error-icon">
@@ -1630,9 +1888,20 @@ function showGenerationError(error) {
                     <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" />
                 </svg>
             </div>
-            <h3>Generation Failed</h3>
-            <p class="error-message">${error.message}</p>
-            <button class="primary-button" onclick="location.reload()">Try Again</button>
+            <h3>${errorClassification.title}</h3>
+            <p class="error-message">${errorClassification.details}</p>
+            
+            <div class="error-suggestions">
+                <h4>Suggestions to resolve this issue:</h4>
+                <ul>
+                    ${suggestionsHtml}
+                </ul>
+            </div>
+            
+            <div class="error-actions">
+                <button class="primary-button" onclick="location.reload()">Try Again</button>
+                <button class="secondary-button" onclick="Validation.clearValidationErrors(); Utils.showToast('Error cleared', 'info');">Clear Error</button>
+            </div>
         </div>
     `;
     
@@ -1675,6 +1944,19 @@ function initializeFormSubmission() {
             Utils.showToast('Please test API connection first', 'error');
             return;
         }
+        
+        // Task 10: Comprehensive validation before submission
+        console.log('🔍 Validating all form fields...');
+        const validation = Validation.validateAllFields();
+        
+        if (!validation.isValid) {
+            console.warn('❌ Form validation failed:', validation.errors);
+            Validation.showValidationErrors(validation.errors);
+            return;
+        }
+        
+        console.log('✅ All form fields validated successfully');
+        Validation.clearValidationErrors();
         
         // Collect current form data
         const formData = Utils.collectFormData();
