@@ -762,6 +762,167 @@ const Utils = {
                 }
             };
         });
+    },
+
+    // API Communication Functions for Task 6
+    
+    // Submit workflow to ComfyUI API
+    async submitToComfyUI(workflowData) {
+        if (!AppState.apiEndpoint) {
+            throw new Error('No API endpoint configured');
+        }
+
+        const url = `${AppState.apiEndpoint}/prompt`;
+        console.log(`🚀 Submitting workflow to ComfyUI: ${url}`);
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: workflowData,
+                    client_id: this.generateClientId()
+                }),
+                signal: AbortSignal.timeout(30000) // 30 second timeout
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+
+            const result = await response.json();
+            console.log('✅ Workflow submitted successfully:', result);
+
+            if (!result.prompt_id) {
+                throw new Error('No prompt_id received from ComfyUI');
+            }
+
+            return {
+                success: true,
+                promptId: result.prompt_id,
+                node_errors: result.node_errors || {}
+            };
+
+        } catch (error) {
+            console.error('❌ Failed to submit workflow:', error);
+            throw error;
+        }
+    },
+
+    // Poll for generation results
+    async pollForResults(promptId, maxRetries = 30, retryInterval = 2000) {
+        console.log(`🔍 Polling for results: ${promptId}`);
+        
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const response = await fetch(`${AppState.apiEndpoint}/history/${promptId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json'
+                    },
+                    signal: AbortSignal.timeout(10000)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const history = await response.json();
+                
+                if (history[promptId]) {
+                    const promptData = history[promptId];
+                    
+                    // Check if generation is complete
+                    if (promptData.status && promptData.status.completed) {
+                        console.log('✅ Generation completed:', promptData);
+                        return {
+                            success: true,
+                            status: 'completed',
+                            outputs: promptData.outputs || {},
+                            meta: promptData.meta || {}
+                        };
+                    }
+                    
+                    // Check for errors
+                    if (promptData.status && promptData.status.status_str === 'error') {
+                        console.error('❌ Generation failed:', promptData.status);
+                        return {
+                            success: false,
+                            status: 'error',
+                            error: promptData.status.messages || 'Unknown error occurred'
+                        };
+                    }
+                    
+                    // Still processing
+                    console.log(`⏳ Generation in progress (attempt ${attempt + 1}/${maxRetries})`);
+                } else {
+                    console.log(`⏳ Waiting for prompt to appear in history (attempt ${attempt + 1}/${maxRetries})`);
+                }
+
+                // Wait before next poll
+                if (attempt < maxRetries - 1) {
+                    await this.sleep(retryInterval);
+                }
+
+            } catch (error) {
+                console.error(`❌ Poll attempt ${attempt + 1} failed:`, error);
+                
+                if (attempt === maxRetries - 1) {
+                    throw new Error(`Failed to get results after ${maxRetries} attempts: ${error.message}`);
+                }
+                
+                // Wait before retry
+                await this.sleep(retryInterval);
+            }
+        }
+
+        throw new Error(`Generation timed out after ${maxRetries} attempts`);
+    },
+
+    // Extract image URLs from ComfyUI outputs
+    extractImageUrls(outputs) {
+        const imageUrls = [];
+        
+        try {
+            for (const nodeId in outputs) {
+                const nodeOutput = outputs[nodeId];
+                
+                if (nodeOutput.images && Array.isArray(nodeOutput.images)) {
+                    for (const image of nodeOutput.images) {
+                        if (image.filename) {
+                            const imageUrl = `${AppState.apiEndpoint}/view?filename=${encodeURIComponent(image.filename)}&type=output`;
+                            imageUrls.push({
+                                url: imageUrl,
+                                filename: image.filename,
+                                subfolder: image.subfolder || '',
+                                type: image.type || 'output'
+                            });
+                        }
+                    }
+                }
+            }
+            
+            console.log(`📷 Found ${imageUrls.length} images:`, imageUrls);
+            return imageUrls;
+            
+        } catch (error) {
+            console.error('❌ Failed to extract image URLs:', error);
+            return [];
+        }
+    },
+
+    // Generate unique client ID
+    generateClientId() {
+        return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    },
+
+    // Sleep utility for polling
+    sleep(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
     }
 };
 
@@ -1306,6 +1467,200 @@ function initializeConnectionTest() {
     });
 }
 
+// Generation Functions (Task 6)
+async function generateImages(workflowData) {
+    try {
+        // Prevent multiple simultaneous generations
+        if (AppState.isGenerating) {
+            Utils.showToast('Generation already in progress', 'info');
+            return;
+        }
+
+        AppState.isGenerating = true;
+        setGenerationLoadingState(true);
+        
+        Utils.showToast('Starting image generation...', 'info');
+        console.log('🎨 Starting image generation process');
+
+        // Submit workflow to ComfyUI
+        const submitResult = await Utils.submitToComfyUI(workflowData);
+        
+        if (!submitResult.success) {
+            throw new Error('Failed to submit workflow to ComfyUI');
+        }
+
+        const { promptId, node_errors } = submitResult;
+        
+        // Check for node errors
+        if (Object.keys(node_errors).length > 0) {
+            console.warn('⚠️ Node errors detected:', node_errors);
+            Utils.showToast('Some workflow nodes had warnings - generation may be affected', 'warning');
+        }
+
+        Utils.showToast(`Workflow submitted! Prompt ID: ${promptId}`, 'success');
+        console.log(`📝 Prompt submitted with ID: ${promptId}`);
+
+        // Update UI with generation progress
+        updateGenerationProgress('Generating images...', 'This may take several minutes');
+
+        // Poll for results
+        const pollResult = await Utils.pollForResults(promptId);
+        
+        if (!pollResult.success) {
+            throw new Error(pollResult.error || 'Generation failed');
+        }
+
+        console.log('🖼️ Generation completed successfully:', pollResult);
+        
+        // Extract and display images
+        const imageUrls = Utils.extractImageUrls(pollResult.outputs);
+        
+        if (imageUrls.length === 0) {
+            throw new Error('No images were generated');
+        }
+
+        displayGeneratedImages(imageUrls);
+        Utils.showToast(`Successfully generated ${imageUrls.length} image(s)!`, 'success');
+
+    } catch (error) {
+        console.error('❌ Generation failed:', error);
+        
+        // Show user-friendly error messages
+        let errorMessage = 'Image generation failed';
+        let errorDetails = error.message;
+        
+        if (error.message.includes('HTTP 400')) {
+            errorMessage = 'Invalid workflow configuration';
+            errorDetails = 'The workflow contains invalid parameters or missing nodes';
+        } else if (error.message.includes('HTTP 500')) {
+            errorMessage = 'ComfyUI server error';
+            errorDetails = 'Check ComfyUI console for detailed error information';
+        } else if (error.message.includes('timeout')) {
+            errorMessage = 'Generation timed out';
+            errorDetails = 'The generation took too long to complete';
+        } else if (error.message.includes('Failed to fetch')) {
+            errorMessage = 'Connection lost';
+            errorDetails = 'Check if ComfyUI is still running and accessible';
+        }
+        
+        Utils.showToast(`${errorMessage}: ${errorDetails}`, 'error');
+        showGenerationError(error);
+        
+    } finally {
+        AppState.isGenerating = false;
+        setGenerationLoadingState(false);
+    }
+}
+
+function setGenerationLoadingState(isLoading) {
+    const generateButton = elements.generateButton;
+    
+    if (isLoading) {
+        generateButton.innerHTML = `
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div class="loading-spinner"></div>
+                <span>Generating...</span>
+            </div>
+        `;
+        generateButton.disabled = true;
+        generateButton.classList.add('loading');
+    } else {
+        generateButton.innerHTML = 'Generate';
+        generateButton.disabled = false;
+        generateButton.classList.remove('loading');
+    }
+}
+
+function updateGenerationProgress(status, details) {
+    const progressHtml = `
+        <div class="generation-progress">
+            <div class="progress-header">
+                <div class="loading-spinner"></div>
+                <h3>${status}</h3>
+            </div>
+            <p class="progress-details">${details}</p>
+        </div>
+    `;
+    
+    elements.resultsArea.innerHTML = progressHtml;
+}
+
+function displayGeneratedImages(imageUrls) {
+    const imageCount = imageUrls.length;
+    const imagesHtml = imageUrls.map((imageData, index) => `
+        <div class="generated-image-container">
+            <div class="image-header">
+                <span class="image-index">Image ${index + 1} of ${imageCount}</span>
+                <button class="download-button" onclick="downloadImage('${imageData.url}', '${imageData.filename}')">
+                    <svg viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M5,20H19V18H5M19,9H15V3H9V9H5L12,16L19,9Z" />
+                    </svg>
+                    Download
+                </button>
+            </div>
+            <img src="${imageData.url}" alt="Generated image ${index + 1}" class="generated-image" loading="lazy" />
+            <div class="image-info">
+                <span class="filename">${imageData.filename}</span>
+            </div>
+        </div>
+    `).join('');
+    
+    elements.resultsArea.innerHTML = `
+        <div class="results-header">
+            <h3>Generated Images (${imageCount})</h3>
+            <button id="download-all" class="secondary-button" onclick="downloadAllImages()">Download All</button>
+        </div>
+        <div class="images-grid">
+            ${imagesHtml}
+        </div>
+    `;
+    
+    // Enable clear results button
+    elements.clearResults.disabled = false;
+    
+    // Store image URLs for download functionality
+    window.generatedImages = imageUrls;
+}
+
+function showGenerationError(error) {
+    const errorHtml = `
+        <div class="generation-error">
+            <div class="error-icon">
+                <svg viewBox="0 0 24 24" width="48" height="48">
+                    <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" />
+                </svg>
+            </div>
+            <h3>Generation Failed</h3>
+            <p class="error-message">${error.message}</p>
+            <button class="primary-button" onclick="location.reload()">Try Again</button>
+        </div>
+    `;
+    
+    elements.resultsArea.innerHTML = errorHtml;
+}
+
+// Download Functions
+window.downloadImage = function(url, filename) {
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    Utils.showToast(`Downloading ${filename}`, 'success');
+};
+
+window.downloadAllImages = function() {
+    if (window.generatedImages && window.generatedImages.length > 0) {
+        window.generatedImages.forEach((imageData, index) => {
+            setTimeout(() => {
+                downloadImage(imageData.url, imageData.filename);
+            }, index * 500); // Stagger downloads
+        });
+        Utils.showToast(`Downloading ${window.generatedImages.length} images`, 'success');
+    }
+};
+
 // Form Submission
 function initializeFormSubmission() {
     elements.workflowForm.addEventListener('submit', (e) => {
@@ -1342,8 +1697,8 @@ function initializeFormSubmission() {
         
         console.log('✅ Workflow modification completed successfully');
         
-        // TODO: Implement API submission (Task 6)
-        Utils.showToast('Workflow modified successfully! API submission will be implemented in Task 6.', 'success');
+        // Start generation process (Task 6)
+        generateImages(modifiedWorkflow);
     });
 }
 
