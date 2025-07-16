@@ -965,24 +965,42 @@ const Validation = {
         const validationResults = [];
         const errors = [];
 
-        // Get all form values
-        const steps = document.getElementById('steps-value').value;
-        const cfg = document.getElementById('cfg-value').value;
-        const width = document.getElementById('width-value').value;
-        const height = document.getElementById('height-value').value;
-        const batchSize = document.getElementById('batch-size-value').value;
-        const prompt = document.getElementById('positive-prompt').value.trim();
+        // Get form elements using the correct selectors (data-linked attributes)
+        const stepsElement = document.querySelector('[data-linked="steps"]');
+        const cfgElement = document.querySelector('[data-linked="cfg"]');
+        const widthElement = document.querySelector('[data-linked="width"]');
+        const heightElement = document.querySelector('[data-linked="height"]');
+        const batchSizeElement = document.querySelector('[data-linked="batch-size"]');
+        const promptElement = document.getElementById('positive-prompt');
 
-        // Validate each field
+        // Check if elements exist and get values safely
+        const steps = stepsElement?.value || '';
+        const cfg = cfgElement?.value || '';
+        const width = widthElement?.value || '';
+        const height = heightElement?.value || '';
+        const batchSize = batchSizeElement?.value || '';
+        const prompt = promptElement?.value?.trim() || '';
+
+        // Validate each field with null checks
         const validations = [
-            { field: 'steps', value: steps, validator: this.validateSteps, element: document.getElementById('steps-value') },
-            { field: 'cfg', value: cfg, validator: this.validateCFG, element: document.getElementById('cfg-value') },
-            { field: 'width', value: width, validator: this.validateDimensions, element: document.getElementById('width-value') },
-            { field: 'height', value: height, validator: this.validateDimensions, element: document.getElementById('height-value') },
-            { field: 'batch-size', value: batchSize, validator: this.validateBatchSize, element: document.getElementById('batch-size-value') }
+            { field: 'steps', value: steps, validator: this.validateSteps, element: stepsElement },
+            { field: 'cfg', value: cfg, validator: this.validateCFG, element: cfgElement },
+            { field: 'width', value: width, validator: this.validateDimensions, element: widthElement },
+            { field: 'height', value: height, validator: this.validateDimensions, element: heightElement },
+            { field: 'batch-size', value: batchSize, validator: this.validateBatchSize, element: batchSizeElement }
         ];
 
         validations.forEach(({ field, value, validator, element }) => {
+            // Check if element exists
+            if (!element) {
+                console.warn(`⚠️ Form element not found for field: ${field}`);
+                const missingError = { field, message: `Form element for ${field} not found`, element: null };
+                validationResults.push({ field, valid: false, message: missingError.message, element: null });
+                errors.push(missingError);
+                return;
+            }
+
+            // Validate if element exists
             const result = validator(value);
             validationResults.push({ field, ...result, element });
             
@@ -991,19 +1009,22 @@ const Validation = {
             }
         });
 
-        // Validate prompt (minimum length)
-        if (prompt.length === 0) {
-            const promptElement = document.getElementById('positive-prompt');
+        // Validate prompt (minimum length) with null check
+        if (!promptElement) {
+            console.warn('⚠️ Prompt element not found');
+            const missingPromptError = { field: 'prompt', message: 'Prompt element not found', element: null };
+            validationResults.push({ field: 'prompt', valid: false, message: missingPromptError.message, element: null });
+            errors.push(missingPromptError);
+        } else if (prompt.length === 0) {
             const promptError = { field: 'prompt', message: 'Positive prompt is required', element: promptElement };
             validationResults.push({ field: 'prompt', valid: false, message: 'Positive prompt is required', element: promptElement });
             errors.push(promptError);
         } else if (prompt.length < 3) {
-            const promptElement = document.getElementById('positive-prompt');
             const promptError = { field: 'prompt', message: 'Prompt must be at least 3 characters long', element: promptElement };
             validationResults.push({ field: 'prompt', valid: false, message: 'Prompt must be at least 3 characters long', element: promptElement });
             errors.push(promptError);
         } else {
-            validationResults.push({ field: 'prompt', valid: true, element: document.getElementById('positive-prompt') });
+            validationResults.push({ field: 'prompt', valid: true, element: promptElement });
         }
 
         return {
@@ -1036,8 +1057,12 @@ const Validation = {
             
             if (field === 'prompt') {
                 controlGroup = document.querySelector('.prompt-control');
-            } else {
+            } else if (element) {
                 controlGroup = element.closest('.control-group');
+            } else {
+                // Element is null, skip visual error display but log it
+                console.warn(`⚠️ Cannot show error for ${field}: element not found`);
+                return;
             }
             
             if (controlGroup) {
