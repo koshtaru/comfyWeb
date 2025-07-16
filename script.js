@@ -1193,37 +1193,9 @@ function initializeFileUpload() {
         let lastClickTime = 0;
         const debounceDelay = 500; // 500ms debounce
         
-        // Click to upload with debouncing
-        uploadArea.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const now = Date.now();
-            if (now - lastClickTime < debounceDelay) {
-                console.log('🚫 Click ignored due to debouncing');
-                return;
-            }
-            lastClickTime = now;
-            
-            console.log('📁 Upload area clicked, triggering file input');
-            
-            // Enhanced file input triggering with fallback
-            try {
-                fileInput.click();
-                console.log('✅ File input click triggered successfully');
-            } catch (error) {
-                console.error('❌ Failed to trigger file input click:', error);
-                // Fallback: focus and then trigger
-                try {
-                    fileInput.focus();
-                    fileInput.click();
-                    console.log('✅ File input click triggered via fallback method');
-                } catch (fallbackError) {
-                    console.error('❌ Fallback file input trigger also failed:', fallbackError);
-                    Utils.showToast('Unable to open file dialog. Please try refreshing the page.', 'error');
-                }
-            }
-        });
+        // No click handler on upload area - file input handles clicks directly
+        // The file input is positioned to cover the entire upload area
+        console.log('📁 File input will handle clicks directly (no programmatic triggering)');
         
         // Drag and drop
         uploadArea.addEventListener('dragover', (e) => {
@@ -1249,6 +1221,11 @@ function initializeFileUpload() {
             }
         });
         
+        // Add click listener to file input for debugging
+        fileInput.addEventListener('click', (e) => {
+            console.log('📁 File input clicked directly!', e);
+        });
+
         // File input change with enhanced logging
         fileInput.addEventListener('change', (e) => {
             console.log(`📁 File input changed: ${e.target.files.length} file(s)`);
