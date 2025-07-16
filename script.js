@@ -8,6 +8,7 @@ const AppState = {
     apiEndpoint: localStorage.getItem('comfyui_endpoint') || 'http://192.168.10.15:8188',
     isConnected: false,
     workflowData: null,
+    modifiedWorkflowData: null,
     isGenerating: false
 };
 
@@ -450,6 +451,182 @@ const Utils = {
         }
     },
     
+    // Collect current form data for workflow modification
+    collectFormData() {
+        console.log('📝 Collecting form data for workflow modification...');
+        
+        try {
+            const formData = {
+                steps: parseInt(document.getElementById('steps')?.value) || 20,
+                cfg: parseFloat(document.querySelector('[data-linked="cfg"]')?.value) || 7.0,
+                width: parseInt(document.querySelector('[data-linked="width"]')?.value) || 512,
+                height: parseInt(document.querySelector('[data-linked="height"]')?.value) || 512,
+                batchSize: parseInt(document.querySelector('[data-linked="batch-size"]')?.value) || 1,
+                positivePrompt: document.getElementById('positive-prompt')?.value?.trim() || ''
+            };
+            
+            console.log('📊 Collected form data:', formData);
+            return formData;
+        } catch (error) {
+            console.error('❌ Error collecting form data:', error);
+            return null;
+        }
+    },
+    
+    // Modify workflow parameters with form data
+    modifyWorkflowParameters(workflowData, formData) {
+        console.log('🔧 Modifying workflow parameters...');
+        
+        if (!workflowData || !formData) {
+            console.error('❌ Invalid workflow data or form data');
+            return null;
+        }
+        
+        try {
+            // Create a deep copy to avoid modifying the original
+            const modifiedWorkflow = JSON.parse(JSON.stringify(workflowData));
+            
+            // Parse workflow nodes (handle both formats)
+            let nodes = [];
+            let isOldFormat = false;
+            
+            if (modifiedWorkflow.nodes && Array.isArray(modifiedWorkflow.nodes)) {
+                // New format with nodes array
+                nodes = modifiedWorkflow.nodes;
+                console.log('📋 Using new workflow format for modification');
+            } else {
+                // Old format with numbered keys
+                isOldFormat = true;
+                nodes = Object.keys(modifiedWorkflow)
+                    .filter(key => !isNaN(key))
+                    .map(key => ({ ...modifiedWorkflow[key], nodeId: key }));
+                console.log('📋 Using old workflow format for modification');
+            }
+            
+            console.log(`🔧 Modifying ${nodes.length} nodes`);
+            
+            // Track modifications made
+            const modifications = {
+                ksampler: 0,
+                emptyLatentImage: 0,
+                clipTextEncode: 0,
+                fluxGuidance: 0
+            };
+            
+            // Modify each node as needed
+            nodes.forEach((node, index) => {
+                if (!node || typeof node !== 'object') return;
+                
+                const nodeType = node.class_type || node.type;
+                if (!nodeType) return;
+                
+                const nodeRef = isOldFormat ? modifiedWorkflow[node.nodeId] : node;
+                
+                // Modify KSampler parameters
+                if (nodeType === 'KSampler' || nodeType === 'KSamplerAdvanced') {
+                    if (nodeRef.inputs) {
+                        if (nodeRef.inputs.steps !== undefined) {
+                            const oldSteps = nodeRef.inputs.steps;
+                            nodeRef.inputs.steps = formData.steps;
+                            console.log(`  ⚙️ Updated KSampler steps: ${oldSteps} → ${formData.steps}`);
+                        }
+                        if (nodeRef.inputs.cfg !== undefined) {
+                            const oldCfg = nodeRef.inputs.cfg;
+                            nodeRef.inputs.cfg = formData.cfg;
+                            console.log(`  ⚙️ Updated KSampler CFG: ${oldCfg} → ${formData.cfg}`);
+                        }
+                        modifications.ksampler++;
+                    }
+                }
+                
+                // Modify FluxSampler parameters
+                else if (nodeType === 'FluxSampler' || nodeType.includes('FluxSample')) {
+                    if (nodeRef.inputs) {
+                        if (nodeRef.inputs.steps !== undefined || nodeRef.inputs.num_steps !== undefined) {
+                            const stepsKey = nodeRef.inputs.steps !== undefined ? 'steps' : 'num_steps';
+                            const oldSteps = nodeRef.inputs[stepsKey];
+                            nodeRef.inputs[stepsKey] = formData.steps;
+                            console.log(`  ⚙️ Updated FluxSampler steps: ${oldSteps} → ${formData.steps}`);
+                        }
+                        if (nodeRef.inputs.cfg !== undefined || nodeRef.inputs.guidance !== undefined) {
+                            const cfgKey = nodeRef.inputs.cfg !== undefined ? 'cfg' : 'guidance';
+                            const oldCfg = nodeRef.inputs[cfgKey];
+                            nodeRef.inputs[cfgKey] = formData.cfg;
+                            console.log(`  ⚙️ Updated FluxSampler CFG: ${oldCfg} → ${formData.cfg}`);
+                        }
+                        modifications.ksampler++;
+                    }
+                }
+                
+                // Modify FluxGuidance parameters
+                else if (nodeType === 'FluxGuidanceNode' || nodeType === 'FluxGuidance') {
+                    if (nodeRef.inputs) {
+                        if (nodeRef.inputs.guidance !== undefined) {
+                            const oldGuidance = nodeRef.inputs.guidance;
+                            nodeRef.inputs.guidance = formData.cfg;
+                            console.log(`  ⚙️ Updated FluxGuidance: ${oldGuidance} → ${formData.cfg}`);
+                        }
+                        modifications.fluxGuidance++;
+                    }
+                }
+                
+                // Modify EmptySD3LatentImage parameters
+                else if (nodeType === 'EmptySD3LatentImage' || nodeType === 'EmptyLatentImage') {
+                    if (nodeRef.inputs) {
+                        if (nodeRef.inputs.width !== undefined) {
+                            const oldWidth = nodeRef.inputs.width;
+                            nodeRef.inputs.width = formData.width;
+                            console.log(`  📐 Updated ${nodeType} width: ${oldWidth} → ${formData.width}`);
+                        }
+                        if (nodeRef.inputs.height !== undefined) {
+                            const oldHeight = nodeRef.inputs.height;
+                            nodeRef.inputs.height = formData.height;
+                            console.log(`  📐 Updated ${nodeType} height: ${oldHeight} → ${formData.height}`);
+                        }
+                        if (nodeRef.inputs.batch_size !== undefined) {
+                            const oldBatch = nodeRef.inputs.batch_size;
+                            nodeRef.inputs.batch_size = formData.batchSize;
+                            console.log(`  📦 Updated ${nodeType} batch_size: ${oldBatch} → ${formData.batchSize}`);
+                        }
+                        modifications.emptyLatentImage++;
+                    }
+                }
+                
+                // Modify CLIPTextEncode parameters (only first one)
+                else if (nodeType === 'CLIPTextEncode' && modifications.clipTextEncode === 0) {
+                    if (nodeRef.inputs && nodeRef.inputs.text !== undefined) {
+                        const oldText = nodeRef.inputs.text;
+                        nodeRef.inputs.text = formData.positivePrompt;
+                        console.log(`  💬 Updated CLIPTextEncode prompt: "${oldText.substring(0, 30)}..." → "${formData.positivePrompt.substring(0, 30)}..."`);
+                        modifications.clipTextEncode++;
+                    }
+                }
+            });
+            
+            console.log('🎯 Workflow modification summary:', modifications);
+            
+            // Show user feedback about modifications
+            const modifiedFields = [];
+            if (modifications.ksampler > 0) modifiedFields.push('Sampling Parameters');
+            if (modifications.fluxGuidance > 0) modifiedFields.push('Flux Guidance');
+            if (modifications.emptyLatentImage > 0) modifiedFields.push('Image Dimensions');
+            if (modifications.clipTextEncode > 0) modifiedFields.push('Prompt');
+            
+            if (modifiedFields.length > 0) {
+                Utils.showToast(`Modified: ${modifiedFields.join(', ')}`, 'success');
+            } else {
+                Utils.showToast('No parameters were modified', 'info');
+            }
+            
+            return modifiedWorkflow;
+            
+        } catch (error) {
+            console.error('❌ Error modifying workflow:', error);
+            Utils.showToast('Failed to modify workflow parameters', 'error');
+            return null;
+        }
+    },
+
     // Populate form fields with extracted parameters
     populateFormParameters(parameters) {
         console.log('📝 Populating form with extracted parameters...');
@@ -1144,8 +1321,29 @@ function initializeFormSubmission() {
             return;
         }
         
-        // TODO: Implement workflow generation (Tasks 5-6)
-        Utils.showToast('Generation will be implemented in next tasks', 'info');
+        // Collect current form data
+        const formData = Utils.collectFormData();
+        if (!formData) {
+            Utils.showToast('Failed to collect form data', 'error');
+            return;
+        }
+        
+        // Modify workflow with current form values
+        console.log('🔄 Starting workflow modification...');
+        const modifiedWorkflow = Utils.modifyWorkflowParameters(AppState.workflowData, formData);
+        
+        if (!modifiedWorkflow) {
+            Utils.showToast('Failed to modify workflow parameters', 'error');
+            return;
+        }
+        
+        // Store modified workflow for API submission
+        AppState.modifiedWorkflowData = modifiedWorkflow;
+        
+        console.log('✅ Workflow modification completed successfully');
+        
+        // TODO: Implement API submission (Task 6)
+        Utils.showToast('Workflow modified successfully! API submission will be implemented in Task 6.', 'success');
     });
 }
 
