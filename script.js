@@ -356,6 +356,338 @@ class WebSocketService {
     }
 }
 
+// Interrupt Service States
+const InterruptState = {
+    IDLE: 'idle',
+    INTERRUPTING: 'interrupting',
+    SUCCEEDED: 'succeeded',
+    FAILED: 'failed'
+};
+
+// Custom error types for interrupt operations
+class InterruptError extends Error {
+    constructor(message, type, details = {}) {
+        super(message);
+        this.name = 'InterruptError';
+        this.type = type;
+        this.details = details;
+    }
+}
+
+class NetworkError extends InterruptError {
+    constructor(message, details = {}) {
+        super(message, 'network', details);
+        this.name = 'NetworkError';
+    }
+}
+
+class TimeoutError extends InterruptError {
+    constructor(message, details = {}) {
+        super(message, 'timeout', details);
+        this.name = 'TimeoutError';
+    }
+}
+
+class ServerError extends InterruptError {
+    constructor(message, status, details = {}) {
+        super(message, 'server', { ...details, status });
+        this.name = 'ServerError';
+    }
+}
+
+// Interrupt Service Class
+class InterruptService {
+    constructor(config = {}) {
+        // Configuration
+        this.apiEndpoint = config.apiEndpoint || null;
+        this.timeout = config.timeout || 5000;
+        this.maxRetryAttempts = config.maxRetryAttempts || 3;
+        this.retryDelay = config.retryDelay || 1000;
+        
+        // State
+        this.state = InterruptState.IDLE;
+        this.currentRequest = null;
+        this.retryCount = 0;
+        this.interruptHistory = [];
+        
+        // Event listeners
+        this.eventListeners = new Map();
+        
+        // Bind methods
+        this.interrupt = this.interrupt.bind(this);
+    }
+    
+    // Event emitter methods
+    on(event, callback) {
+        if (!this.eventListeners.has(event)) {
+            this.eventListeners.set(event, []);
+        }
+        this.eventListeners.get(event).push(callback);
+    }
+    
+    off(event, callback) {
+        if (!this.eventListeners.has(event)) return;
+        const listeners = this.eventListeners.get(event);
+        const index = listeners.indexOf(callback);
+        if (index > -1) {
+            listeners.splice(index, 1);
+        }
+    }
+    
+    emit(event, data) {
+        if (!this.eventListeners.has(event)) return;
+        this.eventListeners.get(event).forEach(callback => {
+            try {
+                callback(data);
+            } catch (error) {
+                console.error(`Error in InterruptService event listener for ${event}:`, error);
+            }
+        });
+    }
+    
+    // Set API endpoint
+    setApiEndpoint(endpoint) {
+        this.apiEndpoint = endpoint;
+    }
+    
+    // Get current state
+    getState() {
+        return this.state;
+    }
+    
+    // Change state and emit event
+    setState(newState) {
+        const oldState = this.state;
+        this.state = newState;
+        this.emit('stateChange', { oldState, newState });
+        console.log(`🛑 InterruptService state: ${oldState} → ${newState}`);
+    }
+    
+    // Main interrupt method
+    async interrupt() {
+        // Check if already interrupting
+        if (this.state === InterruptState.INTERRUPTING) {
+            console.warn('🛑 Interrupt already in progress');
+            return false;
+        }
+        
+        // Validate endpoint
+        if (!this.apiEndpoint) {
+            const error = new InterruptError('No API endpoint configured', 'configuration');
+            this.handleError(error);
+            return false;
+        }
+        
+        // Reset retry count
+        this.retryCount = 0;
+        
+        // Attempt interrupt with retry logic
+        return this.attemptInterrupt();
+    }
+    
+    // Attempt interrupt with retry logic
+    async attemptInterrupt() {
+        this.setState(InterruptState.INTERRUPTING);
+        
+        const startTime = Date.now();
+        const url = `${this.apiEndpoint}/interrupt`;
+        
+        console.log(`🛑 Attempting interrupt (attempt ${this.retryCount + 1}/${this.maxRetryAttempts})`);
+        
+        try {
+            // Create abort controller for timeout
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                controller.abort();
+            }, this.timeout);
+            
+            // Store current request for potential cancellation
+            this.currentRequest = { controller, timeoutId };
+            
+            // Make the request
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
+            });
+            
+            // Clear timeout
+            clearTimeout(timeoutId);
+            this.currentRequest = null;
+            
+            // Handle response
+            if (response.ok) {
+                const duration = Date.now() - startTime;
+                this.handleSuccess(duration);
+                return true;
+            } else {
+                // Server error
+                const error = new ServerError(
+                    `Interrupt failed with status ${response.status}`,
+                    response.status,
+                    { url, duration: Date.now() - startTime }
+                );
+                throw error;
+            }
+            
+        } catch (error) {
+            // Handle different error types
+            if (error.name === 'AbortError') {
+                const timeoutError = new TimeoutError(
+                    `Interrupt request timed out after ${this.timeout}ms`,
+                    { url, timeout: this.timeout }
+                );
+                return this.handleRetriableError(timeoutError);
+            } else if (error instanceof ServerError) {
+                // Don't retry on server errors (4xx, 5xx)
+                this.handleError(error);
+                return false;
+            } else {
+                // Network error - retry
+                const networkError = new NetworkError(
+                    `Network error during interrupt: ${error.message}`,
+                    { url, originalError: error }
+                );
+                return this.handleRetriableError(networkError);
+            }
+        }
+    }
+    
+    // Handle retriable errors with exponential backoff
+    async handleRetriableError(error) {
+        this.retryCount++;
+        
+        if (this.retryCount >= this.maxRetryAttempts) {
+            console.error(`🛑 Max retry attempts (${this.maxRetryAttempts}) reached`);
+            this.handleError(error);
+            return false;
+        }
+        
+        // Calculate delay with exponential backoff
+        const delay = this.retryDelay * Math.pow(2, this.retryCount - 1);
+        console.log(`🔄 Retrying interrupt in ${delay}ms...`);
+        
+        // Emit retry event
+        this.emit('retry', {
+            error,
+            attempt: this.retryCount,
+            maxAttempts: this.maxRetryAttempts,
+            delay
+        });
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, delay));
+        
+        // Retry if not cancelled
+        if (this.state === InterruptState.INTERRUPTING) {
+            return this.attemptInterrupt();
+        }
+        
+        return false;
+    }
+    
+    // Handle successful interrupt
+    handleSuccess(duration) {
+        this.setState(InterruptState.SUCCEEDED);
+        
+        // Add to history
+        const historyEntry = {
+            timestamp: Date.now(),
+            duration,
+            retryCount: this.retryCount,
+            success: true
+        };
+        this.addToHistory(historyEntry);
+        
+        // Emit success event
+        this.emit('success', {
+            duration,
+            retryCount: this.retryCount
+        });
+        
+        console.log(`✅ Interrupt succeeded in ${duration}ms (${this.retryCount} retries)`);
+        
+        // Reset state after a delay
+        setTimeout(() => {
+            if (this.state === InterruptState.SUCCEEDED) {
+                this.setState(InterruptState.IDLE);
+            }
+        }, 1000);
+    }
+    
+    // Handle interrupt error
+    handleError(error) {
+        this.setState(InterruptState.FAILED);
+        
+        // Add to history
+        const historyEntry = {
+            timestamp: Date.now(),
+            error: {
+                message: error.message,
+                type: error.type || 'unknown',
+                details: error.details || {}
+            },
+            retryCount: this.retryCount,
+            success: false
+        };
+        this.addToHistory(historyEntry);
+        
+        // Emit error event
+        this.emit('error', {
+            error,
+            retryCount: this.retryCount
+        });
+        
+        console.error(`❌ Interrupt failed:`, error.message);
+        
+        // Reset state after a delay
+        setTimeout(() => {
+            if (this.state === InterruptState.FAILED) {
+                this.setState(InterruptState.IDLE);
+            }
+        }, 1000);
+    }
+    
+    // Cancel ongoing interrupt
+    cancel() {
+        if (this.state !== InterruptState.INTERRUPTING) {
+            return false;
+        }
+        
+        // Cancel current request
+        if (this.currentRequest) {
+            clearTimeout(this.currentRequest.timeoutId);
+            this.currentRequest.controller.abort();
+            this.currentRequest = null;
+        }
+        
+        this.setState(InterruptState.IDLE);
+        console.log('🛑 Interrupt cancelled');
+        return true;
+    }
+    
+    // Add entry to history (keep last 10)
+    addToHistory(entry) {
+        this.interruptHistory.unshift(entry);
+        if (this.interruptHistory.length > 10) {
+            this.interruptHistory.pop();
+        }
+    }
+    
+    // Get interrupt history
+    getHistory() {
+        return [...this.interruptHistory];
+    }
+    
+    // Clear history
+    clearHistory() {
+        this.interruptHistory = [];
+    }
+}
+
 // Progress Bar Component Class
 class ProgressBarComponent {
     constructor(config = {}) {
@@ -630,7 +962,8 @@ const AppState = {
     modifiedWorkflowData: null,
     isGenerating: false,
     websocket: null,
-    progressBar: null
+    progressBar: null,
+    interruptService: null
 };
 
 // DOM Elements
@@ -1620,51 +1953,15 @@ const Utils = {
 
 // ComfyUI API Functions
 const ComfyUIAPI = {
-    // Interrupt current generation
+    // Interrupt current generation - now uses InterruptService
     async interrupt() {
-        if (!AppState.apiEndpoint) {
-            console.error('❌ No API endpoint configured');
+        if (!AppState.interruptService) {
+            console.error('❌ InterruptService not initialized');
             return false;
         }
         
-        const url = `${AppState.apiEndpoint}/interrupt`;
-        console.log(`🛑 Calling ComfyUI interrupt endpoint: ${url}`);
-        
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => {
-                console.log('⏱️ Interrupt request timeout after 5 seconds');
-                controller.abort();
-            }, 5000);
-            
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json'
-                },
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (response.ok) {
-                console.log('✅ Generation interrupted successfully');
-                return true;
-            } else {
-                console.error(`❌ Interrupt failed with status: ${response.status}`);
-                return false;
-            }
-            
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                console.error('❌ Interrupt request timed out');
-                Utils.showToast('Cancel request timed out', 'error');
-            } else {
-                console.error('❌ Error calling interrupt endpoint:', error);
-            }
-            return false;
-        }
+        // Use the interrupt service
+        return await AppState.interruptService.interrupt();
     }
 };
 
@@ -2454,6 +2751,11 @@ function initializeConnectionTest() {
                     AppState.apiEndpoint = testUrl;
                     localStorage.setItem('comfyui_endpoint', testUrl);
                     
+                    // Update InterruptService endpoint
+                    if (AppState.interruptService) {
+                        AppState.interruptService.setApiEndpoint(testUrl);
+                    }
+                    
                     indicator.dataset.status = 'connected';
                     statusText.textContent = 'Connected to ComfyUI';
                     Utils.showToast(`Connected to ComfyUI via ${successfulEndpoint.name}`, 'success');
@@ -2474,6 +2776,11 @@ function initializeConnectionTest() {
                     AppState.isConnected = true;
                     AppState.apiEndpoint = testUrl;
                     localStorage.setItem('comfyui_endpoint', testUrl);
+                    
+                    // Update InterruptService endpoint
+                    if (AppState.interruptService) {
+                        AppState.interruptService.setApiEndpoint(testUrl);
+                    }
                     
                     indicator.dataset.status = 'connected';
                     statusText.textContent = 'Connected via WebSocket';
@@ -3347,6 +3654,17 @@ function initializeApp() {
         // Initialize WebSocket connection
         initializeWebSocket();
         
+        // Initialize Interrupt Service
+        AppState.interruptService = new InterruptService({
+            apiEndpoint: AppState.apiEndpoint,
+            timeout: 5000,
+            maxRetryAttempts: 3,
+            retryDelay: 1000
+        });
+        
+        // Setup Interrupt Service event listeners
+        setupInterruptServiceListeners();
+        
         // Initialize Progress Bar Component
         AppState.progressBar = new ProgressBarComponent({
             container: elements.progressContainer,
@@ -3593,6 +3911,65 @@ function cleanupWebSocket() {
         AppState.websocket.disconnect();
         AppState.websocket = null;
     }
+}
+
+// Setup Interrupt Service Event Handlers
+function setupInterruptServiceListeners() {
+    const service = AppState.interruptService;
+    if (!service) {
+        console.warn('⚠️ InterruptService not available for event setup');
+        return;
+    }
+    
+    // Listen for state changes
+    service.on('stateChange', ({ oldState, newState }) => {
+        console.log(`🛑 Interrupt state: ${oldState} → ${newState}`);
+        
+        // Update UI based on state
+        if (newState === InterruptState.INTERRUPTING) {
+            setCancelButtonState('loading');
+        } else if (newState === InterruptState.SUCCEEDED) {
+            setCancelButtonState('hidden');
+        } else if (newState === InterruptState.FAILED) {
+            setCancelButtonState('enabled');
+        }
+    });
+    
+    // Listen for successful interrupts
+    service.on('success', ({ duration, retryCount }) => {
+        console.log(`✅ Interrupt succeeded in ${duration}ms (${retryCount} retries)`);
+        Utils.showToast('Generation cancelled successfully', 'info');
+        
+        // Update app state
+        AppState.isGenerating = false;
+        setGenerationLoadingState(false);
+        hideRealtimeStatus();
+    });
+    
+    // Listen for errors
+    service.on('error', ({ error, retryCount }) => {
+        console.error(`❌ Interrupt error:`, error);
+        
+        // Show appropriate error message based on error type
+        let message = 'Failed to cancel generation';
+        if (error.type === 'timeout') {
+            message = 'Cancel request timed out';
+        } else if (error.type === 'network') {
+            message = 'Network error while cancelling';
+        } else if (error.type === 'server' && error.details.status) {
+            message = `Server error: ${error.details.status}`;
+        }
+        
+        Utils.showToast(message, 'error');
+    });
+    
+    // Listen for retry attempts
+    service.on('retry', ({ error, attempt, maxAttempts, delay }) => {
+        console.log(`🔄 Retrying interrupt (${attempt}/${maxAttempts}) in ${delay}ms`);
+        Utils.showToast(`Retrying cancel request... (${attempt}/${maxAttempts})`, 'info');
+    });
+    
+    console.log('✅ InterruptService event listeners configured');
 }
 
 // Cleanup on page unload

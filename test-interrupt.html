@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterruptService Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        .test-button { padding: 10px 15px; margin: 5px; cursor: pointer; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .log { background-color: #f8f9fa; padding: 10px; border-radius: 3px; margin: 10px 0; font-family: monospace; white-space: pre-wrap; max-height: 300px; overflow-y: auto; }
+        .status { font-weight: bold; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <h1>InterruptService Test Page</h1>
+    
+    <div class="test-section">
+        <h2>Service Status</h2>
+        <div id="service-status" class="status">Not initialized</div>
+        <button class="test-button" onclick="initializeService()">Initialize Service</button>
+        <button class="test-button" onclick="checkServiceState()">Check State</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Basic Interrupt Tests</h2>
+        <button class="test-button" onclick="testSuccessfulInterrupt()">Test Successful Interrupt</button>
+        <button class="test-button" onclick="testTimeoutError()">Test Timeout Error</button>
+        <button class="test-button" onclick="testNetworkError()">Test Network Error</button>
+        <button class="test-button" onclick="testServerError()">Test Server Error</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Retry Logic Tests</h2>
+        <button class="test-button" onclick="testRetryLogic()">Test Retry Logic</button>
+        <button class="test-button" onclick="testMaxRetries()">Test Max Retries</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Event Handling Tests</h2>
+        <button class="test-button" onclick="testEventEmission()">Test Event Emission</button>
+        <button class="test-button" onclick="testStateChanges()">Test State Changes</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Mock ComfyUI Server</h2>
+        <button class="test-button" onclick="startMockServer()">Start Mock Server</button>
+        <button class="test-button" onclick="stopMockServer()">Stop Mock Server</button>
+        <div id="mock-server-status">Mock server not started</div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Log</h2>
+        <button class="test-button" onclick="clearLog()">Clear Log</button>
+        <div id="test-log" class="log"></div>
+    </div>
+
+    <script>
+        let interruptService = null;
+        let mockServer = null;
+        let testResults = [];
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toISOString();
+            const logEntry = `[${timestamp}] ${message}`;
+            
+            const logDiv = document.getElementById('test-log');
+            const logLine = document.createElement('div');
+            logLine.className = type;
+            logLine.textContent = logEntry;
+            logDiv.appendChild(logLine);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            
+            console.log(logEntry);
+        }
+
+        function clearLog() {
+            document.getElementById('test-log').innerHTML = '';
+        }
+
+        function updateServiceStatus(status) {
+            document.getElementById('service-status').textContent = status;
+        }
+
+        // Copy the InterruptService classes from the main script
+        const InterruptState = {
+            IDLE: 'idle',
+            INTERRUPTING: 'interrupting',
+            SUCCEEDED: 'succeeded',
+            FAILED: 'failed'
+        };
+
+        class InterruptError extends Error {
+            constructor(message, type, details = {}) {
+                super(message);
+                this.name = 'InterruptError';
+                this.type = type;
+                this.details = details;
+            }
+        }
+
+        class NetworkError extends InterruptError {
+            constructor(message, details = {}) {
+                super(message, 'network', details);
+                this.name = 'NetworkError';
+            }
+        }
+
+        class TimeoutError extends InterruptError {
+            constructor(message, details = {}) {
+                super(message, 'timeout', details);
+                this.name = 'TimeoutError';
+            }
+        }
+
+        class ServerError extends InterruptError {
+            constructor(message, status, details = {}) {
+                super(message, 'server', { ...details, status });
+                this.name = 'ServerError';
+            }
+        }
+
+        // Simplified InterruptService for testing
+        class InterruptService {
+            constructor(config = {}) {
+                this.apiEndpoint = config.apiEndpoint || null;
+                this.timeout = config.timeout || 5000;
+                this.maxRetryAttempts = config.maxRetryAttempts || 3;
+                this.retryDelay = config.retryDelay || 1000;
+                
+                this.state = InterruptState.IDLE;
+                this.currentRequest = null;
+                this.retryCount = 0;
+                this.interruptHistory = [];
+                this.eventListeners = new Map();
+            }
+
+            on(event, callback) {
+                if (!this.eventListeners.has(event)) {
+                    this.eventListeners.set(event, []);
+                }
+                this.eventListeners.get(event).push(callback);
+            }
+
+            emit(event, data) {
+                if (!this.eventListeners.has(event)) return;
+                this.eventListeners.get(event).forEach(callback => {
+                    try {
+                        callback(data);
+                    } catch (error) {
+                        console.error(`Error in event listener for ${event}:`, error);
+                    }
+                });
+            }
+
+            setApiEndpoint(endpoint) {
+                this.apiEndpoint = endpoint;
+            }
+
+            getState() {
+                return this.state;
+            }
+
+            setState(newState) {
+                const oldState = this.state;
+                this.state = newState;
+                this.emit('stateChange', { oldState, newState });
+            }
+
+            async interrupt() {
+                if (this.state === InterruptState.INTERRUPTING) {
+                    return false;
+                }
+
+                if (!this.apiEndpoint) {
+                    const error = new InterruptError('No API endpoint configured', 'configuration');
+                    this.handleError(error);
+                    return false;
+                }
+
+                this.retryCount = 0;
+                return this.attemptInterrupt();
+            }
+
+            async attemptInterrupt() {
+                this.setState(InterruptState.INTERRUPTING);
+                
+                const startTime = Date.now();
+                const url = `${this.apiEndpoint}/interrupt`;
+                
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                        controller.abort();
+                    }, this.timeout);
+                    
+                    this.currentRequest = { controller, timeoutId };
+                    
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+                    this.currentRequest = null;
+                    
+                    if (response.ok) {
+                        const duration = Date.now() - startTime;
+                        this.handleSuccess(duration);
+                        return true;
+                    } else {
+                        const error = new ServerError(
+                            `Interrupt failed with status ${response.status}`,
+                            response.status,
+                            { url, duration: Date.now() - startTime }
+                        );
+                        throw error;
+                    }
+                    
+                } catch (error) {
+                    if (error.name === 'AbortError') {
+                        const timeoutError = new TimeoutError(
+                            `Interrupt request timed out after ${this.timeout}ms`,
+                            { url, timeout: this.timeout }
+                        );
+                        return this.handleRetriableError(timeoutError);
+                    } else if (error instanceof ServerError) {
+                        this.handleError(error);
+                        return false;
+                    } else {
+                        const networkError = new NetworkError(
+                            `Network error during interrupt: ${error.message}`,
+                            { url, originalError: error }
+                        );
+                        return this.handleRetriableError(networkError);
+                    }
+                }
+            }
+
+            async handleRetriableError(error) {
+                this.retryCount++;
+                
+                if (this.retryCount >= this.maxRetryAttempts) {
+                    this.handleError(error);
+                    return false;
+                }
+                
+                const delay = this.retryDelay * Math.pow(2, this.retryCount - 1);
+                
+                this.emit('retry', {
+                    error,
+                    attempt: this.retryCount,
+                    maxAttempts: this.maxRetryAttempts,
+                    delay
+                });
+                
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                if (this.state === InterruptState.INTERRUPTING) {
+                    return this.attemptInterrupt();
+                }
+                
+                return false;
+            }
+
+            handleSuccess(duration) {
+                this.setState(InterruptState.SUCCEEDED);
+                
+                const historyEntry = {
+                    timestamp: Date.now(),
+                    duration,
+                    retryCount: this.retryCount,
+                    success: true
+                };
+                this.addToHistory(historyEntry);
+                
+                this.emit('success', {
+                    duration,
+                    retryCount: this.retryCount
+                });
+                
+                setTimeout(() => {
+                    if (this.state === InterruptState.SUCCEEDED) {
+                        this.setState(InterruptState.IDLE);
+                    }
+                }, 1000);
+            }
+
+            handleError(error) {
+                this.setState(InterruptState.FAILED);
+                
+                const historyEntry = {
+                    timestamp: Date.now(),
+                    error: {
+                        message: error.message,
+                        type: error.type || 'unknown',
+                        details: error.details || {}
+                    },
+                    retryCount: this.retryCount,
+                    success: false
+                };
+                this.addToHistory(historyEntry);
+                
+                this.emit('error', {
+                    error,
+                    retryCount: this.retryCount
+                });
+                
+                setTimeout(() => {
+                    if (this.state === InterruptState.FAILED) {
+                        this.setState(InterruptState.IDLE);
+                    }
+                }, 1000);
+            }
+
+            addToHistory(entry) {
+                this.interruptHistory.unshift(entry);
+                if (this.interruptHistory.length > 10) {
+                    this.interruptHistory.pop();
+                }
+            }
+
+            getHistory() {
+                return [...this.interruptHistory];
+            }
+        }
+
+        // Test functions
+        function initializeService() {
+            interruptService = new InterruptService({
+                apiEndpoint: 'http://localhost:8000',
+                timeout: 2000,
+                maxRetryAttempts: 2,
+                retryDelay: 500
+            });
+
+            // Add event listeners
+            interruptService.on('stateChange', ({ oldState, newState }) => {
+                log(`State change: ${oldState} → ${newState}`, 'info');
+                updateServiceStatus(`State: ${newState}`);
+            });
+
+            interruptService.on('success', ({ duration, retryCount }) => {
+                log(`Success: ${duration}ms (${retryCount} retries)`, 'success');
+            });
+
+            interruptService.on('error', ({ error, retryCount }) => {
+                log(`Error: ${error.message} (${retryCount} retries)`, 'error');
+            });
+
+            interruptService.on('retry', ({ error, attempt, maxAttempts, delay }) => {
+                log(`Retry ${attempt}/${maxAttempts} in ${delay}ms: ${error.message}`, 'info');
+            });
+
+            log('InterruptService initialized', 'success');
+            updateServiceStatus('Initialized');
+        }
+
+        function checkServiceState() {
+            if (!interruptService) {
+                log('Service not initialized', 'error');
+                return;
+            }
+            
+            const state = interruptService.getState();
+            const history = interruptService.getHistory();
+            
+            log(`Current state: ${state}`, 'info');
+            log(`History entries: ${history.length}`, 'info');
+            
+            if (history.length > 0) {
+                const lastEntry = history[0];
+                log(`Last operation: ${lastEntry.success ? 'Success' : 'Failed'} at ${new Date(lastEntry.timestamp).toLocaleTimeString()}`, 'info');
+            }
+        }
+
+        // Mock server for testing
+        function startMockServer() {
+            if (mockServer) {
+                log('Mock server already running', 'info');
+                return;
+            }
+
+            // This would normally be a Service Worker or actual server
+            // For testing, we'll mock the fetch responses
+            const originalFetch = window.fetch;
+            window.fetch = async (url, options) => {
+                if (url.includes('/interrupt')) {
+                    log(`Mock server: Received interrupt request to ${url}`, 'info');
+                    
+                    // Simulate different responses based on test conditions
+                    if (window.testCondition === 'timeout') {
+                        return new Promise(() => {}); // Never resolves
+                    } else if (window.testCondition === 'network-error') {
+                        throw new Error('Network error');
+                    } else if (window.testCondition === 'server-error') {
+                        return new Response('Server Error', { status: 500 });
+                    } else {
+                        // Simulate success
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        return new Response('OK', { status: 200 });
+                    }
+                }
+                
+                return originalFetch(url, options);
+            };
+
+            mockServer = { originalFetch };
+            document.getElementById('mock-server-status').textContent = 'Mock server running';
+            log('Mock server started', 'success');
+        }
+
+        function stopMockServer() {
+            if (mockServer) {
+                window.fetch = mockServer.originalFetch;
+                mockServer = null;
+                document.getElementById('mock-server-status').textContent = 'Mock server stopped';
+                log('Mock server stopped', 'info');
+            }
+        }
+
+        // Test cases
+        async function testSuccessfulInterrupt() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            window.testCondition = 'success';
+            log('Testing successful interrupt...', 'info');
+            
+            const result = await interruptService.interrupt();
+            log(`Interrupt result: ${result}`, result ? 'success' : 'error');
+        }
+
+        async function testTimeoutError() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            window.testCondition = 'timeout';
+            log('Testing timeout error...', 'info');
+            
+            const result = await interruptService.interrupt();
+            log(`Interrupt result: ${result}`, result ? 'success' : 'error');
+        }
+
+        async function testNetworkError() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            window.testCondition = 'network-error';
+            log('Testing network error...', 'info');
+            
+            const result = await interruptService.interrupt();
+            log(`Interrupt result: ${result}`, result ? 'success' : 'error');
+        }
+
+        async function testServerError() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            window.testCondition = 'server-error';
+            log('Testing server error...', 'info');
+            
+            const result = await interruptService.interrupt();
+            log(`Interrupt result: ${result}`, result ? 'success' : 'error');
+        }
+
+        async function testRetryLogic() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            window.testCondition = 'network-error';
+            log('Testing retry logic with network errors...', 'info');
+            
+            const result = await interruptService.interrupt();
+            log(`Final result after retries: ${result}`, result ? 'success' : 'error');
+        }
+
+        async function testMaxRetries() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            // Create a service with max 1 retry for quick testing
+            const testService = new InterruptService({
+                apiEndpoint: 'http://localhost:8000',
+                timeout: 1000,
+                maxRetryAttempts: 1,
+                retryDelay: 100
+            });
+
+            testService.on('retry', ({ attempt, maxAttempts }) => {
+                log(`Retry attempt ${attempt}/${maxAttempts}`, 'info');
+            });
+
+            testService.on('error', ({ error }) => {
+                log(`Max retries reached: ${error.message}`, 'error');
+            });
+
+            window.testCondition = 'network-error';
+            log('Testing max retries (should fail after 1 retry)...', 'info');
+            
+            const result = await testService.interrupt();
+            log(`Result: ${result}`, result ? 'success' : 'error');
+        }
+
+        function testEventEmission() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            log('Testing event emission...', 'info');
+            
+            let eventCount = 0;
+            const testListener = (data) => {
+                eventCount++;
+                log(`Test event received: ${JSON.stringify(data)}`, 'info');
+            };
+
+            interruptService.on('testEvent', testListener);
+            interruptService.emit('testEvent', { test: 'data' });
+            
+            if (eventCount === 1) {
+                log('Event emission test passed', 'success');
+            } else {
+                log(`Event emission test failed: expected 1 event, got ${eventCount}`, 'error');
+            }
+        }
+
+        function testStateChanges() {
+            if (!interruptService) {
+                log('Initialize service first', 'error');
+                return;
+            }
+
+            log('Testing state changes...', 'info');
+            
+            const initialState = interruptService.getState();
+            log(`Initial state: ${initialState}`, 'info');
+            
+            // Manually trigger state change for testing
+            interruptService.setState(InterruptState.INTERRUPTING);
+            const newState = interruptService.getState();
+            log(`New state: ${newState}`, 'info');
+            
+            if (newState === InterruptState.INTERRUPTING) {
+                log('State change test passed', 'success');
+            } else {
+                log('State change test failed', 'error');
+            }
+            
+            // Reset to idle
+            interruptService.setState(InterruptState.IDLE);
+        }
+
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            log('Test page loaded', 'info');
+            startMockServer();
+        });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            stopMockServer();
+        });
+    </script>
+</body>
+</html>
