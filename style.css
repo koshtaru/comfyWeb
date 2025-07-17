@@ -1723,6 +1723,288 @@ body {
     font-family: 'Monaco', 'Consolas', monospace;
 }
 
+/* ============================================================================= */
+/* Task 14.3: Metadata Panel Component Styles (Basic Structure) */
+/* ============================================================================= */
+
+.metadata-container {
+    margin-top: var(--space-lg);
+    padding: var(--space-md);
+    background: var(--color-bg-secondary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
+}
+
+.metadata-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: var(--space-md);
+}
+
+/* Explicit grid positioning for 3-column layout (accounting for title) */
+.metadata-section:nth-child(2) { grid-column: 1; grid-row: 1; }
+.metadata-section:nth-child(3) { grid-column: 2; grid-row: 1; }
+.metadata-section:nth-child(4) { grid-column: 3; grid-row: 1; }
+
+/* Prompt section and actions span full width */
+.metadata-prompt-section,
+.metadata-actions {
+    grid-column: 1 / -1;
+}
+
+/* Responsive breakpoints for metadata panel */
+@media (max-width: 1200px) {
+    .metadata-panel {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .metadata-panel {
+        grid-template-columns: 1fr;
+    }
+    
+    .metadata-prompt-section,
+    .metadata-actions {
+        grid-column: 1;
+    }
+}
+
+.metadata-title {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-md);
+}
+
+.metadata-section {
+    background: var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    overflow: hidden;
+}
+
+.metadata-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-sm) var(--space-md);
+    background: var(--color-bg-primary);
+    border-bottom: 1px solid var(--color-border);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.metadata-section-header:hover {
+    background: var(--color-bg-secondary);
+}
+
+.metadata-section-header h5 {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    margin: 0;
+}
+
+.expand-icon {
+    color: var(--color-text-secondary);
+    transition: var(--transition-fast);
+}
+
+.expand-icon.expanded {
+    transform: rotate(180deg);
+}
+
+.metadata-section-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+}
+
+.metadata-section-content.expanded {
+    max-height: 500px;
+}
+
+.metadata-grid {
+    display: grid;
+    gap: var(--space-sm);
+    padding: var(--space-md);
+}
+
+.metadata-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-xs) 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.metadata-row:last-child {
+    border-bottom: none;
+}
+
+.metadata-label {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    min-width: 80px;
+    flex-shrink: 0;
+}
+
+.metadata-value-container {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.metadata-value {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-xs);
+    font-family: 'Monaco', 'Consolas', monospace;
+    word-break: break-word;
+    text-align: right;
+}
+
+.metadata-value.number {
+    color: var(--color-accent-blue);
+}
+
+.copy-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-text-secondary);
+    padding: var(--space-xs);
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.copy-btn:hover {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+}
+
+.prompt-section {
+    padding: var(--space-lg);
+    border-bottom: 1px solid var(--color-border);
+}
+
+.prompt-section:last-child {
+    border-bottom: none;
+}
+
+.prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-md);
+}
+
+.prompt-label {
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.prompt-content {
+    position: relative;
+}
+
+.prompt-text {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    padding: var(--space-md);
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+}
+
+.prompt-text.truncated {
+    max-height: 80px;
+    overflow: hidden;
+}
+
+.prompt-text.expanded {
+    max-height: none;
+}
+
+.expand-prompt-btn {
+    background: var(--color-accent-blue);
+    color: white;
+    border: none;
+    padding: var(--space-xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    margin-top: var(--space-sm);
+    transition: var(--transition-fast);
+}
+
+.expand-prompt-btn:hover {
+    background: var(--color-accent-orange);
+}
+
+.metadata-actions {
+    display: flex;
+    justify-content: center;
+    padding: var(--space-lg);
+    border-top: 1px solid var(--color-border);
+}
+
+.metadata-action-btn {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+    border: 1px solid var(--color-border);
+    padding: var(--space-sm) var(--space-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.metadata-action-btn:hover {
+    background: var(--color-accent-blue);
+    color: white;
+}
+
+.metadata-empty {
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-style: italic;
+    padding: var(--space-xl);
+}
+
+.metadata-error {
+    text-align: center;
+    color: var(--color-error);
+    padding: var(--space-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-md);
+}
+
+.metadata-error svg {
+    color: var(--color-error);
+    opacity: 0.7;
+}
+
+.metadata-error p {
+    font-size: var(--font-size-sm);
+    margin: 0;
+}
+
 /* Generation Error Display */
 .generation-error {
     display: flex;

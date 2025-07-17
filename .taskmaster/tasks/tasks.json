@@ -430,8 +430,8 @@
               1,
               2
             ],
-            "details": "Design MetadataPanel component with collapsible/expandable sections. Create sub-components for parameter groups: Generation Settings (model, sampler, steps, CFG), Prompt Information (positive/negative with truncation), Image Properties (dimensions, batch size), Timing Data (start, duration, completion). Implement component state for expand/collapse functionality. Use React hooks for state management and memoization for performance. Structure components for reusability and maintainability.",
-            "status": "pending",
+            "details": "Design MetadataPanel component with collapsible/expandable sections. Create sub-components for parameter groups: Generation Settings (model, sampler, steps, CFG), Prompt Information (positive/negative with truncation), Image Properties (dimensions, batch size), Timing Data (start, duration, completion). Implement component state for expand/collapse functionality. Use React hooks for state management and memoization for performance. Structure components for reusability and maintainability.\n<info added on 2025-07-17T19:23:37.844Z>\nCOMPLETED: Fixed MetadataPanel CSS Grid layout positioning issue.\n\nPROBLEM: The 3-column layout (Generation Settings, Image Properties, Timing Information) wasn't working correctly. The Timing Information section was appearing below Image Properties instead of in the third column of the same row.\n\nROOT CAUSE: The nth-child CSS selectors were incorrect. The HTML structure includes a title element as the first child, so the metadata sections are actually children 2, 3, and 4, not 1, 2, and 3.\n\nSOLUTION IMPLEMENTED:\n1. Identified HTML structure in generatePanelHTML() method:\n   - Child 1: .metadata-title (Generation Details)\n   - Child 2: Generation Settings .metadata-section \n   - Child 3: Image Properties .metadata-section\n   - Child 4: Timing Information .metadata-section\n   - Child 5: .metadata-prompt-section (full width)\n   - Child 6: .metadata-actions (full width)\n\n2. Updated CSS Grid positioning in style.css:\n   - .metadata-section:nth-child(2) { grid-column: 1; grid-row: 1; }\n   - .metadata-section:nth-child(3) { grid-column: 2; grid-row: 1; } \n   - .metadata-section:nth-child(4) { grid-column: 3; grid-row: 1; }\n\nRESULT: All three sections now appear correctly in the first row with proper grid positioning, and the Prompt Information section spans full width below them.\n\nFILES MODIFIED:\n- /Users/james.crawford/ComfyotgTest/style.css (lines 1744-1747)\n\nTECHNICAL DETAILS:\n- Used explicit CSS Grid positioning with nth-child selectors\n- Maintained responsive breakpoints for mobile/tablet views\n- Preserved existing full-width sections (.metadata-prompt-section, .metadata-actions)\n- Layout now matches user requirements: 3 columns top row + full-width bottom row\n</info added on 2025-07-17T19:23:37.844Z>",
+            "status": "done",
             "testStrategy": "Component tests for state management and prop handling. Test expand/collapse functionality and data flow between components. Validate component rendering with various metadata configurations."
           },
           {
@@ -958,7 +958,7 @@
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-17T17:56:28.838Z",
+      "updated": "2025-07-17T18:39:37.542Z",
       "description": "Tasks for master context"
     }
   }
