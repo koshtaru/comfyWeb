@@ -365,7 +365,7 @@
               2
             ],
             "details": "Integrate the cancel button with the existing WebSocket connection to track generation state. Hide the button when no generation is active. Show and enable the button during active generation. Disable the button and show loading state when cancellation is in progress. Re-hide the button when generation completes or is successfully cancelled. Use the existing generation state management system to avoid duplicating state logic.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Unit tests for state transitions and button visibility logic. Integration tests simulating various generation states via WebSocket events. Test rapid state changes and edge cases."
           },
           {
@@ -375,8 +375,8 @@
             "dependencies": [
               3
             ],
-            "details": "Create a lightweight confirmation modal that appears when the cancel button is clicked, asking 'Are you sure you want to cancel the current generation?'. Include 'Cancel Generation' and 'Continue' buttons in the dialog. Implement immediate visual feedback when cancellation is initiated (button loading state, progress bar changes). Add success/error toast notifications to inform users of cancellation status. Ensure the dialog is keyboard accessible and can be dismissed with Escape key.",
-            "status": "pending",
+            "details": "Create a lightweight confirmation modal that appears when the cancel button is clicked, asking 'Are you sure you want to cancel the current generation?'. Include 'Cancel Generation' and 'Continue' buttons in the dialog. Implement immediate visual feedback when cancellation is initiated (button loading state, progress bar changes). Add success/error toast notifications to inform users of cancellation status. Ensure the dialog is keyboard accessible and can be dismissed with Escape key.\n<info added on 2025-07-17T17:24:29.852Z>\nCOMPLETED: Fixed error screen appearing during successful cancellation. \n\nROOT CAUSE: The cancellation flag was being cleared too early - immediately after the InterruptService succeeded, but before the WebSocket execution_error event was processed. This caused the main generation error handler to see the WebSocket error as a real error rather than expected cancellation behavior.\n\nSOLUTION: Modified the cancellation flow to keep the isCancellationInProgress flag active until the WebSocket execution_error event is received and processed. Added safety timeout to clear flag after 3 seconds if WebSocket event doesn't come.\n\nTECHNICAL CHANGES:\n1. Modified cancel button handler to keep cancellation flag active after successful interrupt\n2. Added safety timeout (3 seconds) to clear flag in case WebSocket event doesn't arrive\n3. WebSocket execution_error handler now properly clears the flag after handling cancellation\n4. Added comprehensive debugging logs to track the cancellation flow\n\nRESULT: Cancel button now works without showing 'Generation Failed' error screen during successful cancellation.\n</info added on 2025-07-17T17:24:29.852Z>",
+            "status": "done",
             "testStrategy": "Component tests for confirmation dialog behavior and keyboard interactions. E2E tests for complete cancellation flow including confirmation. User testing for dialog clarity and accidental click prevention."
           },
           {
@@ -958,7 +958,7 @@
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-17T16:29:11.002Z",
+      "updated": "2025-07-17T17:01:19.246Z",
       "description": "Tasks for master context"
     }
   }

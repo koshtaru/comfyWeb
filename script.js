@@ -954,6 +954,9 @@ class ProgressBarComponent {
     }
 }
 
+// Global cancellation state tracking
+let isCancellationInProgress = false;
+
 // Application state
 const AppState = {
     apiEndpoint: localStorage.getItem('comfyui_endpoint') || 'http://192.168.10.15:8188',
@@ -1965,55 +1968,158 @@ const ComfyUIAPI = {
     }
 };
 
-// Cancel Button State Management
-function setCancelButtonState(state) {
-    const cancelButton = elements.cancelButton;
-    if (!cancelButton) {
-        console.warn('❌ Cancel button element not found');
-        return;
+// Enhanced Cancel Button State Management with Validation
+const CancelButtonStateManager = {
+    currentState: 'hidden',
+    lastStateChange: Date.now(),
+    validStates: ['hidden', 'enabled', 'loading', 'disabled'],
+    
+    // Valid state transitions
+    validTransitions: {
+        'hidden': ['enabled'],
+        'enabled': ['loading', 'hidden'],
+        'loading': ['enabled', 'hidden'],
+        'disabled': ['enabled', 'hidden']
+    },
+    
+    // Validate state transition
+    isValidTransition(fromState, toState) {
+        if (!this.validStates.includes(toState)) {
+            console.warn(`⚠️ Invalid cancel button state: ${toState}`);
+            return false;
+        }
+        
+        const validNextStates = this.validTransitions[fromState] || [];
+        if (!validNextStates.includes(toState) && fromState !== toState) {
+            console.warn(`⚠️ Invalid state transition: ${fromState} → ${toState}`);
+            return true; // Allow but warn
+        }
+        
+        return true;
+    },
+    
+    // Set button state with validation
+    setState(state, source = 'unknown') {
+        if (!this.isValidTransition(this.currentState, state)) {
+            return false;
+        }
+        
+        // Don't update if already in this state (unless forced)
+        if (this.currentState === state) {
+            console.log(`🛑 Cancel button already in state: ${state}`);
+            return true;
+        }
+        
+        const oldState = this.currentState;
+        this.currentState = state;
+        this.lastStateChange = Date.now();
+        
+        console.log(`🛑 Cancel button state: ${oldState} → ${state} (source: ${source})`);
+        
+        return this.applyState(state);
+    },
+    
+    // Apply the actual DOM changes
+    applyState(state) {
+        const cancelButton = elements.cancelButton;
+        if (!cancelButton) {
+            console.warn('❌ Cancel button element not found');
+            return false;
+        }
+        
+        const buttonText = cancelButton.querySelector('.button-text');
+        const buttonSpinner = cancelButton.querySelector('.button-spinner');
+        
+        // Validate DOM elements
+        if (!buttonText || !buttonSpinner) {
+            console.warn('❌ Cancel button DOM elements incomplete');
+        }
+        
+        switch (state) {
+            case 'hidden':
+                cancelButton.style.display = 'none';
+                cancelButton.classList.remove('loading');
+                cancelButton.disabled = false;
+                cancelButton.style.opacity = '1';
+                if (buttonSpinner) buttonSpinner.style.display = 'none';
+                if (buttonText) buttonText.style.display = 'flex';
+                break;
+                
+            case 'enabled':
+                cancelButton.style.display = 'flex';
+                cancelButton.classList.remove('loading');
+                cancelButton.disabled = false;
+                cancelButton.style.opacity = '1';
+                if (buttonSpinner) buttonSpinner.style.display = 'none';
+                if (buttonText) buttonText.style.display = 'flex';
+                break;
+                
+            case 'loading':
+                cancelButton.style.display = 'flex';
+                cancelButton.classList.add('loading');
+                cancelButton.disabled = true;
+                cancelButton.style.opacity = '1';
+                if (buttonSpinner) buttonSpinner.style.display = 'inline-flex';
+                if (buttonText) buttonText.style.display = 'none';
+                break;
+                
+            case 'disabled':
+                cancelButton.style.display = 'flex';
+                cancelButton.classList.remove('loading');
+                cancelButton.disabled = true;
+                cancelButton.style.opacity = '1';
+                if (buttonSpinner) buttonSpinner.style.display = 'none';
+                if (buttonText) buttonText.style.display = 'flex';
+                break;
+                
+                
+            default:
+                console.warn(`⚠️ Unknown cancel button state: ${state}`);
+                return false;
+        }
+        
+        return true;
+    },
+    
+    // Get current state
+    getState() {
+        return this.currentState;
+    },
+    
+    // Validate current state matches DOM
+    validateState() {
+        const cancelButton = elements.cancelButton;
+        if (!cancelButton) {
+            console.warn('❌ Cannot validate: Cancel button element not found');
+            return false;
+        }
+        
+        const isVisible = cancelButton.style.display !== 'none';
+        const isLoading = cancelButton.classList.contains('loading');
+        const isDisabled = cancelButton.disabled;
+        
+        let expectedState = 'hidden';
+        if (isVisible && isLoading) {
+            expectedState = 'loading';
+        } else if (isVisible && isDisabled) {
+            expectedState = 'disabled';
+        } else if (isVisible) {
+            expectedState = 'enabled';
+        }
+        
+        if (expectedState !== this.currentState) {
+            console.warn(`⚠️ State mismatch: expected ${expectedState}, current ${this.currentState}`);
+            this.currentState = expectedState;
+            return false;
+        }
+        
+        return true;
     }
-    
-    const buttonText = cancelButton.querySelector('.button-text');
-    const buttonSpinner = cancelButton.querySelector('.button-spinner');
-    
-    switch (state) {
-        case 'hidden':
-            cancelButton.style.display = 'none';
-            cancelButton.classList.remove('loading');
-            cancelButton.disabled = false;
-            if (buttonSpinner) buttonSpinner.style.display = 'none';
-            if (buttonText) buttonText.style.display = 'flex';
-            break;
-            
-        case 'enabled':
-            cancelButton.style.display = 'flex';
-            cancelButton.classList.remove('loading');
-            cancelButton.disabled = false;
-            if (buttonSpinner) buttonSpinner.style.display = 'none';
-            if (buttonText) buttonText.style.display = 'flex';
-            break;
-            
-        case 'loading':
-            cancelButton.style.display = 'flex';
-            cancelButton.classList.add('loading');
-            cancelButton.disabled = true;
-            if (buttonSpinner) buttonSpinner.style.display = 'inline-flex';
-            if (buttonText) buttonText.style.display = 'none';
-            break;
-            
-        case 'disabled':
-            cancelButton.style.display = 'flex';
-            cancelButton.classList.remove('loading');
-            cancelButton.disabled = true;
-            if (buttonSpinner) buttonSpinner.style.display = 'none';
-            if (buttonText) buttonText.style.display = 'flex';
-            break;
-            
-        default:
-            console.warn(`⚠️ Unknown cancel button state: ${state}`);
-    }
-    
-    console.log(`🛑 Cancel button state changed to: ${state}`);
+};
+
+// Backward compatibility wrapper
+function setCancelButtonState(state, source = 'legacy') {
+    return CancelButtonStateManager.setState(state, source);
 }
 
 // Simple Seed Utility Functions
@@ -3083,6 +3189,12 @@ async function generateImages(workflowData) {
         AppState.isGenerating = true;
         setGenerationLoadingState(true);
         
+        // Update generation state
+        GenerationStateManager.setState('starting', { 
+            source: 'generateImages', 
+            timestamp: Date.now() 
+        });
+        
         // Reset progress bar for new generation
         if (AppState.progressBar) {
             AppState.progressBar.clearError();
@@ -3144,6 +3256,13 @@ async function generateImages(workflowData) {
         displayGeneratedImages(imageUrls);
         Utils.showToast(`Successfully generated ${imageUrls.length} image(s)!`, 'success');
         
+        // Update generation state to idle (completed)
+        GenerationStateManager.setState('idle', { 
+            source: 'generation-complete', 
+            imageCount: imageUrls.length,
+            timestamp: Date.now()
+        });
+        
         // Complete progress bar
         if (AppState.progressBar) {
             AppState.progressBar.stopFallbackProgress();
@@ -3157,6 +3276,18 @@ async function generateImages(workflowData) {
 
     } catch (error) {
         console.error('❌ Generation failed:', error);
+        
+        // Check if this is a cancellation error that should not show error screen
+        if (isCancellationInProgress) {
+            console.log('🛑 Generation error during cancellation - suppressing error screen');
+            console.log('🛑 Cancellation flag was true, clearing and returning early');
+            isCancellationInProgress = false;
+            return;
+        }
+        
+        // Debug: Log that this is a real error, not cancellation
+        console.log('🛑 Real generation error (not cancellation):', error);
+        console.log('🛑 isCancellationInProgress was:', isCancellationInProgress);
         
         // Task 10: Enhanced error classification and user-friendly messages
         const errorClassification = classifyError(error);
@@ -3177,6 +3308,12 @@ async function generateImages(workflowData) {
         setGenerationLoadingState(false);
         hideRealtimeStatus();
         
+        // Reset generation state to idle
+        GenerationStateManager.setState('idle', { 
+            source: 'generateImages-finally', 
+            timestamp: Date.now() 
+        });
+        
         // Progress bar will auto-hide after completion
         // or set error state if there was an error
     }
@@ -3196,14 +3333,14 @@ function setGenerationLoadingState(isLoading) {
         generateButton.classList.add('loading');
         
         // Show cancel button when generation starts
-        setCancelButtonState('enabled');
+        setCancelButtonState('enabled', 'generate-button');
     } else {
         generateButton.innerHTML = 'Generate';
         generateButton.disabled = false;
         generateButton.classList.remove('loading');
         
         // Hide cancel button when generation ends
-        setCancelButtonState('hidden');
+        setCancelButtonState('hidden', 'generate-button');
     }
 }
 
@@ -3508,7 +3645,7 @@ function initializeCancelButton() {
     }
     
     // Initialize cancel button as hidden
-    setCancelButtonState('hidden');
+    setCancelButtonState('hidden', 'initialize');
     
     elements.cancelButton.addEventListener('click', async () => {
         if (!AppState.isGenerating) {
@@ -3519,15 +3656,19 @@ function initializeCancelButton() {
         try {
             console.log('🛑 Cancelling generation...');
             
+            // Set cancellation in progress flag
+            isCancellationInProgress = true;
+            console.log('🛑 Set isCancellationInProgress = true');
+            
             // Set button to loading state
-            setCancelButtonState('loading');
+            setCancelButtonState('loading', 'user-click');
             
             // Call ComfyUI interrupt endpoint
             const success = await ComfyUIAPI.interrupt();
             
             if (success) {
                 console.log('✅ Generation cancelled successfully');
-                Utils.showToast('Generation cancelled', 'info');
+                Utils.showToast('Generation cancelled successfully', 'success');
                 
                 // Update app state
                 AppState.isGenerating = false;
@@ -3535,22 +3676,52 @@ function initializeCancelButton() {
                 hideRealtimeStatus();
                 
                 // Hide cancel button
-                setCancelButtonState('hidden');
+                setCancelButtonState('hidden', 'cancellation-success');
+                
+                // Don't clear cancellation flag yet - wait for WebSocket events
+                // The flag will be cleared by the WebSocket execution_error handler
+                console.log('🛑 Cancellation successful, keeping flag for WebSocket events');
+                
+                // Safety timeout to clear flag in case WebSocket event doesn't come
+                setTimeout(() => {
+                    if (isCancellationInProgress) {
+                        console.log('🛑 Timeout: clearing cancellation flag after 3 seconds');
+                        isCancellationInProgress = false;
+                    }
+                }, 3000);
             } else {
                 console.error('❌ Failed to cancel generation');
-                Utils.showToast('Failed to cancel generation', 'error');
-                setCancelButtonState('enabled');
+                Utils.showToast('Failed to cancel generation - please try again', 'error');
+                setCancelButtonState('enabled', 'cancellation-failed');
+                
+                // Clear cancellation flag on failure
+                isCancellationInProgress = false;
             }
             
         } catch (error) {
             console.error('❌ Error cancelling generation:', error);
-            Utils.showToast('Error cancelling generation', 'error');
-            setCancelButtonState('enabled');
+            
+            // Enhanced error messages based on error type
+            let errorMessage = 'Error cancelling generation';
+            if (error.message.includes('timeout')) {
+                errorMessage = 'Cancel request timed out - please try again';
+            } else if (error.message.includes('network')) {
+                errorMessage = 'Network error while cancelling - check connection';
+            } else if (error.message.includes('server')) {
+                errorMessage = 'Server error during cancellation - please try again';
+            }
+            
+            Utils.showToast(errorMessage, 'error');
+            setCancelButtonState('enabled', 'cancellation-error');
+            
+            // Clear cancellation flag on error
+            isCancellationInProgress = false;
         }
     });
     
     console.log('✅ Cancel button initialized');
 }
+
 
 // Prompt Toolbar
 function initializePromptToolbar() {
@@ -3665,6 +3836,10 @@ function initializeApp() {
         // Setup Interrupt Service event listeners
         setupInterruptServiceListeners();
         
+        // Initialize Generation State Manager
+        console.log('🔄 Initializing Generation State Manager...');
+        GenerationStateManager.syncWithAppState();
+        
         // Initialize Progress Bar Component
         AppState.progressBar = new ProgressBarComponent({
             container: elements.progressContainer,
@@ -3705,6 +3880,98 @@ function initializeWebSocket() {
     AppState.websocket.connect();
 }
 
+// Centralized Generation State Manager
+const GenerationStateManager = {
+    // Current generation state
+    currentState: 'idle', // 'idle', 'starting', 'generating', 'completing', 'error'
+    
+    // State change listeners
+    stateChangeListeners: [],
+    
+    // Add state change listener
+    onStateChange(callback) {
+        this.stateChangeListeners.push(callback);
+    },
+    
+    // Remove state change listener
+    offStateChange(callback) {
+        const index = this.stateChangeListeners.indexOf(callback);
+        if (index > -1) {
+            this.stateChangeListeners.splice(index, 1);
+        }
+    },
+    
+    // Update generation state
+    setState(newState, metadata = {}) {
+        if (this.currentState === newState) return;
+        
+        const oldState = this.currentState;
+        this.currentState = newState;
+        
+        console.log(`🔄 Generation state: ${oldState} → ${newState}`, metadata);
+        
+        // Notify listeners
+        this.stateChangeListeners.forEach(listener => {
+            try {
+                listener({ oldState, newState, metadata });
+            } catch (error) {
+                console.error('Error in generation state listener:', error);
+            }
+        });
+        
+        // Update button state based on generation state
+        this.updateButtonState(newState, metadata);
+    },
+    
+    // Update button state based on generation state
+    updateButtonState(state, metadata = {}) {
+        const source = `generation-${state}`;
+        
+        switch (state) {
+            case 'idle':
+                setCancelButtonState('hidden', source);
+                break;
+            case 'starting':
+                setCancelButtonState('enabled', source);
+                break;
+            case 'generating':
+                setCancelButtonState('enabled', source);
+                break;
+            case 'completing':
+                // Keep button enabled until fully complete
+                setCancelButtonState('enabled', source);
+                break;
+            case 'cancelled':
+                setCancelButtonState('hidden', source);
+                break;
+            case 'error':
+                setCancelButtonState('hidden', source);
+                break;
+            default:
+                console.warn(`Unknown generation state: ${state}`);
+        }
+    },
+    
+    // Get current state
+    getState() {
+        return this.currentState;
+    },
+    
+    // Check if generation is active
+    isGenerating() {
+        return ['starting', 'generating', 'completing'].includes(this.currentState);
+    },
+    
+    // Sync with AppState.isGenerating
+    syncWithAppState() {
+        if (AppState.isGenerating && this.currentState === 'idle') {
+            this.setState('generating', { source: 'appState' });
+        } else if (!AppState.isGenerating && this.isGenerating()) {
+            this.setState('idle', { source: 'appState' });
+        }
+    }
+};
+
 function setupWebSocketEventHandlers() {
     const ws = AppState.websocket;
     
@@ -3725,6 +3992,9 @@ function setupWebSocketEventHandlers() {
         // Update connection status display
         updateConnectionStatus(WebSocketState.CONNECTED);
         
+        // Sync generation state when reconnected
+        GenerationStateManager.syncWithAppState();
+        
         Utils.showToast('Real-time connection established', 'success');
         console.log('✅ WebSocket connection enables API functionality');
     });
@@ -3738,6 +4008,12 @@ function setupWebSocketEventHandlers() {
         if (code !== 1000) { // Not a normal closure
             Utils.showToast('Real-time connection lost, attempting to reconnect...', 'info');
             // Don't immediately set isConnected = false, let reconnection attempt first
+        }
+        
+        // If we're generating and WebSocket disconnects, we lose real-time updates
+        // but generation might still be happening on the server
+        if (GenerationStateManager.isGenerating()) {
+            console.log('⚠️ WebSocket disconnected during generation, button state may be inconsistent');
         }
     });
     
@@ -3764,10 +4040,25 @@ function setupWebSocketEventHandlers() {
         }
     });
     
-    // Execution events
+    // Execution events - Enhanced for generation state management
     ws.on('executing', (event) => {
         console.log(`🔌 Executing node ${event.nodeId} for prompt ${event.promptId}`);
         updateExecutionStatus('executing', event.nodeId);
+        
+        // Update generation state when first node starts executing
+        if (GenerationStateManager.getState() === 'idle') {
+            GenerationStateManager.setState('starting', { 
+                source: 'websocket', 
+                nodeId: event.nodeId, 
+                promptId: event.promptId 
+            });
+        } else if (GenerationStateManager.getState() === 'starting') {
+            GenerationStateManager.setState('generating', { 
+                source: 'websocket', 
+                nodeId: event.nodeId, 
+                promptId: event.promptId 
+            });
+        }
     });
     
     ws.on('executed', (event) => {
@@ -3779,16 +4070,64 @@ function setupWebSocketEventHandlers() {
             AppState.progressBar.onNodeExecuted();
         }
         
-        // Check if this might be the final node
+        // Check if this might be the final node (has output)
         if (event.output && Object.keys(event.output).length > 0) {
             console.log('🔌 Node produced output, checking for images...');
+            
+            // If we're generating and a node produces output, we might be completing
+            if (GenerationStateManager.getState() === 'generating') {
+                GenerationStateManager.setState('completing', { 
+                    source: 'websocket', 
+                    nodeId: event.nodeId, 
+                    outputKeys: Object.keys(event.output) 
+                });
+            }
         }
     });
     
-    // Execution errors
+    // Execution errors - Enhanced with state management
     ws.on('execution_error', (event) => {
         console.error(`🔌 Execution error in node ${event.nodeId}:`, event.error);
+        console.log('🔌 WebSocket execution_error - isCancellationInProgress:', isCancellationInProgress);
+        
+        // Check if this is a user-initiated cancellation
+        if (isCancellationInProgress) {
+            console.log('🛑 Execution error during cancellation - treating as expected cancellation');
+            console.log('🛑 WebSocket clearing cancellation flag and handling as success');
+            
+            // Clear cancellation flag
+            isCancellationInProgress = false;
+            
+            // Update app state for successful cancellation
+            AppState.isGenerating = false;
+            setGenerationLoadingState(false);
+            hideRealtimeStatus();
+            
+            // Hide cancel button
+            setCancelButtonState('hidden', 'cancellation-websocket-success');
+            
+            // Update generation state to cancelled (not error)
+            GenerationStateManager.setState('cancelled', { 
+                source: 'websocket-cancellation', 
+                nodeId: event.nodeId, 
+                timestamp: Date.now()
+            });
+            
+            console.log('✅ Cancellation completed via WebSocket');
+            return;
+        }
+        
+        // This is an actual error, not a cancellation
         Utils.showToast(`Error in ${event.nodeType || 'unknown'} node: ${event.error}`, 'error');
+        
+        // Update generation state to error
+        GenerationStateManager.setState('error', { 
+            source: 'websocket', 
+            nodeId: event.nodeId, 
+            error: event.error 
+        });
+        
+        // Update app state
         AppState.isGenerating = false;
         setGenerationLoadingState(false);
         
@@ -3927,11 +4266,11 @@ function setupInterruptServiceListeners() {
         
         // Update UI based on state
         if (newState === InterruptState.INTERRUPTING) {
-            setCancelButtonState('loading');
+            setCancelButtonState('loading', 'interrupt-service');
         } else if (newState === InterruptState.SUCCEEDED) {
-            setCancelButtonState('hidden');
+            setCancelButtonState('hidden', 'interrupt-success');
         } else if (newState === InterruptState.FAILED) {
-            setCancelButtonState('enabled');
+            setCancelButtonState('enabled', 'interrupt-failed');
         }
     });
     
@@ -3944,6 +4283,13 @@ function setupInterruptServiceListeners() {
         AppState.isGenerating = false;
         setGenerationLoadingState(false);
         hideRealtimeStatus();
+        
+        // Update generation state
+        GenerationStateManager.setState('idle', { 
+            source: 'interrupt-success', 
+            duration, 
+            retryCount 
+        });
     });
     
     // Listen for errors
