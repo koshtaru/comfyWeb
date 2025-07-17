@@ -1036,6 +1036,90 @@ const Utils = {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     },
 
+    // ================================================================================
+    // Timing Utilities
+    // ================================================================================
+
+    /**
+     * Format generation time from metadata
+     * @param {Object} metadata - Metadata object with timing information
+     * @returns {string} Formatted generation time summary
+     */
+    formatGenerationTime(metadata) {
+        if (!metadata || !metadata.timing) {
+            return 'No timing information available';
+        }
+
+        const timing = metadata.timing;
+        const parts = [];
+
+        if (timing.formatted && timing.formatted.duration) {
+            parts.push(`Duration: ${timing.formatted.duration}`);
+        }
+
+        if (timing.formatted && timing.formatted.startTime) {
+            parts.push(timing.formatted.startTime);
+        }
+
+        if (timing.analysis && timing.analysis.efficiency > 0) {
+            parts.push(`Efficiency: ${timing.analysis.efficiency.toFixed(1)}%`);
+        }
+
+        return parts.length > 0 ? parts.join(' | ') : 'Timing information unavailable';
+    },
+
+    /**
+     * Format duration in short format
+     * @param {number} milliseconds - Duration in milliseconds
+     * @returns {string} Short duration format (e.g., "2:34")
+     */
+    formatDurationShort(milliseconds) {
+        return timingCalculator.formatDuration(milliseconds, { shortFormat: true });
+    },
+
+    /**
+     * Format duration in long format
+     * @param {number} milliseconds - Duration in milliseconds
+     * @returns {string} Long duration format (e.g., "2 minutes 34 seconds")
+     */
+    formatDurationLong(milliseconds) {
+        return timingCalculator.formatDuration(milliseconds, { shortFormat: false });
+    },
+
+    /**
+     * Get relative time string
+     * @param {Date|number} timestamp - Timestamp to compare
+     * @returns {string} Relative time string (e.g., "3 minutes ago")
+     */
+    getRelativeTime(timestamp) {
+        return timingCalculator.getRelativeTime(timestamp);
+    },
+
+    /**
+     * Format timestamp with timezone
+     * @param {Date|number} timestamp - Timestamp to format
+     * @param {Object} options - Formatting options
+     * @returns {string} Formatted timestamp with timezone
+     */
+    formatTimeWithTimezone(timestamp, options = {}) {
+        const formatted = timingCalculator.formatTimestamp(timestamp, options);
+        const timezone = timingCalculator.getTimezoneInfo();
+        return `${formatted} (${timezone.offsetString})`;
+    },
+
+    /**
+     * Format timing summary for display
+     * @param {Object} timingData - Timing data object
+     * @returns {Object} Formatted timing summary
+     */
+    formatTimingSummary(timingData) {
+        return timingCalculator.createTimingSummary(timingData);
+    },
+
+    // ================================================================================
+    // End Timing Utilities
+    // ================================================================================
+
     // Validate JSON
     isValidJSON(str) {
         try {
@@ -4386,7 +4470,22 @@ class MetadataParser {
                 startTime: null,
                 endTime: null,
                 duration: null,
-                queueTime: null
+                queueTime: null,
+                formatted: {
+                    duration: null,
+                    startTime: null,
+                    endTime: null,
+                    timeRange: null,
+                    queueTime: null,
+                    execTime: null
+                },
+                analysis: {
+                    efficiency: 0,
+                    queuePercentage: 0,
+                    execPercentage: 0
+                },
+                perStep: null,
+                timezone: null
             },
             technical: {
                 clipSkip: null,
@@ -4550,35 +4649,69 @@ class MetadataParser {
      */
     extractTimingInfo(historyData, metadata) {
         try {
+            // Parse timestamps using TimingCalculator
+            const parsedTimestamps = timingCalculator.parseComfyUITimestamps(historyData);
+            
+            // Update metadata with parsed timing data
+            metadata.timing.queueTime = parsedTimestamps.queueTime;
+            metadata.timing.startTime = parsedTimestamps.startTime;
+            metadata.timing.endTime = parsedTimestamps.endTime;
+            metadata.timing.duration = parsedTimestamps.totalTime || parsedTimestamps.execTime;
+            
+            // Create comprehensive timing summary
+            const timingSummary = timingCalculator.createTimingSummary(metadata.timing);
+            
+            // Add formatted timing data to metadata
+            metadata.timing.formatted = timingSummary.formatted;
+            metadata.timing.analysis = timingSummary.analysis;
+            
+            // Add per-step timing analysis if available
             if (historyData.status && historyData.status.exec_info) {
-                const execInfo = historyData.status.exec_info;
-                
-                if (execInfo.queue_time !== undefined) {
-                    metadata.timing.queueTime = execInfo.queue_time;
-                }
-                
-                if (execInfo.exec_time !== undefined) {
-                    metadata.timing.duration = execInfo.exec_time;
-                }
+                const stepAnalysis = timingCalculator.calculatePerStepTiming(historyData.status);
+                metadata.timing.perStep = stepAnalysis;
             }
             
-            // Try to extract timestamps from status
-            if (historyData.status) {
-                if (historyData.status.started_at) {
-                    metadata.timing.startTime = new Date(historyData.status.started_at);
-                }
-                if (historyData.status.completed_at) {
-                    metadata.timing.endTime = new Date(historyData.status.completed_at);
-                }
-                
-                // Calculate duration if not already set
-                if (!metadata.timing.duration && metadata.timing.startTime && metadata.timing.endTime) {
-                    metadata.timing.duration = metadata.timing.endTime - metadata.timing.startTime;
-                }
-            }
+            // Add timezone information
+            metadata.timing.timezone = timingCalculator.getTimezoneInfo();
+            
+            console.log('✅ Enhanced timing information extracted with TimingCalculator');
             
         } catch (error) {
             console.error('❌ Error extracting timing info:', error);
+            
+            // Fallback to basic timing extraction
+            try {
+                if (historyData.status && historyData.status.exec_info) {
+                    const execInfo = historyData.status.exec_info;
+                    
+                    if (execInfo.queue_time !== undefined) {
+                        metadata.timing.queueTime = execInfo.queue_time;
+                    }
+                    
+                    if (execInfo.exec_time !== undefined) {
+                        metadata.timing.duration = execInfo.exec_time;
+                    }
+                }
+                
+                // Try to extract timestamps from status
+                if (historyData.status) {
+                    if (historyData.status.started_at) {
+                        metadata.timing.startTime = new Date(historyData.status.started_at);
+                    }
+                    if (historyData.status.completed_at) {
+                        metadata.timing.endTime = new Date(historyData.status.completed_at);
+                    }
+                    
+                    // Calculate duration if not already set
+                    if (!metadata.timing.duration && metadata.timing.startTime && metadata.timing.endTime) {
+                        metadata.timing.duration = metadata.timing.endTime - metadata.timing.startTime;
+                    }
+                }
+                
+                console.log('⚠️ Used fallback timing extraction');
+            } catch (fallbackError) {
+                console.error('❌ Fallback timing extraction also failed:', fallbackError);
+            }
         }
     }
 
@@ -4694,6 +4827,458 @@ class MetadataParser {
         return normalized;
     }
 }
+
+// ================================================================================
+// Timing Calculator Module
+// ================================================================================
+
+/**
+ * TimingCalculator - Comprehensive timing utilities for ComfyUI generation data
+ * Handles duration calculations, timestamp formatting, and timing analysis
+ */
+class TimingCalculator {
+    constructor() {
+        this.defaultOptions = {
+            locale: 'en-US',
+            timeZone: 'local',
+            includeMilliseconds: false,
+            shortFormat: false
+        };
+    }
+
+    /**
+     * Calculate duration between two timestamps
+     * @param {Date|number} startTime - Start timestamp
+     * @param {Date|number} endTime - End timestamp
+     * @returns {number} Duration in milliseconds
+     */
+    calculateDuration(startTime, endTime) {
+        try {
+            const start = startTime instanceof Date ? startTime.getTime() : startTime;
+            const end = endTime instanceof Date ? endTime.getTime() : endTime;
+            
+            if (typeof start !== 'number' || typeof end !== 'number') {
+                throw new Error('Invalid timestamp format');
+            }
+            
+            if (start > end) {
+                throw new Error('Start time cannot be after end time');
+            }
+            
+            return end - start;
+        } catch (error) {
+            console.error('❌ Error calculating duration:', error);
+            return 0;
+        }
+    }
+
+    /**
+     * Format duration in human-readable format
+     * @param {number} milliseconds - Duration in milliseconds
+     * @param {Object} options - Formatting options
+     * @returns {string} Formatted duration string
+     */
+    formatDuration(milliseconds, options = {}) {
+        const opts = { ...this.defaultOptions, ...options };
+        
+        try {
+            if (typeof milliseconds !== 'number' || milliseconds < 0) {
+                return 'Invalid duration';
+            }
+            
+            if (milliseconds === 0) {
+                return '0 seconds';
+            }
+            
+            const totalSeconds = Math.floor(milliseconds / 1000);
+            const ms = milliseconds % 1000;
+            
+            if (totalSeconds === 0) {
+                return opts.includeMilliseconds ? `${ms}ms` : '< 1 second';
+            }
+            
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            const parts = [];
+            
+            if (opts.shortFormat) {
+                // Short format: "2:34:56" or "34:56" or "56s"
+                if (hours > 0) {
+                    return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                } else if (minutes > 0) {
+                    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                } else {
+                    return `${seconds}s`;
+                }
+            } else {
+                // Long format: "2 hours 34 minutes 56 seconds"
+                if (hours > 0) {
+                    parts.push(`${hours} hour${hours !== 1 ? 's' : ''}`);
+                }
+                if (minutes > 0) {
+                    parts.push(`${minutes} minute${minutes !== 1 ? 's' : ''}`);
+                }
+                if (seconds > 0 || parts.length === 0) {
+                    parts.push(`${seconds} second${seconds !== 1 ? 's' : ''}`);
+                }
+                
+                if (parts.length === 1) {
+                    return parts[0];
+                } else if (parts.length === 2) {
+                    return parts.join(' and ');
+                } else {
+                    return parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1];
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error formatting duration:', error);
+            return 'Error formatting duration';
+        }
+    }
+
+    /**
+     * Format timestamp for display
+     * @param {Date|number} timestamp - Timestamp to format
+     * @param {Object} options - Formatting options
+     * @returns {string} Formatted timestamp string
+     */
+    formatTimestamp(timestamp, options = {}) {
+        const opts = { ...this.defaultOptions, ...options };
+        
+        try {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            
+            if (isNaN(date.getTime())) {
+                return 'Invalid timestamp';
+            }
+            
+            const formatOptions = {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            };
+            
+            if (opts.includeMilliseconds) {
+                formatOptions.fractionalSecondDigits = 3;
+            }
+            
+            if (opts.timeZone && opts.timeZone !== 'local') {
+                formatOptions.timeZone = opts.timeZone;
+            }
+            
+            return date.toLocaleString(opts.locale, formatOptions);
+            
+        } catch (error) {
+            console.error('❌ Error formatting timestamp:', error);
+            return 'Error formatting timestamp';
+        }
+    }
+
+    /**
+     * Format time range between start and end timestamps
+     * @param {Date|number} startTime - Start timestamp
+     * @param {Date|number} endTime - End timestamp
+     * @param {Object} options - Formatting options
+     * @returns {string} Formatted time range string
+     */
+    formatTimeRange(startTime, endTime, options = {}) {
+        const opts = { ...this.defaultOptions, ...options };
+        
+        try {
+            const startFormatted = this.formatTimestamp(startTime, { ...opts, shortFormat: true });
+            const endFormatted = this.formatTimestamp(endTime, { ...opts, shortFormat: true });
+            
+            if (startFormatted === 'Invalid timestamp' || endFormatted === 'Invalid timestamp') {
+                return 'Invalid time range';
+            }
+            
+            return `${startFormatted} - ${endFormatted}`;
+            
+        } catch (error) {
+            console.error('❌ Error formatting time range:', error);
+            return 'Error formatting time range';
+        }
+    }
+
+    /**
+     * Get relative time string (e.g., "3 minutes ago")
+     * @param {Date|number} timestamp - Timestamp to compare
+     * @param {Date|number} referenceTime - Reference time (defaults to now)
+     * @returns {string} Relative time string
+     */
+    getRelativeTime(timestamp, referenceTime = Date.now()) {
+        try {
+            const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+            const reference = referenceTime instanceof Date ? referenceTime : new Date(referenceTime);
+            
+            if (isNaN(date.getTime()) || isNaN(reference.getTime())) {
+                return 'Invalid time';
+            }
+            
+            const diffMs = reference.getTime() - date.getTime();
+            const diffSeconds = Math.floor(diffMs / 1000);
+            
+            if (diffSeconds < 60) {
+                return diffSeconds <= 1 ? 'just now' : `${diffSeconds} seconds ago`;
+            }
+            
+            const diffMinutes = Math.floor(diffSeconds / 60);
+            if (diffMinutes < 60) {
+                return diffMinutes === 1 ? '1 minute ago' : `${diffMinutes} minutes ago`;
+            }
+            
+            const diffHours = Math.floor(diffMinutes / 60);
+            if (diffHours < 24) {
+                return diffHours === 1 ? '1 hour ago' : `${diffHours} hours ago`;
+            }
+            
+            const diffDays = Math.floor(diffHours / 24);
+            return diffDays === 1 ? '1 day ago' : `${diffDays} days ago`;
+            
+        } catch (error) {
+            console.error('❌ Error calculating relative time:', error);
+            return 'Error calculating relative time';
+        }
+    }
+
+    /**
+     * Calculate per-step timing analysis from ComfyUI execution data
+     * @param {Object} execData - Execution data from ComfyUI
+     * @returns {Object} Per-step timing analysis
+     */
+    calculatePerStepTiming(execData) {
+        const analysis = {
+            totalDuration: 0,
+            nodeTimings: {},
+            slowestNodes: [],
+            fastestNodes: [],
+            averageNodeTime: 0
+        };
+        
+        try {
+            if (!execData || typeof execData !== 'object') {
+                return analysis;
+            }
+            
+            // Extract node timings from various possible formats
+            const nodeTimings = {};
+            let totalTime = 0;
+            
+            // Try to extract from different ComfyUI response formats
+            if (execData.exec_info && execData.exec_info.node_times) {
+                // Format: { node_id: execution_time_ms }
+                Object.entries(execData.exec_info.node_times).forEach(([nodeId, timeMs]) => {
+                    const duration = parseFloat(timeMs) || 0;
+                    nodeTimings[nodeId] = {
+                        duration,
+                        percentage: 0, // Will be calculated later
+                        formatted: this.formatDuration(duration, { shortFormat: true })
+                    };
+                    totalTime += duration;
+                });
+            }
+            
+            // Calculate percentages
+            if (totalTime > 0) {
+                Object.keys(nodeTimings).forEach(nodeId => {
+                    nodeTimings[nodeId].percentage = (nodeTimings[nodeId].duration / totalTime) * 100;
+                });
+            }
+            
+            // Sort nodes by timing
+            const sortedNodes = Object.entries(nodeTimings)
+                .map(([nodeId, data]) => ({ nodeId, ...data }))
+                .sort((a, b) => b.duration - a.duration);
+            
+            analysis.totalDuration = totalTime;
+            analysis.nodeTimings = nodeTimings;
+            analysis.slowestNodes = sortedNodes.slice(0, 5); // Top 5 slowest
+            analysis.fastestNodes = sortedNodes.slice(-5).reverse(); // Top 5 fastest
+            analysis.averageNodeTime = sortedNodes.length > 0 ? totalTime / sortedNodes.length : 0;
+            
+            return analysis;
+            
+        } catch (error) {
+            console.error('❌ Error calculating per-step timing:', error);
+            return analysis;
+        }
+    }
+
+    /**
+     * Get timezone information
+     * @returns {Object} Timezone information
+     */
+    getTimezoneInfo() {
+        try {
+            const date = new Date();
+            const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            const offset = date.getTimezoneOffset();
+            const offsetHours = Math.floor(Math.abs(offset) / 60);
+            const offsetMinutes = Math.abs(offset) % 60;
+            const offsetSign = offset <= 0 ? '+' : '-';
+            
+            return {
+                timeZone,
+                offset,
+                offsetString: `UTC${offsetSign}${offsetHours.toString().padStart(2, '0')}:${offsetMinutes.toString().padStart(2, '0')}`,
+                isDST: this.isDaylightSavingTime(date)
+            };
+        } catch (error) {
+            console.error('❌ Error getting timezone info:', error);
+            return {
+                timeZone: 'Unknown',
+                offset: 0,
+                offsetString: 'UTC+00:00',
+                isDST: false
+            };
+        }
+    }
+
+    /**
+     * Check if a date is during daylight saving time
+     * @param {Date} date - Date to check
+     * @returns {boolean} True if DST is active
+     */
+    isDaylightSavingTime(date) {
+        try {
+            const january = new Date(date.getFullYear(), 0, 1);
+            const july = new Date(date.getFullYear(), 6, 1);
+            return Math.max(january.getTimezoneOffset(), july.getTimezoneOffset()) !== date.getTimezoneOffset();
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Parse ComfyUI timestamps from history data
+     * @param {Object} historyData - ComfyUI history response
+     * @returns {Object} Parsed timestamp data
+     */
+    parseComfyUITimestamps(historyData) {
+        const timestamps = {
+            queueTime: null,
+            startTime: null,
+            endTime: null,
+            execTime: null,
+            totalTime: null
+        };
+        
+        try {
+            if (!historyData || typeof historyData !== 'object') {
+                return timestamps;
+            }
+            
+            // Extract from exec_info
+            if (historyData.status && historyData.status.exec_info) {
+                const execInfo = historyData.status.exec_info;
+                timestamps.queueTime = execInfo.queue_time || null;
+                timestamps.execTime = execInfo.exec_time || null;
+            }
+            
+            // Extract timestamps from status
+            if (historyData.status) {
+                if (historyData.status.started_at) {
+                    timestamps.startTime = new Date(historyData.status.started_at);
+                }
+                if (historyData.status.completed_at) {
+                    timestamps.endTime = new Date(historyData.status.completed_at);
+                }
+            }
+            
+            // Calculate total time if we have start and end
+            if (timestamps.startTime && timestamps.endTime) {
+                timestamps.totalTime = this.calculateDuration(timestamps.startTime, timestamps.endTime);
+            }
+            
+            return timestamps;
+            
+        } catch (error) {
+            console.error('❌ Error parsing ComfyUI timestamps:', error);
+            return timestamps;
+        }
+    }
+
+    /**
+     * Create comprehensive timing summary
+     * @param {Object} timingData - Raw timing data
+     * @returns {Object} Comprehensive timing summary
+     */
+    createTimingSummary(timingData) {
+        const summary = {
+            raw: timingData,
+            formatted: {
+                duration: 'Unknown',
+                startTime: 'Unknown',
+                endTime: 'Unknown',
+                timeRange: 'Unknown',
+                queueTime: 'Unknown',
+                execTime: 'Unknown'
+            },
+            analysis: {
+                efficiency: 0,
+                queuePercentage: 0,
+                execPercentage: 0
+            }
+        };
+        
+        try {
+            if (!timingData) return summary;
+            
+            // Format basic timing information
+            if (timingData.duration) {
+                summary.formatted.duration = this.formatDuration(timingData.duration);
+            }
+            
+            if (timingData.startTime) {
+                summary.formatted.startTime = `Started at ${this.formatTimestamp(timingData.startTime, { shortFormat: true })}`;
+            }
+            
+            if (timingData.endTime) {
+                summary.formatted.endTime = `Completed at ${this.formatTimestamp(timingData.endTime, { shortFormat: true })}`;
+            }
+            
+            if (timingData.startTime && timingData.endTime) {
+                summary.formatted.timeRange = this.formatTimeRange(timingData.startTime, timingData.endTime);
+            }
+            
+            if (timingData.queueTime) {
+                summary.formatted.queueTime = this.formatDuration(timingData.queueTime);
+            }
+            
+            if (timingData.execTime) {
+                summary.formatted.execTime = this.formatDuration(timingData.execTime);
+            }
+            
+            // Calculate efficiency analysis
+            if (timingData.queueTime && timingData.execTime) {
+                const totalTime = timingData.queueTime + timingData.execTime;
+                summary.analysis.queuePercentage = (timingData.queueTime / totalTime) * 100;
+                summary.analysis.execPercentage = (timingData.execTime / totalTime) * 100;
+                summary.analysis.efficiency = summary.analysis.execPercentage;
+            }
+            
+            return summary;
+            
+        } catch (error) {
+            console.error('❌ Error creating timing summary:', error);
+            return summary;
+        }
+    }
+}
+
+// Create global instance
+const timingCalculator = new TimingCalculator();
+
+// ================================================================================
+// End Timing Calculator Module
+// ================================================================================
 
 // Create global instance
 const metadataParser = new MetadataParser();
