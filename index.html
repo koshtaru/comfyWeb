@@ -15,6 +15,55 @@
                 <h2 class="panel-title">Workflow Controls</h2>
             </header>
 
+            <!-- Generation Form -->
+            <form class="generation-form" id="workflow-form">
+                <!-- Top Actions Section -->
+                <section class="top-actions-section">
+                    <!-- Generate Button -->
+                    <div class="generate-section">
+                        <button type="submit" class="generate-button" id="generate-button">
+                            <span class="button-text">Generate</span>
+                            <span class="button-spinner" style="display: none;">
+                                <svg class="spinner" viewBox="0 0 50 50">
+                                    <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="80 20" stroke-linecap="round"></circle>
+                                </svg>
+                            </span>
+                        </button>
+                        <div class="generation-progress" id="generation-progress" style="display: none;"></div>
+                    </div>
+
+                    <!-- Real-time Status Display -->
+                    <div class="realtime-status" id="realtime-status" style="display: none;">
+                        <div class="status-header">
+                            <h4>Generation Status</h4>
+                            <div class="websocket-indicator" id="websocket-indicator">
+                                <div class="indicator-dot"></div>
+                                <span>Real-time</span>
+                            </div>
+                        </div>
+                        
+                        <div class="execution-status" id="execution-status">
+                            <div class="current-node" id="current-node">
+                                <span class="node-label">Current:</span>
+                                <span class="node-name" id="current-node-name">-</span>
+                            </div>
+                        </div>
+                        
+                        <div class="progress-container" id="progress-container" style="display: none;">
+                            <div class="progress-info">
+                                <span class="progress-label">Generating</span>
+                                <span class="progress-percentage" id="progress-percentage">0%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
+                            </div>
+                            <div class="progress-details">
+                                <span class="progress-step" id="progress-step">0 / 0</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
             <!-- API Connection Section -->
             <section class="api-section">
                 <h3 class="section-title">API Connection</h3>
@@ -65,8 +114,6 @@
                 </div>
             </section>
 
-            <!-- Generation Form -->
-            <form class="generation-form" id="workflow-form">
                 <!-- Parameters Section -->
                 <section class="parameters-section">
                     <h3 class="section-title">Generation Parameters</h3>
@@ -259,50 +306,6 @@
                         </div>
                     </div>
                 </section>
-
-                <!-- Real-time Status Display -->
-                <div class="realtime-status" id="realtime-status" style="display: none;">
-                    <div class="status-header">
-                        <h4>Generation Status</h4>
-                        <div class="websocket-indicator" id="websocket-indicator">
-                            <div class="indicator-dot"></div>
-                            <span>Real-time</span>
-                        </div>
-                    </div>
-                    
-                    <div class="execution-status" id="execution-status">
-                        <div class="current-node" id="current-node">
-                            <span class="node-label">Current:</span>
-                            <span class="node-name" id="current-node-name">-</span>
-                        </div>
-                    </div>
-                    
-                    <div class="progress-container" id="progress-container" style="display: none;">
-                        <div class="progress-info">
-                            <span class="progress-label">Progress</span>
-                            <span class="progress-percentage" id="progress-percentage">0%</span>
-                        </div>
-                        <div class="progress-bar-bg">
-                            <div class="progress-bar" id="progress-bar" style="width: 0%"></div>
-                        </div>
-                        <div class="progress-details">
-                            <span class="progress-step" id="progress-step">0 / 0</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Generate Button -->
-                <div class="generate-section">
-                    <button type="submit" class="generate-button" id="generate-button">
-                        <span class="button-text">Generate</span>
-                        <span class="button-spinner" style="display: none;">
-                            <svg class="spinner" viewBox="0 0 50 50">
-                                <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-dasharray="80 20" stroke-linecap="round"></circle>
-                            </svg>
-                        </span>
-                    </button>
-                    <div class="generation-progress" id="generation-progress" style="display: none;"></div>
-                </div>
             </form>
         </section>
 

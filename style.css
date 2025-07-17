@@ -130,6 +130,16 @@ body {
     color: var(--color-text-primary);
 }
 
+/* Top Actions Section */
+.top-actions-section {
+    padding: var(--space-lg);
+    background: var(--color-bg-secondary);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+}
+
 .panel-actions {
     display: flex;
     gap: var(--space-sm);
@@ -903,52 +913,159 @@ body {
 .progress-container {
     background: #0f1419;
     border: 1px solid #1f2937;
-    border-radius: 6px;
-    padding: 12px;
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.progress-container.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.progress-container.error {
+    border-color: var(--color-error);
 }
 
 .progress-info {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
-    font-size: 12px;
+    margin-bottom: 10px;
+    font-size: 13px;
 }
 
 .progress-label {
     color: #9ca3af;
     font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.progress-label::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--color-success);
+    border-radius: 50%;
+    display: inline-block;
+    animation: pulse-dot 1.5s ease-in-out infinite;
 }
 
 .progress-percentage {
-    color: #1f77b4;
-    font-weight: 600;
+    color: var(--color-success);
+    font-weight: 700;
+    font-size: 16px;
+    font-family: 'Monaco', 'Menlo', monospace;
+    text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+    transition: all 0.3s ease;
 }
 
 .progress-bar-bg {
-    background: #374151;
-    border-radius: 4px;
-    height: 8px;
+    background: #1a1f2e;
+    border-radius: 6px;
+    height: 12px;
     overflow: hidden;
-    margin-bottom: 6px;
+    margin-bottom: 8px;
+    position: relative;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
 .progress-bar {
-    background: linear-gradient(90deg, #1f77b4, #22c55e);
+    background: linear-gradient(90deg, #10b981, #22c55e, #10b981);
+    background-size: 200% 100%;
     height: 100%;
-    border-radius: 4px;
-    transition: width 0.3s ease;
-    min-width: 2px;
+    border-radius: 6px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 2%;
+    position: relative;
+    animation: shimmer 2s linear infinite;
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+}
+
+.progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+    );
+    animation: shine 1.5s ease-in-out infinite;
 }
 
 .progress-details {
     text-align: center;
-    font-size: 11px;
-    color: #6b7280;
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 500;
 }
 
 .progress-step {
     font-family: 'Monaco', 'Menlo', monospace;
+    color: #e0e7ff;
+    font-weight: 600;
+}
+
+/* Progress bar animations */
+@keyframes shimmer {
+    0% {
+        background-position: 0% 50%;
+    }
+    100% {
+        background-position: 200% 50%;
+    }
+}
+
+@keyframes shine {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+@keyframes pulse-dot {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+}
+
+/* Completion animation */
+.progress-container.complete .progress-bar {
+    animation: complete-flash 0.5s ease;
+    background: var(--color-success);
+}
+
+.progress-container.complete .progress-percentage {
+    color: var(--color-success);
+    transform: scale(1.1);
+}
+
+@keyframes complete-flash {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+        box-shadow: 0 0 30px rgba(34, 197, 94, 0.8);
+    }
 }
 
 /* WebSocket Connection Status Updates */

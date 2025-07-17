@@ -137,6 +137,9 @@ class WebSocketService {
                 case 'progress':
                     this.handleProgressEvent(message);
                     break;
+                case 'progress_state':
+                    this.handleProgressStateEvent(message);
+                    break;
                 case 'executed':
                     this.handleExecutedEvent(message);
                     break;
@@ -203,6 +206,56 @@ class WebSocketService {
         }
         
         console.log(`🔌 Progress: ${event.percentage}% (${event.value}/${event.max})`);
+        this.emit('progress', event);
+    }
+
+    handleProgressStateEvent(message) {
+        // ComfyUI sends progress_state with detailed node information
+        const nodes = message.data.nodes || {};
+        
+        let totalValue = 0;
+        let totalMax = 0;
+        let activeNodeId = null;
+        let activeNodeProgress = null;
+        
+        // Process each node to calculate overall progress
+        for (const [nodeId, nodeData] of Object.entries(nodes)) {
+            totalValue += nodeData.value || 0;
+            totalMax += nodeData.max || 0;
+            
+            // Find currently active node (not finished, has progress)
+            if (nodeData.state !== 'finished' && nodeData.value < nodeData.max) {
+                activeNodeId = nodeId;
+                activeNodeProgress = nodeData;
+            }
+        }
+        
+        // If no active node, use the node with highest max (likely the main sampler)
+        if (!activeNodeId) {
+            let maxSteps = 0;
+            for (const [nodeId, nodeData] of Object.entries(nodes)) {
+                if (nodeData.max > maxSteps) {
+                    maxSteps = nodeData.max;
+                    activeNodeId = nodeId;
+                    activeNodeProgress = nodeData;
+                }
+            }
+        }
+        
+        const event = {
+            value: totalValue,
+            max: totalMax,
+            percentage: totalMax > 0 ? Math.round((totalValue / totalMax) * 100) : 0,
+            activeNodeId,
+            activeNodeProgress,
+            promptId: message.data.prompt_id,
+            timestamp: Date.now(),
+            allNodes: nodes
+        };
+        
+        console.log(`🔌 ProgressState: ${event.percentage}% (${event.value}/${event.max}) - Active Node: ${activeNodeId}`);
+        
+        // Emit as progress event for compatibility
         this.emit('progress', event);
     }
 
@@ -303,6 +356,272 @@ class WebSocketService {
     }
 }
 
+// Progress Bar Component Class
+class ProgressBarComponent {
+    constructor(config = {}) {
+        this.container = config.container || document.getElementById('progress-container');
+        this.progressBar = config.progressBar || document.getElementById('progress-bar');
+        this.progressPercentage = config.progressPercentage || document.getElementById('progress-percentage');
+        this.progressStep = config.progressStep || document.getElementById('progress-step');
+        
+        // State
+        this.currentProgress = 0;
+        this.targetProgress = 0;
+        this.currentStep = 0;
+        this.totalSteps = 0;
+        this.isVisible = false;
+        this.hideTimeout = null;
+        this.animationFrame = null;
+        
+        // Fallback progress tracking
+        this.fallbackMode = false;
+        this.fallbackTimer = null;
+        this.executedNodes = 0;
+        this.totalNodes = 0;
+        this.lastProgressTime = 0;
+        
+        // Configuration
+        this.smoothingFactor = config.smoothingFactor || 0.1;
+        this.hideDelay = config.hideDelay || 2000;
+        this.updateDebounceTime = config.updateDebounceTime || 16; // 60fps for smooth updates
+        
+        // Debounce timer
+        this.updateDebounceTimer = null;
+        
+        // Bind methods
+        this.updateProgress = this.updateProgress.bind(this);
+        this.animate = this.animate.bind(this);
+    }
+    
+    // Show the progress bar with fade-in animation
+    show() {
+        if (!this.container) return;
+        
+        clearTimeout(this.hideTimeout);
+        this.container.style.display = 'block';
+        
+        // Force reflow before adding active class
+        this.container.offsetHeight;
+        this.container.classList.add('active');
+        this.isVisible = true;
+        
+        console.log('🎨 Progress bar shown');
+        
+        // Start animation loop
+        if (!this.animationFrame) {
+            this.animate();
+        }
+    }
+    
+    // Hide the progress bar with fade-out animation
+    hide() {
+        if (!this.container || !this.isVisible) return;
+        
+        this.container.classList.remove('active');
+        this.container.classList.add('complete');
+        
+        this.hideTimeout = setTimeout(() => {
+            this.container.style.display = 'none';
+            this.container.classList.remove('complete');
+            this.isVisible = false;
+            this.reset();
+        }, this.hideDelay);
+    }
+    
+    // Reset progress to initial state
+    reset() {
+        this.currentProgress = 0;
+        this.targetProgress = 0;
+        this.currentStep = 0;
+        this.totalSteps = 0;
+        
+        // Stop fallback mode
+        this.stopFallbackProgress();
+        this.executedNodes = 0;
+        this.totalNodes = 0;
+        
+        if (this.progressBar) {
+            this.progressBar.style.width = '0%';
+        }
+        if (this.progressPercentage) {
+            this.progressPercentage.textContent = '0%';
+        }
+        if (this.progressStep) {
+            this.progressStep.textContent = '0 / 0';
+        }
+        
+        // Cancel animation frame
+        if (this.animationFrame) {
+            cancelAnimationFrame(this.animationFrame);
+            this.animationFrame = null;
+        }
+    }
+    
+    // Update progress with smooth animation
+    updateProgress(value, max, extraInfo = null) {
+        console.log(`📊 ProgressBar.updateProgress called: ${value}/${max}`);
+        
+        // For real progress events, stop fallback mode
+        if (value > 0 && max > 0) {
+            this.stopFallbackProgress();
+        }
+        
+        // Debounce rapid updates (but allow instant completion)
+        const isCompletion = value >= max && max > 0;
+        const debounceTime = isCompletion ? 0 : this.updateDebounceTime;
+        
+        clearTimeout(this.updateDebounceTimer);
+        
+        this.updateDebounceTimer = setTimeout(() => {
+            // Validate inputs
+            value = Math.max(0, Math.min(value, max));
+            max = Math.max(1, max);
+            
+            this.currentStep = value;
+            this.totalSteps = max;
+            this.targetProgress = (value / max) * 100;
+            
+            console.log(`📊 Progress target: ${this.targetProgress}%`);
+            
+            // Show progress bar if hidden
+            if (!this.isVisible) {
+                this.show();
+            }
+            
+            // Update step display with enhanced info if available
+            if (this.progressStep) {
+                let stepText = `Steps: ${value}/${max}`;
+                
+                // Log technical node info for debugging but show user-friendly text
+                if (extraInfo && extraInfo.activeNodeId) {
+                    console.log(`🔧 Active node: ${extraInfo.activeNodeId}`);
+                }
+                
+                this.progressStep.textContent = stepText;
+            }
+            
+            // Check if complete
+            if (value >= max) {
+                this.targetProgress = 100;
+                setTimeout(() => this.hide(), 500);
+            }
+        }, debounceTime);
+    }
+    
+    // Smooth animation loop
+    animate() {
+        if (!this.isVisible) return;
+        
+        // Lerp towards target progress
+        const diff = this.targetProgress - this.currentProgress;
+        if (Math.abs(diff) > 0.1) {
+            this.currentProgress += diff * this.smoothingFactor;
+            
+            // Update UI
+            const displayProgress = Math.round(this.currentProgress);
+            if (this.progressBar) {
+                this.progressBar.style.width = `${this.currentProgress}%`;
+            }
+            if (this.progressPercentage) {
+                this.progressPercentage.textContent = `${displayProgress}%`;
+            }
+        }
+        
+        // Continue animation
+        this.animationFrame = requestAnimationFrame(this.animate);
+    }
+    
+    // Set error state
+    setError() {
+        if (this.container) {
+            this.container.classList.add('error');
+        }
+        this.hide();
+    }
+    
+    // Remove error state
+    clearError() {
+        if (this.container) {
+            this.container.classList.remove('error');
+        }
+    }
+    
+    // Start fallback progress mode (when no real progress events)
+    startFallbackProgress(estimatedDurationMs = 30000) {
+        console.log('🔄 Starting fallback progress mode');
+        this.fallbackMode = true;
+        this.lastProgressTime = Date.now();
+        
+        const updateInterval = 500; // Update every 500ms
+        const maxProgress = 90; // Don't go to 100% until completion
+        
+        this.fallbackTimer = setInterval(() => {
+            const elapsed = Date.now() - this.lastProgressTime;
+            const progress = Math.min((elapsed / estimatedDurationMs) * maxProgress, maxProgress);
+            
+            if (this.targetProgress < progress) {
+                this.targetProgress = progress;
+                
+                // Update step display with estimated progress
+                if (this.progressStep) {
+                    const estimatedStep = Math.floor((progress / 100) * 20); // Assume ~20 steps
+                    this.progressStep.textContent = `Step ${estimatedStep} of ~20`;
+                }
+            }
+        }, updateInterval);
+    }
+    
+    // Stop fallback progress mode
+    stopFallbackProgress() {
+        if (this.fallbackTimer) {
+            clearInterval(this.fallbackTimer);
+            this.fallbackTimer = null;
+        }
+        this.fallbackMode = false;
+    }
+    
+    // Track node execution for progress estimation
+    onNodeExecuted() {
+        if (this.fallbackMode && this.totalNodes > 0) {
+            this.executedNodes++;
+            const nodeProgress = (this.executedNodes / this.totalNodes) * 90; // 90% max
+            
+            if (nodeProgress > this.targetProgress) {
+                this.targetProgress = nodeProgress;
+                
+                if (this.progressStep) {
+                    this.progressStep.textContent = `Node ${this.executedNodes} of ${this.totalNodes}`;
+                }
+                
+                console.log(`🔄 Node progress: ${this.executedNodes}/${this.totalNodes} (${Math.round(nodeProgress)}%)`);
+            }
+        }
+    }
+    
+    // Start generation with node count estimation
+    startGeneration(workflowData) {
+        this.reset();
+        this.show();
+        this.executedNodes = 0;
+        
+        // Estimate total nodes from workflow (rough approximation)
+        if (workflowData && typeof workflowData === 'object') {
+            this.totalNodes = Object.keys(workflowData).length || 10;
+            console.log(`🔄 Estimated ${this.totalNodes} nodes in workflow`);
+        } else {
+            this.totalNodes = 10; // Default estimate
+        }
+        
+        // Start fallback progress after 2 seconds if no real progress
+        setTimeout(() => {
+            if (this.targetProgress === 0 && this.isVisible) {
+                console.log('🔄 No progress events received, starting fallback mode');
+                this.startFallbackProgress();
+            }
+        }, 2000);
+    }
+}
+
 // Application state
 const AppState = {
     apiEndpoint: localStorage.getItem('comfyui_endpoint') || 'http://192.168.10.15:8188',
@@ -310,7 +629,8 @@ const AppState = {
     workflowData: null,
     modifiedWorkflowData: null,
     isGenerating: false,
-    websocket: null
+    websocket: null,
+    progressBar: null
 };
 
 // DOM Elements
@@ -2354,8 +2674,21 @@ async function generateImages(workflowData) {
         AppState.isGenerating = true;
         setGenerationLoadingState(true);
         
-        // Reset and show real-time status
-        hideRealtimeStatus();
+        // Reset progress bar for new generation
+        if (AppState.progressBar) {
+            AppState.progressBar.clearError();
+            AppState.progressBar.startGeneration(workflowData);
+        }
+        
+        // Show real-time status container (contains progress bar)
+        if (elements.realtimeStatus) {
+            elements.realtimeStatus.style.display = 'block';
+        }
+        
+        // Clear results area to remove any previous content
+        if (elements.resultsArea) {
+            elements.resultsArea.innerHTML = '';
+        }
         
         Utils.showToast('Starting image generation...', 'info');
         console.log('🎨 Starting image generation process');
@@ -2378,8 +2711,8 @@ async function generateImages(workflowData) {
         Utils.showToast(`Workflow submitted! Prompt ID: ${promptId}`, 'success');
         console.log(`📝 Prompt submitted with ID: ${promptId}`);
 
-        // Update UI with generation progress
-        updateGenerationProgress('Generating images...', 'This may take several minutes');
+        // Don't update results area during generation - let progress bar show instead
+        // updateGenerationProgress('Generating images...', 'This may take several minutes');
 
         // Poll for results
         const pollResult = await Utils.pollForResults(promptId);
@@ -2402,6 +2735,12 @@ async function generateImages(workflowData) {
         displayGeneratedImages(imageUrls);
         Utils.showToast(`Successfully generated ${imageUrls.length} image(s)!`, 'success');
         
+        // Complete progress bar
+        if (AppState.progressBar) {
+            AppState.progressBar.stopFallbackProgress();
+            AppState.progressBar.updateProgress(100, 100); // Force completion
+        }
+        
         // Hide real-time status after a delay
         setTimeout(() => {
             hideRealtimeStatus();
@@ -2419,10 +2758,18 @@ async function generateImages(workflowData) {
         Utils.showToast(`${errorMessage}: ${errorDetails}`, 'error');
         showGenerationError(errorClassification);
         
+        // Set progress bar to error state
+        if (AppState.progressBar) {
+            AppState.progressBar.setError();
+        }
+        
     } finally {
         AppState.isGenerating = false;
         setGenerationLoadingState(false);
         hideRealtimeStatus();
+        
+        // Progress bar will auto-hide after completion
+        // or set error state if there was an error
     }
 }
 
@@ -2839,6 +3186,16 @@ function initializeApp() {
         // Initialize WebSocket connection
         initializeWebSocket();
         
+        // Initialize Progress Bar Component
+        AppState.progressBar = new ProgressBarComponent({
+            container: elements.progressContainer,
+            progressBar: elements.progressBar,
+            progressPercentage: elements.progressPercentage,
+            progressStep: elements.progressStep,
+            smoothingFactor: 0.15,
+            hideDelay: 2000
+        });
+        
         // Show welcome message
         Utils.showToast('ComfyUI Workflow Runner initialized', 'success');
         
@@ -2916,7 +3273,16 @@ function setupWebSocketEventHandlers() {
     // Progress updates
     ws.on('progress', (event) => {
         console.log(`🔌 Progress: ${event.percentage}% (${event.value}/${event.max})`);
-        updateProgressIndicator(event.percentage, event.value, event.max);
+        if (AppState.progressBar) {
+            // Pass extra info for enhanced display
+            const extraInfo = {
+                activeNodeId: event.activeNodeId,
+                activeNodeProgress: event.activeNodeProgress
+            };
+            AppState.progressBar.updateProgress(event.value, event.max, extraInfo);
+        } else {
+            updateProgressIndicator(event.percentage, event.value, event.max);
+        }
     });
     
     // Execution events
@@ -2928,6 +3294,11 @@ function setupWebSocketEventHandlers() {
     ws.on('executed', (event) => {
         console.log(`🔌 Executed node ${event.nodeId} for prompt ${event.promptId}`);
         updateExecutionStatus('executed', event.nodeId);
+        
+        // Track node execution for fallback progress
+        if (AppState.progressBar) {
+            AppState.progressBar.onNodeExecuted();
+        }
         
         // Check if this might be the final node
         if (event.output && Object.keys(event.output).length > 0) {
@@ -2941,6 +3312,11 @@ function setupWebSocketEventHandlers() {
         Utils.showToast(`Error in ${event.nodeType || 'unknown'} node: ${event.error}`, 'error');
         AppState.isGenerating = false;
         setGenerationLoadingState(false);
+        
+        // Set progress bar to error state
+        if (AppState.progressBar) {
+            AppState.progressBar.setError();
+        }
     });
     
     // Status updates
