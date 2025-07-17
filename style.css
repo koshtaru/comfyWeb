@@ -145,6 +145,81 @@ body {
     display: flex;
     gap: var(--space-md);
     align-items: center;
+    flex-wrap: wrap;
+    padding: var(--space-sm);
+    background: var(--color-bg-primary);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    min-height: 60px;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all var(--transition-normal);
+}
+
+.generate-section:hover {
+    border-color: var(--color-accent-blue);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Responsive adjustments for generate section */
+@media (max-width: 480px) {
+    .generate-section {
+        flex-direction: column;
+        gap: var(--space-sm);
+        padding: var(--space-md);
+        min-height: 120px;
+    }
+    
+    .generate-section .generate-button,
+    .generate-section .cancel-button {
+        width: 100%;
+        min-width: unset;
+        height: 48px;
+        font-size: var(--font-size-base);
+    }
+}
+
+@media (min-width: 481px) and (max-width: 768px) {
+    .generate-section {
+        flex-direction: row;
+        justify-content: center;
+        gap: var(--space-md);
+        padding: var(--space-md);
+        flex-wrap: wrap;
+    }
+    
+    .generate-section .generate-button,
+    .generate-section .cancel-button {
+        flex: 1;
+        min-width: 140px;
+        max-width: 200px;
+    }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+    .generate-section {
+        justify-content: center;
+        gap: var(--space-lg);
+        padding: var(--space-lg);
+    }
+    
+    .generate-section .generate-button,
+    .generate-section .cancel-button {
+        min-width: 160px;
+    }
+}
+
+@media (min-width: 1025px) {
+    .generate-section {
+        justify-content: flex-start;
+        gap: var(--space-xl);
+        padding: var(--space-lg);
+    }
+    
+    .generate-section .generate-button,
+    .generate-section .cancel-button {
+        min-width: 180px;
+    }
 }
 
 .panel-actions {
@@ -649,23 +724,43 @@ body {
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-semibold);
     cursor: pointer;
-    transition: all var(--transition-normal);
+    transition: all var(--transition-normal), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: var(--space-sm);
+    padding: 0 var(--space-lg);
+    min-width: 120px;
+    box-shadow: 0 2px 4px rgba(255, 124, 0, 0.2);
+    overflow: hidden;
+}
+
+.generate-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.generate-button:hover::before {
+    left: 100%;
 }
 
 .generate-button:hover:not(:disabled) {
     background: linear-gradient(135deg, var(--color-accent-orange-hover) 0%, #ffaa1a 100%);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.02);
     box-shadow: 0 4px 12px rgba(255, 124, 0, 0.3);
 }
 
 .generate-button:active:not(:disabled) {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
     box-shadow: 0 2px 6px rgba(255, 124, 0, 0.2);
+    transition: transform 0.1s ease;
 }
 
 .generate-button:focus {
@@ -688,7 +783,7 @@ body {
     font-size: var(--font-size-base);
     font-weight: var(--font-weight-medium);
     cursor: pointer;
-    transition: all var(--transition-normal);
+    transition: all var(--transition-normal), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -696,17 +791,35 @@ body {
     padding: 0 var(--space-lg);
     min-width: 100px;
     box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2);
+    position: relative;
+    overflow: hidden;
+}
+
+.cancel-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.cancel-button:hover::before {
+    left: 100%;
 }
 
 .cancel-button:hover:not(:disabled) {
     background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-    transform: translateY(-1px);
+    transform: translateY(-1px) scale(1.02);
     box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .cancel-button:active:not(:disabled) {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.2);
+    transition: transform 0.1s ease;
 }
 
 .cancel-button:focus {
