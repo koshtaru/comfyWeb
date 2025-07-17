@@ -643,6 +643,7 @@ const elements = {
     uploadStatus: document.getElementById('upload-status'),
     workflowForm: document.getElementById('workflow-form'),
     generateButton: document.getElementById('generate-button'),
+    cancelButton: document.getElementById('cancel-button'),
     resultsArea: document.getElementById('results-area'),
     clearResults: document.getElementById('clear-results'),
     toastContainer: document.getElementById('toast-container'),
@@ -1616,6 +1617,107 @@ const Utils = {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
 };
+
+// ComfyUI API Functions
+const ComfyUIAPI = {
+    // Interrupt current generation
+    async interrupt() {
+        if (!AppState.apiEndpoint) {
+            console.error('❌ No API endpoint configured');
+            return false;
+        }
+        
+        const url = `${AppState.apiEndpoint}/interrupt`;
+        console.log(`🛑 Calling ComfyUI interrupt endpoint: ${url}`);
+        
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => {
+                console.log('⏱️ Interrupt request timeout after 5 seconds');
+                controller.abort();
+            }, 5000);
+            
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (response.ok) {
+                console.log('✅ Generation interrupted successfully');
+                return true;
+            } else {
+                console.error(`❌ Interrupt failed with status: ${response.status}`);
+                return false;
+            }
+            
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.error('❌ Interrupt request timed out');
+                Utils.showToast('Cancel request timed out', 'error');
+            } else {
+                console.error('❌ Error calling interrupt endpoint:', error);
+            }
+            return false;
+        }
+    }
+};
+
+// Cancel Button State Management
+function setCancelButtonState(state) {
+    const cancelButton = elements.cancelButton;
+    if (!cancelButton) {
+        console.warn('❌ Cancel button element not found');
+        return;
+    }
+    
+    const buttonText = cancelButton.querySelector('.button-text');
+    const buttonSpinner = cancelButton.querySelector('.button-spinner');
+    
+    switch (state) {
+        case 'hidden':
+            cancelButton.style.display = 'none';
+            cancelButton.classList.remove('loading');
+            cancelButton.disabled = false;
+            if (buttonSpinner) buttonSpinner.style.display = 'none';
+            if (buttonText) buttonText.style.display = 'flex';
+            break;
+            
+        case 'enabled':
+            cancelButton.style.display = 'flex';
+            cancelButton.classList.remove('loading');
+            cancelButton.disabled = false;
+            if (buttonSpinner) buttonSpinner.style.display = 'none';
+            if (buttonText) buttonText.style.display = 'flex';
+            break;
+            
+        case 'loading':
+            cancelButton.style.display = 'flex';
+            cancelButton.classList.add('loading');
+            cancelButton.disabled = true;
+            if (buttonSpinner) buttonSpinner.style.display = 'inline-flex';
+            if (buttonText) buttonText.style.display = 'none';
+            break;
+            
+        case 'disabled':
+            cancelButton.style.display = 'flex';
+            cancelButton.classList.remove('loading');
+            cancelButton.disabled = true;
+            if (buttonSpinner) buttonSpinner.style.display = 'none';
+            if (buttonText) buttonText.style.display = 'flex';
+            break;
+            
+        default:
+            console.warn(`⚠️ Unknown cancel button state: ${state}`);
+    }
+    
+    console.log(`🛑 Cancel button state changed to: ${state}`);
+}
 
 // Simple Seed Utility Functions
 const SeedUtils = {
@@ -2785,10 +2887,16 @@ function setGenerationLoadingState(isLoading) {
         `;
         generateButton.disabled = true;
         generateButton.classList.add('loading');
+        
+        // Show cancel button when generation starts
+        setCancelButtonState('enabled');
     } else {
         generateButton.innerHTML = 'Generate';
         generateButton.disabled = false;
         generateButton.classList.remove('loading');
+        
+        // Hide cancel button when generation ends
+        setCancelButtonState('hidden');
     }
 }
 
@@ -3085,6 +3193,58 @@ function initializeClearResults() {
     });
 }
 
+// Cancel Button
+function initializeCancelButton() {
+    if (!elements.cancelButton) {
+        console.warn('❌ Cancel button element not found (id: cancel-button)');
+        return;
+    }
+    
+    // Initialize cancel button as hidden
+    setCancelButtonState('hidden');
+    
+    elements.cancelButton.addEventListener('click', async () => {
+        if (!AppState.isGenerating) {
+            console.log('🛑 No generation in progress to cancel');
+            return;
+        }
+        
+        try {
+            console.log('🛑 Cancelling generation...');
+            
+            // Set button to loading state
+            setCancelButtonState('loading');
+            
+            // Call ComfyUI interrupt endpoint
+            const success = await ComfyUIAPI.interrupt();
+            
+            if (success) {
+                console.log('✅ Generation cancelled successfully');
+                Utils.showToast('Generation cancelled', 'info');
+                
+                // Update app state
+                AppState.isGenerating = false;
+                setGenerationLoadingState(false);
+                hideRealtimeStatus();
+                
+                // Hide cancel button
+                setCancelButtonState('hidden');
+            } else {
+                console.error('❌ Failed to cancel generation');
+                Utils.showToast('Failed to cancel generation', 'error');
+                setCancelButtonState('enabled');
+            }
+            
+        } catch (error) {
+            console.error('❌ Error cancelling generation:', error);
+            Utils.showToast('Error cancelling generation', 'error');
+            setCancelButtonState('enabled');
+        }
+    });
+    
+    console.log('✅ Cancel button initialized');
+}
+
 // Prompt Toolbar
 function initializePromptToolbar() {
     const clearButton = document.querySelector('.prompt-toolbar .icon-button');
@@ -3180,6 +3340,7 @@ function initializeApp() {
         initializeConnectionTest();
         initializeFormSubmission();
         initializeClearResults();
+        initializeCancelButton();
         initializePromptToolbar();
         initializeSeedControls();
         
