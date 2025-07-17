@@ -962,6 +962,7 @@ const AppState = {
     apiEndpoint: localStorage.getItem('comfyui_endpoint') || 'http://192.168.10.15:8188',
     isConnected: false,
     workflowData: null,
+    workflowMetadata: null,
     modifiedWorkflowData: null,
     isGenerating: false,
     websocket: null,
@@ -1860,11 +1861,17 @@ const Utils = {
                     // Check if generation is complete
                     if (promptData.status && promptData.status.completed) {
                         console.log('✅ Generation completed:', promptData);
+                        
+                        // Parse metadata from history response
+                        const historyMetadata = metadataParser.parseHistoryResponse(promptData);
+                        const normalizedHistoryMetadata = metadataParser.normalizeMetadata(historyMetadata);
+                        
                         return {
                             success: true,
                             status: 'completed',
                             outputs: promptData.outputs || {},
-                            meta: promptData.meta || {}
+                            meta: promptData.meta || {},
+                            metadata: normalizedHistoryMetadata
                         };
                     }
                     
@@ -2634,6 +2641,15 @@ function handleFileUpload(file) {
             AppState.workflowData = workflowData;
             console.log('💾 Workflow data stored in AppState');
             
+            // Parse metadata using the new MetadataParser
+            console.log('🔍 Parsing workflow metadata...');
+            const metadata = metadataParser.parseWorkflowMetadata(workflowData);
+            const normalizedMetadata = metadataParser.normalizeMetadata(metadata);
+            
+            // Store metadata in AppState
+            AppState.workflowMetadata = normalizedMetadata;
+            console.log('💾 Workflow metadata stored in AppState:', normalizedMetadata);
+            
             // Build detailed success message
             let successMessage = `✓ ${file.name} loaded successfully`;
             if (validation.nodeCount > 0) {
@@ -2691,6 +2707,7 @@ function handleFileUpload(file) {
             
             // Clear invalid data
             AppState.workflowData = null;
+            AppState.workflowMetadata = null;
         }
     };
     
@@ -2700,6 +2717,7 @@ function handleFileUpload(file) {
         status.className = 'upload-status error';
         Utils.showToast('File could not be read', 'error');
         AppState.workflowData = null;
+        AppState.workflowMetadata = null;
     };
     
     console.log('📖 Starting file read...');
@@ -4317,6 +4335,372 @@ function setupInterruptServiceListeners() {
     
     console.log('✅ InterruptService event listeners configured');
 }
+
+// ================================================================================
+// Metadata Parser Module
+// ================================================================================
+
+/**
+ * MetadataParser - Robust parser for ComfyUI workflow and history metadata
+ * Extracts generation parameters, model information, and timing data
+ */
+class MetadataParser {
+    constructor() {
+        this.supportedNodeTypes = {
+            samplers: ['KSampler', 'KSamplerAdvanced', 'FluxSampler', 'FluxGuidanceNode', 'FluxGuidance'],
+            textEncoders: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'FluxTextEncode'],
+            imageGenerators: ['EmptyLatentImage', 'EmptySD3LatentImage', 'FluxLatent', 'FluxGGUFLatent'],
+            models: ['CheckpointLoaderSimple', 'CheckpointLoader', 'FluxCheckpointLoader', 'UNETLoader'],
+            vae: ['VAELoader', 'VAEEncode', 'VAEDecode']
+        };
+        
+        this.defaultMetadata = this.createDefaultMetadata();
+    }
+
+    /**
+     * Create default metadata structure
+     */
+    createDefaultMetadata() {
+        return {
+            generation: {
+                steps: null,
+                cfg: null,
+                sampler: null,
+                scheduler: null,
+                seed: null,
+                dimensions: { width: null, height: null },
+                batchSize: null,
+                guidance: null // For Flux models
+            },
+            prompts: {
+                positive: null,
+                negative: null
+            },
+            model: {
+                name: null,
+                hash: null,
+                type: null,
+                architecture: null // 'SD1.5', 'SDXL', 'Flux', 'SD3'
+            },
+            timing: {
+                startTime: null,
+                endTime: null,
+                duration: null,
+                queueTime: null
+            },
+            technical: {
+                clipSkip: null,
+                vae: null,
+                nodeTypes: [],
+                workflowVersion: null,
+                nodeCount: 0
+            },
+            raw: {
+                workflow: null,
+                history: null
+            }
+        };
+    }
+
+    /**
+     * Parse metadata from ComfyUI workflow JSON
+     * @param {Object} workflowData - ComfyUI workflow JSON
+     * @returns {Object} Parsed metadata object
+     */
+    parseWorkflowMetadata(workflowData) {
+        console.log('🔍 Parsing workflow metadata...');
+        
+        const metadata = this.createDefaultMetadata();
+        
+        try {
+            if (!workflowData || typeof workflowData !== 'object') {
+                throw new Error('Invalid workflow data provided');
+            }
+
+            // Store raw workflow data
+            metadata.raw.workflow = workflowData;
+            metadata.technical.nodeCount = Object.keys(workflowData).length;
+
+            // Extract node types for technical info
+            const nodeTypes = new Set();
+            
+            // Parse each node in the workflow
+            Object.entries(workflowData).forEach(([nodeId, node]) => {
+                if (!node || !node.class_type) return;
+                
+                const nodeType = node.class_type;
+                nodeTypes.add(nodeType);
+                
+                // Extract parameters based on node type
+                this.extractNodeParameters(node, nodeType, metadata);
+            });
+
+            metadata.technical.nodeTypes = Array.from(nodeTypes);
+            
+            // Determine model architecture based on node types
+            metadata.model.architecture = this.detectModelArchitecture(nodeTypes);
+            
+            console.log('✅ Workflow metadata parsed successfully');
+            return metadata;
+            
+        } catch (error) {
+            console.error('❌ Error parsing workflow metadata:', error);
+            return metadata; // Return default metadata on error
+        }
+    }
+
+    /**
+     * Extract parameters from individual workflow nodes
+     * @param {Object} node - Workflow node data
+     * @param {string} nodeType - Node class type
+     * @param {Object} metadata - Metadata object to populate
+     */
+    extractNodeParameters(node, nodeType, metadata) {
+        const inputs = node.inputs || {};
+        
+        // Extract sampler parameters
+        if (this.supportedNodeTypes.samplers.includes(nodeType)) {
+            if (inputs.steps !== undefined) metadata.generation.steps = inputs.steps;
+            if (inputs.cfg !== undefined) metadata.generation.cfg = inputs.cfg;
+            if (inputs.sampler_name !== undefined) metadata.generation.sampler = inputs.sampler_name;
+            if (inputs.scheduler !== undefined) metadata.generation.scheduler = inputs.scheduler;
+            if (inputs.seed !== undefined) metadata.generation.seed = inputs.seed;
+            if (inputs.guidance !== undefined) metadata.generation.guidance = inputs.guidance;
+        }
+        
+        // Extract text encoder parameters (prompts)
+        else if (this.supportedNodeTypes.textEncoders.includes(nodeType)) {
+            if (inputs.text !== undefined) {
+                // Determine if this is positive or negative prompt
+                if (this.isNegativePrompt(inputs.text)) {
+                    metadata.prompts.negative = inputs.text;
+                } else {
+                    metadata.prompts.positive = inputs.text;
+                }
+            }
+            if (inputs.clip_skip !== undefined) metadata.technical.clipSkip = inputs.clip_skip;
+        }
+        
+        // Extract image dimensions
+        else if (this.supportedNodeTypes.imageGenerators.includes(nodeType)) {
+            if (inputs.width !== undefined) metadata.generation.dimensions.width = inputs.width;
+            if (inputs.height !== undefined) metadata.generation.dimensions.height = inputs.height;
+            if (inputs.batch_size !== undefined) metadata.generation.batchSize = inputs.batch_size;
+        }
+        
+        // Extract model information
+        else if (this.supportedNodeTypes.models.includes(nodeType)) {
+            if (inputs.ckpt_name !== undefined) {
+                metadata.model.name = inputs.ckpt_name;
+                metadata.model.type = this.extractModelType(inputs.ckpt_name);
+            }
+        }
+        
+        // Extract VAE information
+        else if (this.supportedNodeTypes.vae.includes(nodeType)) {
+            if (inputs.vae_name !== undefined) {
+                metadata.technical.vae = inputs.vae_name;
+            }
+        }
+    }
+
+    /**
+     * Parse metadata from ComfyUI history API response
+     * @param {Object} historyData - ComfyUI history response
+     * @returns {Object} Parsed metadata object
+     */
+    parseHistoryResponse(historyData) {
+        console.log('🔍 Parsing history response metadata...');
+        
+        const metadata = this.createDefaultMetadata();
+        
+        try {
+            if (!historyData || typeof historyData !== 'object') {
+                throw new Error('Invalid history data provided');
+            }
+
+            // Store raw history data
+            metadata.raw.history = historyData;
+            
+            // Extract timing information
+            this.extractTimingInfo(historyData, metadata);
+            
+            // Extract workflow metadata if present
+            if (historyData.prompt && historyData.prompt[1]) {
+                const workflowData = historyData.prompt[1];
+                const workflowMetadata = this.parseWorkflowMetadata(workflowData);
+                
+                // Merge workflow metadata
+                this.mergeMetadata(metadata, workflowMetadata);
+            }
+            
+            console.log('✅ History metadata parsed successfully');
+            return metadata;
+            
+        } catch (error) {
+            console.error('❌ Error parsing history metadata:', error);
+            return metadata; // Return default metadata on error
+        }
+    }
+
+    /**
+     * Extract timing information from history data
+     * @param {Object} historyData - History response data
+     * @param {Object} metadata - Metadata object to populate
+     */
+    extractTimingInfo(historyData, metadata) {
+        try {
+            if (historyData.status && historyData.status.exec_info) {
+                const execInfo = historyData.status.exec_info;
+                
+                if (execInfo.queue_time !== undefined) {
+                    metadata.timing.queueTime = execInfo.queue_time;
+                }
+                
+                if (execInfo.exec_time !== undefined) {
+                    metadata.timing.duration = execInfo.exec_time;
+                }
+            }
+            
+            // Try to extract timestamps from status
+            if (historyData.status) {
+                if (historyData.status.started_at) {
+                    metadata.timing.startTime = new Date(historyData.status.started_at);
+                }
+                if (historyData.status.completed_at) {
+                    metadata.timing.endTime = new Date(historyData.status.completed_at);
+                }
+                
+                // Calculate duration if not already set
+                if (!metadata.timing.duration && metadata.timing.startTime && metadata.timing.endTime) {
+                    metadata.timing.duration = metadata.timing.endTime - metadata.timing.startTime;
+                }
+            }
+            
+        } catch (error) {
+            console.error('❌ Error extracting timing info:', error);
+        }
+    }
+
+    /**
+     * Detect model architecture based on node types
+     * @param {Set} nodeTypes - Set of node types in workflow
+     * @returns {string} Model architecture
+     */
+    detectModelArchitecture(nodeTypes) {
+        const nodeTypeArray = Array.from(nodeTypes);
+        
+        if (nodeTypeArray.some(type => type.includes('Flux'))) {
+            return 'Flux';
+        } else if (nodeTypeArray.some(type => type.includes('SD3'))) {
+            return 'SD3';
+        } else if (nodeTypeArray.some(type => type.includes('SDXL'))) {
+            return 'SDXL';
+        } else {
+            return 'SD1.5';
+        }
+    }
+
+    /**
+     * Extract model type from checkpoint name
+     * @param {string} ckptName - Checkpoint filename
+     * @returns {string} Model type
+     */
+    extractModelType(ckptName) {
+        if (!ckptName) return null;
+        
+        const name = ckptName.toLowerCase();
+        
+        if (name.includes('flux')) return 'Flux';
+        if (name.includes('sd3')) return 'SD3';
+        if (name.includes('sdxl')) return 'SDXL';
+        if (name.includes('sd15') || name.includes('sd-1.5')) return 'SD1.5';
+        
+        return 'Unknown';
+    }
+
+    /**
+     * Determine if text is likely a negative prompt
+     * @param {string} text - Prompt text
+     * @returns {boolean} True if likely negative prompt
+     */
+    isNegativePrompt(text) {
+        if (!text || typeof text !== 'string') return false;
+        
+        const negativeKeywords = [
+            'worst quality', 'low quality', 'bad anatomy', 'blurry',
+            'out of frame', 'deformed', 'ugly', 'bad hands',
+            'extra limbs', 'missing limbs', 'malformed'
+        ];
+        
+        return negativeKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    }
+
+    /**
+     * Merge metadata objects, prioritizing non-null values
+     * @param {Object} target - Target metadata object
+     * @param {Object} source - Source metadata object
+     */
+    mergeMetadata(target, source) {
+        const mergeObject = (targetObj, sourceObj) => {
+            Object.keys(sourceObj).forEach(key => {
+                if (sourceObj[key] !== null && sourceObj[key] !== undefined) {
+                    if (typeof sourceObj[key] === 'object' && !Array.isArray(sourceObj[key])) {
+                        if (!targetObj[key]) targetObj[key] = {};
+                        mergeObject(targetObj[key], sourceObj[key]);
+                    } else {
+                        targetObj[key] = sourceObj[key];
+                    }
+                }
+            });
+        };
+        
+        mergeObject(target, source);
+    }
+
+    /**
+     * Validate metadata object structure
+     * @param {Object} metadata - Metadata object to validate
+     * @returns {boolean} True if valid
+     */
+    validateMetadata(metadata) {
+        if (!metadata || typeof metadata !== 'object') return false;
+        
+        const requiredSections = ['generation', 'prompts', 'model', 'timing', 'technical'];
+        return requiredSections.every(section => metadata.hasOwnProperty(section));
+    }
+
+    /**
+     * Normalize metadata values to ensure consistent types
+     * @param {Object} metadata - Metadata object to normalize
+     * @returns {Object} Normalized metadata
+     */
+    normalizeMetadata(metadata) {
+        const normalized = JSON.parse(JSON.stringify(metadata));
+        
+        // Ensure numbers are properly typed
+        if (normalized.generation.steps) normalized.generation.steps = parseInt(normalized.generation.steps);
+        if (normalized.generation.cfg) normalized.generation.cfg = parseFloat(normalized.generation.cfg);
+        if (normalized.generation.seed) normalized.generation.seed = parseInt(normalized.generation.seed);
+        if (normalized.generation.batchSize) normalized.generation.batchSize = parseInt(normalized.generation.batchSize);
+        if (normalized.generation.dimensions.width) normalized.generation.dimensions.width = parseInt(normalized.generation.dimensions.width);
+        if (normalized.generation.dimensions.height) normalized.generation.dimensions.height = parseInt(normalized.generation.dimensions.height);
+        
+        // Ensure strings are properly trimmed
+        if (normalized.prompts.positive) normalized.prompts.positive = normalized.prompts.positive.trim();
+        if (normalized.prompts.negative) normalized.prompts.negative = normalized.prompts.negative.trim();
+        if (normalized.model.name) normalized.model.name = normalized.model.name.trim();
+        
+        return normalized;
+    }
+}
+
+// Create global instance
+const metadataParser = new MetadataParser();
+
+// ================================================================================
+// End Metadata Parser Module
+// ================================================================================
 
 // Cleanup on page unload
 window.addEventListener('beforeunload', () => {
