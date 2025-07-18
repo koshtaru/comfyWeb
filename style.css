@@ -414,6 +414,56 @@ body {
     flex: 1;
 }
 
+.apply-button {
+    height: var(--input-height);
+    padding: 0 var(--space-lg);
+    background: var(--color-success);
+    border: none;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-primary);
+    font-family: var(--font-family);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: background-color var(--transition-normal);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 80px;
+    justify-content: center;
+}
+
+.apply-button:hover {
+    background: #047857;
+}
+
+.apply-button:focus {
+    outline: 2px solid var(--color-success);
+    outline-offset: 2px;
+}
+
+.apply-button:disabled {
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    cursor: not-allowed;
+}
+
+.apply-button.loading .button-text {
+    display: none;
+}
+
+.apply-button.loading .button-spinner {
+    display: flex !important;
+}
+
+.apply-button.success {
+    background: var(--color-success);
+}
+
+.apply-button.error {
+    background: var(--color-error);
+}
+
 .test-button {
     height: var(--input-height);
     padding: 0 var(--space-lg);
@@ -530,17 +580,23 @@ body {
 }
 
 /* Prompt Controls */
+.prompt-controls {
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
 .prompt-container {
     position: relative;
 }
 
 .prompt-textarea {
     width: 100%;
-    min-height: 80px;
+    min-height: 140px;
     background: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
-    padding: var(--space-md);
+    padding: 20px 16px;
     color: var(--color-text-primary);
     font-family: var(--font-family);
     font-size: var(--font-size-base);
@@ -550,8 +606,6 @@ body {
 
 .prompt-textarea:focus {
     outline: none;
-    border-color: var(--color-accent-blue);
-    box-shadow: 0 0 0 2px rgba(31, 119, 180, 0.2);
 }
 
 .prompt-textarea::placeholder {
