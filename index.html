@@ -7,9 +7,27 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+    <!-- Header Navigation -->
+    <header class="app-header">
+        <div class="app-header-content">
+            <div class="app-logo">
+                <h1 class="app-title">ComfyUI Runner</h1>
+            </div>
+            <nav class="app-nav">
+                <button class="nav-tab active" data-mode="generate" aria-label="txt2img mode">txt2img</button>
+                <button class="nav-tab" data-mode="history" aria-label="img2img mode">img2img</button>
+                <button class="nav-tab" data-mode="models" aria-label="Extras mode">Extras</button>
+                <button class="nav-tab" data-mode="settings" aria-label="Settings mode">Settings</button>
+                <button class="nav-tab" data-mode="queue" aria-label="Queue mode">Queue</button>
+            </nav>
+        </div>
+    </header>
+
     <main class="main-container">
-        <!-- Left Panel: Controls -->
-        <section class="left-panel" role="region" aria-label="Workflow Controls">
+        <!-- Generate Mode (Default) -->
+        <div class="mode-content active" id="generate-mode">
+            <!-- Left Panel: Controls -->
+            <section class="left-panel" role="region" aria-label="Workflow Controls">
             <header class="panel-header">
                 <h1 class="visually-hidden">ComfyUI Workflow Runner</h1>
                 <h2 class="panel-title">Workflow Controls</h2>
@@ -102,6 +120,92 @@
                     </div>
                 </div>
             </section>
+
+            <!-- Workflow Preset Management Section -->
+            <section class="preset-section">
+                <div class="preset-header">
+                    <h3 class="section-title">Workflow Presets</h3>
+                    <button type="button" class="preset-toggle-btn" id="preset-toggle-btn" aria-expanded="false">
+                        <svg class="toggle-icon" viewBox="0 0 24 24" width="16" height="16">
+                            <path fill="currentColor" d="M7,10L12,15L17,10H7Z" />
+                        </svg>
+                    </button>
+                </div>
+                
+                <div class="preset-content" id="preset-content" style="display: none;">
+                    <!-- Preset Controls -->
+                    <div class="preset-controls">
+                        <select class="preset-dropdown" id="preset-dropdown">
+                            <option value="">Select a preset...</option>
+                        </select>
+                        <div class="preset-buttons">
+                            <button type="button" class="preset-save-btn" id="preset-save-btn" title="Save current workflow">
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M15,9H5V5H15M12,19A3,3 0 0,1 9,16A3,3 0 0,1 12,13A3,3 0 0,1 15,16A3,3 0 0,1 12,19M17,3H5C3.89,3 3,3.9 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V7L17,3Z" />
+                                </svg>
+                            </button>
+                            <button type="button" class="preset-delete-btn" id="preset-delete-btn" title="Delete selected preset" disabled>
+                                <svg viewBox="0 0 24 24" width="16" height="16">
+                                    <path fill="currentColor" d="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Storage Usage -->
+                    <div class="storage-info" id="storage-info">
+                        <div class="storage-text">
+                            <span>Storage: </span>
+                            <span class="storage-usage" id="storage-usage">0KB / 5MB</span>
+                        </div>
+                        <div class="storage-bar">
+                            <div class="storage-fill" id="storage-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Save Preset Modal -->
+            <div class="modal" id="save-preset-modal" style="display: none;">
+                <div class="modal-backdrop" id="save-preset-backdrop"></div>
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Save Workflow Preset</h3>
+                        <button type="button" class="modal-close" id="save-preset-close">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M19,6.41L17.59,5L12,10.59L6.41,5L5,6.41L10.59,12L5,17.59L6.41,19L12,13.41L17.59,19L19,17.59L13.41,12L19,6.41Z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="preset-name-input" class="control-label">Preset Name</label>
+                        <input type="text" id="preset-name-input" class="preset-name-input" placeholder="Enter preset name..." maxlength="100">
+                        <div class="preset-name-error" id="preset-name-error"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="modal-cancel-btn" id="save-preset-cancel">Cancel</button>
+                        <button type="button" class="modal-save-btn" id="save-preset-confirm">Save</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delete Confirmation Modal -->
+            <div class="modal" id="delete-preset-modal" style="display: none;">
+                <div class="modal-backdrop" id="delete-preset-backdrop"></div>
+                <div class="modal-content modal-compact">
+                    <div class="modal-header">
+                        <h3 class="modal-title">Delete Preset</h3>
+                    </div>
+                    <div class="modal-body">
+                        <p>Are you sure you want to delete "<span id="delete-preset-name"></span>"?</p>
+                        <p class="modal-warning">This action cannot be undone.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="modal-cancel-btn" id="delete-preset-cancel">Cancel</button>
+                        <button type="button" class="modal-delete-btn" id="delete-preset-confirm">Delete</button>
+                    </div>
+                </div>
+            </div>
 
             <!-- Workflow Upload Section -->
             <section class="upload-section">
@@ -343,11 +447,81 @@
                 </div>
             </output>
         </section>
+        </div>
+
+        <!-- History Mode -->
+        <div class="mode-content" id="history-mode">
+            <section class="history-panel">
+                <header class="panel-header">
+                    <h2 class="panel-title">img2img</h2>
+                </header>
+                <div class="history-content">
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M19,7V4H5V7H19M21,2A2,2 0 0,1 23,4V20A2,2 0 0,1 21,22H3A2,2 0 0,1 1,20V4A2,2 0 0,1 3,2H21M21,20V8H3V20H21Z" />
+                        </svg>
+                        <p class="empty-text">img2img functionality coming soon</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Models Mode -->
+        <div class="mode-content" id="models-mode">
+            <section class="models-panel">
+                <header class="panel-header">
+                    <h2 class="panel-title">Extras</h2>
+                </header>
+                <div class="models-content">
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M12,2C13.1,2 14,2.9 14,4C14,5.1 13.1,6 12,6C10.9,6 10,5.1 10,4C10,2.9 10.9,2 12,2M21,9V7L15,1H5C3.89,1 3,1.89 3,3V17A2,2 0 0,0 5,19H11V21A2,2 0 0,0 13,23H19A2,2 0 0,0 21,21V11H15A2,2 0 0,1 13,9V3H5V17H11V15L15,18L11,21V19H5A4,4 0 0,1 1,15V3A4,4 0 0,1 5,-1H15L21,5V9H15V7H19V9H21Z" />
+                        </svg>
+                        <p class="empty-text">Extras functionality coming soon</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Settings Mode -->
+        <div class="mode-content" id="settings-mode">
+            <section class="settings-panel">
+                <header class="panel-header">
+                    <h2 class="panel-title">Application Settings</h2>
+                </header>
+                <div class="settings-content">
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.22,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.22,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z" />
+                        </svg>
+                        <p class="empty-text">Settings panel coming soon</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Queue Mode -->
+        <div class="mode-content" id="queue-mode">
+            <section class="queue-panel">
+                <header class="panel-header">
+                    <h2 class="panel-title">Generation Queue</h2>
+                </header>
+                <div class="queue-content">
+                    <div class="empty-state">
+                        <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48">
+                            <path fill="currentColor" d="M2,6H22V8H2V6M2,10H22V12H2V10M2,14H22V16H2V14M2,18H22V20H2V18Z" />
+                        </svg>
+                        <p class="empty-text">No items in queue</p>
+                    </div>
+                </div>
+            </section>
+        </div>
     </main>
 
     <!-- Toast Notifications Container -->
     <div class="toast-container" id="toast-container"></div>
 
+    <script src="presetManager.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

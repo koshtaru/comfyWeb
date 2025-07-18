@@ -1,8 +1,136 @@
 /**
  * ComfyUI JSON Workflow Runner
  * Main application script
- * Updated: 2025-07-17 13:54 - Metadata extraction fixes
+ * Updated: 2025-07-18 - Added header navigation system
  */
+
+// Navigation Manager Class
+class NavigationManager {
+    constructor() {
+        this.modes = ['generate', 'history', 'models', 'settings', 'queue'];
+        this.currentMode = 'generate';
+        this.modeChangeCallbacks = [];
+        this.init();
+    }
+
+    init() {
+        // Initialize navigation tabs
+        this.initializeNavigation();
+        // Restore last mode from sessionStorage
+        this.restoreLastMode();
+    }
+
+    initializeNavigation() {
+        const navTabs = document.querySelectorAll('.nav-tab');
+        navTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                const mode = e.target.dataset.mode;
+                if (mode && this.modes.includes(mode)) {
+                    this.switchMode(mode);
+                }
+            });
+
+            // Keyboard navigation
+            tab.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const mode = e.target.dataset.mode;
+                    if (mode && this.modes.includes(mode)) {
+                        this.switchMode(mode);
+                    }
+                }
+            });
+        });
+    }
+
+    switchMode(mode) {
+        if (!this.modes.includes(mode) || mode === this.currentMode) {
+            return;
+        }
+
+        console.log(`🔄 Switching to ${mode} mode`);
+        
+        // Update current mode
+        this.currentMode = mode;
+        
+        // Update tab states
+        this.updateTabStates();
+        
+        // Show/hide content panels
+        this.showModeContent(mode);
+        
+        // Store in sessionStorage
+        try {
+            sessionStorage.setItem('comfyui_current_mode', mode);
+        } catch (e) {
+            console.warn('Failed to store current mode:', e);
+        }
+        
+        // Notify listeners
+        this.notifyListeners(mode);
+    }
+
+    updateTabStates() {
+        const navTabs = document.querySelectorAll('.nav-tab');
+        navTabs.forEach(tab => {
+            const tabMode = tab.dataset.mode;
+            if (tabMode === this.currentMode) {
+                tab.classList.add('active');
+                tab.setAttribute('aria-selected', 'true');
+            } else {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            }
+        });
+    }
+
+    showModeContent(mode) {
+        // Hide all mode content
+        const allModeContent = document.querySelectorAll('.mode-content');
+        allModeContent.forEach(content => {
+            content.classList.remove('active');
+        });
+
+        // Show active mode content
+        const activeContent = document.getElementById(`${mode}-mode`);
+        if (activeContent) {
+            activeContent.classList.add('active');
+        } else {
+            console.warn(`No content found for mode: ${mode}`);
+        }
+    }
+
+    restoreLastMode() {
+        try {
+            const lastMode = sessionStorage.getItem('comfyui_current_mode');
+            if (lastMode && this.modes.includes(lastMode)) {
+                this.switchMode(lastMode);
+            }
+        } catch (e) {
+            console.warn('Failed to restore last mode:', e);
+        }
+    }
+
+    onModeChange(callback) {
+        if (typeof callback === 'function') {
+            this.modeChangeCallbacks.push(callback);
+        }
+    }
+
+    notifyListeners(mode) {
+        this.modeChangeCallbacks.forEach(callback => {
+            try {
+                callback(mode);
+            } catch (e) {
+                console.error('Error in mode change callback:', e);
+            }
+        });
+    }
+
+    getCurrentMode() {
+        return this.currentMode;
+    }
+}
 
 // WebSocket Connection States
 const WebSocketState = {
@@ -968,7 +1096,8 @@ const AppState = {
     isGenerating: false,
     websocket: null,
     progressBar: null,
-    interruptService: null
+    interruptService: null,
+    navigationManager: null
 };
 
 // DOM Elements
@@ -3927,6 +4056,11 @@ function initializeApp() {
         
         // Initialize all components
         console.log('🔧 Initializing components...');
+        
+        // Initialize navigation manager
+        AppState.navigationManager = new NavigationManager();
+        console.log('✅ Navigation manager initialized');
+        
         initializeSliders();
         initializeFileUpload();
         initializeConnectionTest();
