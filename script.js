@@ -1,6 +1,7 @@
 /**
  * ComfyUI JSON Workflow Runner
  * Main application script
+ * Updated: 2025-07-17 13:54 - Metadata extraction fixes
  */
 
 // WebSocket Connection States
@@ -3355,7 +3356,7 @@ async function generateImages(workflowData) {
             throw new Error('No images were generated');
         }
 
-        displayGeneratedImages(imageUrls);
+        displayGeneratedImages(imageUrls, pollResult.metadata);
         Utils.showToast(`Successfully generated ${imageUrls.length} image(s)!`, 'success');
         
         // Update generation state to idle (completed)
@@ -3460,7 +3461,7 @@ function updateGenerationProgress(status, details) {
     elements.resultsArea.innerHTML = progressHtml;
 }
 
-function displayGeneratedImages(imageUrls) {
+function displayGeneratedImages(imageUrls, metadata = null) {
     const imageCount = imageUrls.length;
     const imagesHtml = imageUrls.map((imageData, index) => `
         <div class="generated-image-container">
@@ -3480,6 +3481,16 @@ function displayGeneratedImages(imageUrls) {
         </div>
     `).join('');
     
+    // Generate metadata panel HTML if metadata is available
+    const metadataHtml = metadata ? `
+        <div class="metadata-container">
+            ${metadataPanel.generatePanelHTML(metadata, { 
+                panelId: 'generation-metadata-panel',
+                showTitle: true 
+            })}
+        </div>
+    ` : '';
+    
     elements.resultsArea.innerHTML = `
         <div class="results-header">
             <h3>Generated Images (${imageCount})</h3>
@@ -3488,6 +3499,7 @@ function displayGeneratedImages(imageUrls) {
         <div class="images-grid">
             ${imagesHtml}
         </div>
+        ${metadataHtml}
     `;
     
     // Enable clear results button
@@ -3952,8 +3964,26 @@ function initializeApp() {
             hideDelay: 2000
         });
         
+        // Initialize Preset Manager
+        console.log('💾 Initializing Preset Manager...');
+        presetManager = new PresetManager();
+        
         // Show welcome message
         Utils.showToast('ComfyUI Workflow Runner initialized', 'success');
+        
+        // Try to auto-load last used workflow after initialization
+        setTimeout(() => {
+            try {
+                const autoLoaded = presetManager.autoLoadLastWorkflow();
+                if (autoLoaded) {
+                    console.log('✅ Auto-loaded last used workflow');
+                } else {
+                    console.log('ℹ️ No previous workflow to auto-load');
+                }
+            } catch (error) {
+                console.warn('Failed to auto-load workflow:', error);
+            }
+        }, 100); // Small delay to ensure all components are ready
         
         console.log('✅ Application ready!');
         console.log('📋 Debug: Try uploading a file and check console for detailed logs');
@@ -4432,9 +4462,9 @@ class MetadataParser {
     constructor() {
         this.supportedNodeTypes = {
             samplers: ['KSampler', 'KSamplerAdvanced', 'FluxSampler', 'FluxGuidanceNode', 'FluxGuidance'],
-            textEncoders: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'FluxTextEncode'],
+            textEncoders: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'FluxTextEncode', 'NunchakuTextEncoderLoaderV2'],
             imageGenerators: ['EmptyLatentImage', 'EmptySD3LatentImage', 'FluxLatent', 'FluxGGUFLatent'],
-            models: ['CheckpointLoaderSimple', 'CheckpointLoader', 'FluxCheckpointLoader', 'UNETLoader'],
+            models: ['CheckpointLoaderSimple', 'CheckpointLoader', 'FluxCheckpointLoader', 'UNETLoader', 'NunchakuFluxDiTLoader'],
             vae: ['VAELoader', 'VAEEncode', 'VAEDecode']
         };
         
@@ -4508,6 +4538,7 @@ class MetadataParser {
      */
     parseWorkflowMetadata(workflowData) {
         console.log('🔍 Parsing workflow metadata...');
+        console.log('🔍 DEBUG: Raw workflow data structure:', JSON.stringify(workflowData, null, 2));
         
         const metadata = this.createDefaultMetadata();
         
@@ -4519,27 +4550,35 @@ class MetadataParser {
             // Store raw workflow data
             metadata.raw.workflow = workflowData;
             metadata.technical.nodeCount = Object.keys(workflowData).length;
+            console.log('🔍 DEBUG: Node count:', metadata.technical.nodeCount);
 
             // Extract node types for technical info
             const nodeTypes = new Set();
             
             // Parse each node in the workflow
             Object.entries(workflowData).forEach(([nodeId, node]) => {
-                if (!node || !node.class_type) return;
+                if (!node || !node.class_type) {
+                    console.log('🔍 DEBUG: Skipping node', nodeId, '- no class_type');
+                    return;
+                }
                 
                 const nodeType = node.class_type;
                 nodeTypes.add(nodeType);
+                console.log('🔍 DEBUG: Processing node', nodeId, 'of type:', nodeType);
+                console.log('🔍 DEBUG: Node inputs:', JSON.stringify(node.inputs, null, 2));
                 
                 // Extract parameters based on node type
                 this.extractNodeParameters(node, nodeType, metadata);
             });
 
             metadata.technical.nodeTypes = Array.from(nodeTypes);
+            console.log('🔍 DEBUG: Found node types:', metadata.technical.nodeTypes);
             
             // Determine model architecture based on node types
             metadata.model.architecture = this.detectModelArchitecture(nodeTypes);
             
             console.log('✅ Workflow metadata parsed successfully');
+            console.log('🔍 DEBUG: Final metadata:', JSON.stringify(metadata, null, 2));
             return metadata;
             
         } catch (error) {
@@ -4556,50 +4595,101 @@ class MetadataParser {
      */
     extractNodeParameters(node, nodeType, metadata) {
         const inputs = node.inputs || {};
+        console.log('🔍 DEBUG: Extracting parameters for node type:', nodeType);
+        console.log('🔍 DEBUG: Node inputs:', JSON.stringify(inputs, null, 2));
         
         // Extract sampler parameters
         if (this.supportedNodeTypes.samplers.includes(nodeType)) {
-            if (inputs.steps !== undefined) metadata.generation.steps = inputs.steps;
-            if (inputs.cfg !== undefined) metadata.generation.cfg = inputs.cfg;
-            if (inputs.sampler_name !== undefined) metadata.generation.sampler = inputs.sampler_name;
-            if (inputs.scheduler !== undefined) metadata.generation.scheduler = inputs.scheduler;
-            if (inputs.seed !== undefined) metadata.generation.seed = inputs.seed;
-            if (inputs.guidance !== undefined) metadata.generation.guidance = inputs.guidance;
+            console.log('🔍 DEBUG: Processing sampler node');
+            if (inputs.steps !== undefined) {
+                metadata.generation.steps = inputs.steps;
+                console.log('🔍 DEBUG: Set steps to:', inputs.steps);
+            }
+            if (inputs.cfg !== undefined) {
+                metadata.generation.cfg = inputs.cfg;
+                console.log('🔍 DEBUG: Set cfg to:', inputs.cfg);
+            }
+            if (inputs.sampler_name !== undefined) {
+                metadata.generation.sampler = inputs.sampler_name;
+                console.log('🔍 DEBUG: Set sampler to:', inputs.sampler_name);
+            }
+            if (inputs.scheduler !== undefined) {
+                metadata.generation.scheduler = inputs.scheduler;
+                console.log('🔍 DEBUG: Set scheduler to:', inputs.scheduler);
+            }
+            if (inputs.seed !== undefined) {
+                metadata.generation.seed = inputs.seed;
+                console.log('🔍 DEBUG: Set seed to:', inputs.seed);
+            }
+            if (inputs.guidance !== undefined) {
+                metadata.generation.guidance = inputs.guidance;
+                console.log('🔍 DEBUG: Set guidance to:', inputs.guidance);
+            }
         }
         
         // Extract text encoder parameters (prompts)
         else if (this.supportedNodeTypes.textEncoders.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing text encoder node');
             if (inputs.text !== undefined) {
                 // Determine if this is positive or negative prompt
                 if (this.isNegativePrompt(inputs.text)) {
                     metadata.prompts.negative = inputs.text;
+                    console.log('🔍 DEBUG: Set negative prompt to:', inputs.text);
                 } else {
                     metadata.prompts.positive = inputs.text;
+                    console.log('🔍 DEBUG: Set positive prompt to:', inputs.text);
                 }
             }
-            if (inputs.clip_skip !== undefined) metadata.technical.clipSkip = inputs.clip_skip;
+            if (inputs.clip_skip !== undefined) {
+                metadata.technical.clipSkip = inputs.clip_skip;
+                console.log('🔍 DEBUG: Set clip skip to:', inputs.clip_skip);
+            }
         }
         
         // Extract image dimensions
         else if (this.supportedNodeTypes.imageGenerators.includes(nodeType)) {
-            if (inputs.width !== undefined) metadata.generation.dimensions.width = inputs.width;
-            if (inputs.height !== undefined) metadata.generation.dimensions.height = inputs.height;
-            if (inputs.batch_size !== undefined) metadata.generation.batchSize = inputs.batch_size;
+            console.log('🔍 DEBUG: Processing image generator node');
+            if (inputs.width !== undefined) {
+                metadata.generation.dimensions.width = inputs.width;
+                console.log('🔍 DEBUG: Set width to:', inputs.width);
+            }
+            if (inputs.height !== undefined) {
+                metadata.generation.dimensions.height = inputs.height;
+                console.log('🔍 DEBUG: Set height to:', inputs.height);
+            }
+            if (inputs.batch_size !== undefined) {
+                metadata.generation.batchSize = inputs.batch_size;
+                console.log('🔍 DEBUG: Set batch size to:', inputs.batch_size);
+            }
         }
         
         // Extract model information
         else if (this.supportedNodeTypes.models.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing model node');
             if (inputs.ckpt_name !== undefined) {
                 metadata.model.name = inputs.ckpt_name;
                 metadata.model.type = this.extractModelType(inputs.ckpt_name);
+                console.log('🔍 DEBUG: Set model name to:', inputs.ckpt_name);
+            }
+            if (inputs.model_path !== undefined) {
+                metadata.model.name = inputs.model_path;
+                metadata.model.type = this.extractModelType(inputs.model_path);
+                console.log('🔍 DEBUG: Set model path to:', inputs.model_path);
             }
         }
         
         // Extract VAE information
         else if (this.supportedNodeTypes.vae.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing VAE node');
             if (inputs.vae_name !== undefined) {
                 metadata.technical.vae = inputs.vae_name;
+                console.log('🔍 DEBUG: Set VAE to:', inputs.vae_name);
             }
+        }
+        
+        else {
+            console.log('🔍 DEBUG: Unknown node type:', nodeType, '- not in supported types');
+            console.log('🔍 DEBUG: Supported types:', this.supportedNodeTypes);
         }
     }
 
@@ -4610,6 +4700,7 @@ class MetadataParser {
      */
     parseHistoryResponse(historyData) {
         console.log('🔍 Parsing history response metadata...');
+        console.log('🔍 DEBUG: Full history data:', JSON.stringify(historyData, null, 2));
         
         const metadata = this.createDefaultMetadata();
         
@@ -4625,15 +4716,20 @@ class MetadataParser {
             this.extractTimingInfo(historyData, metadata);
             
             // Extract workflow metadata if present
-            if (historyData.prompt && historyData.prompt[1]) {
-                const workflowData = historyData.prompt[1];
+            if (historyData.prompt && historyData.prompt[2]) {
+                console.log('🔍 DEBUG: Found workflow data in historyData.prompt[2]');
+                const workflowData = historyData.prompt[2];
                 const workflowMetadata = this.parseWorkflowMetadata(workflowData);
                 
                 // Merge workflow metadata
                 this.mergeMetadata(metadata, workflowMetadata);
+            } else {
+                console.log('🔍 DEBUG: No workflow data found in historyData.prompt[2]');
+                console.log('🔍 DEBUG: historyData.prompt:', historyData.prompt);
             }
             
             console.log('✅ History metadata parsed successfully');
+            console.log('🔍 DEBUG: Final history metadata:', JSON.stringify(metadata, null, 2));
             return metadata;
             
         } catch (error) {
@@ -4955,25 +5051,46 @@ class TimingCalculator {
                 return 'Invalid timestamp';
             }
             
-            const formatOptions = {
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            };
-            
-            if (opts.includeMilliseconds) {
-                formatOptions.fractionalSecondDigits = 3;
+            if (opts.shortFormat) {
+                // Short format: just time "14:23:45"
+                const formatOptions = {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                };
+                
+                if (opts.includeMilliseconds) {
+                    formatOptions.fractionalSecondDigits = 3;
+                }
+                
+                if (opts.timeZone && opts.timeZone !== 'local') {
+                    formatOptions.timeZone = opts.timeZone;
+                }
+                
+                return date.toLocaleTimeString(opts.locale, formatOptions);
+            } else {
+                // Long format: full date and time
+                const formatOptions = {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                };
+                
+                if (opts.includeMilliseconds) {
+                    formatOptions.fractionalSecondDigits = 3;
+                }
+                
+                if (opts.timeZone && opts.timeZone !== 'local') {
+                    formatOptions.timeZone = opts.timeZone;
+                }
+                
+                return date.toLocaleString(opts.locale, formatOptions);
             }
-            
-            if (opts.timeZone && opts.timeZone !== 'local') {
-                formatOptions.timeZone = opts.timeZone;
-            }
-            
-            return date.toLocaleString(opts.locale, formatOptions);
             
         } catch (error) {
             console.error('❌ Error formatting timestamp:', error);
@@ -5285,6 +5402,1197 @@ const metadataParser = new MetadataParser();
 
 // ================================================================================
 // End Metadata Parser Module
+// ================================================================================
+
+// ================================================================================
+// Task 14.3: Metadata Display Component Structure
+// ================================================================================
+
+/**
+ * MetadataPanel - Component for displaying workflow metadata
+ * 
+ * This component provides a structured display for workflow metadata including:
+ * - Generation settings (model, sampler, steps, CFG)
+ * - Prompt information (positive/negative with smart truncation)
+ * - Image properties (dimensions, batch size)
+ * - Timing data (start time, duration, completion)
+ * 
+ * Features:
+ * - Collapsible/expandable sections
+ * - Smart content truncation with expand/collapse
+ * - Copy-to-clipboard functionality
+ * - Responsive design
+ * - Error handling for missing metadata
+ */
+class MetadataPanel {
+    constructor() {
+        this.sectionStates = {
+            generationSettings: true,    // Expanded by default
+            promptInfo: false,           // Collapsed by default
+            imageProperties: true,       // Expanded by default
+            timingData: true             // Expanded by default
+        };
+        
+        this.maxPromptLength = 100;      // Characters before truncation
+        this.maxValueLength = 50;        // Max length for parameter values
+        
+        this.bindMethods();
+    }
+    
+    bindMethods() {
+        this.toggleSection = this.toggleSection.bind(this);
+        this.togglePromptExpansion = this.togglePromptExpansion.bind(this);
+        this.copyToClipboard = this.copyToClipboard.bind(this);
+    }
+    
+    /**
+     * Generate HTML for the complete metadata panel
+     * @param {Object} metadata - Parsed metadata object
+     * @param {Object} options - Display options
+     * @returns {string} HTML string
+     */
+    generatePanelHTML(metadata, options = {}) {
+        if (!metadata || typeof metadata !== 'object') {
+            return this.generateErrorHTML('No metadata available');
+        }
+        
+        const panelId = options.panelId || 'metadata-panel';
+        const showTitle = options.showTitle !== false;
+        
+        return `
+            <div class="metadata-panel" id="${panelId}">
+                ${showTitle ? '<h4 class="metadata-title">Generation Details</h4>' : ''}
+                
+                ${this.generateGenerationSettings(metadata)}
+                ${this.generateImageProperties(metadata)}
+                ${this.generateTimingData(metadata)}
+                
+                <div class="metadata-prompt-section">
+                    ${this.generatePromptInfo(metadata)}
+                </div>
+                
+                <div class="metadata-actions">
+                    <button class="metadata-action-btn" onclick="metadataPanel.copyAllMetadata('${panelId}')">
+                        <svg viewBox="0 0 24 24" width="14" height="14">
+                            <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                        </svg>
+                        Copy All
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate generation settings section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateGenerationSettings(metadata) {
+        const isExpanded = this.sectionStates.generationSettings;
+        const sectionId = 'generation-settings';
+        
+        const settings = this.extractGenerationSettings(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Generation Settings</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    <div class="metadata-grid">
+                        ${this.generateParameterRows(settings)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate prompt information section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generatePromptInfo(metadata) {
+        const isExpanded = this.sectionStates.promptInfo;
+        const sectionId = 'prompt-info';
+        
+        const prompts = this.extractPromptInfo(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Prompt Information</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    ${this.generatePromptContent(prompts)}
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate image properties section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateImageProperties(metadata) {
+        const isExpanded = this.sectionStates.imageProperties;
+        const sectionId = 'image-properties';
+        
+        const properties = this.extractImageProperties(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Image Properties</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    <div class="metadata-grid">
+                        ${this.generateParameterRows(properties)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Generate timing data section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateTimingData(metadata) {
+        const isExpanded = this.sectionStates.timingData;
+        const sectionId = 'timing-data';
+        
+        const timing = this.extractTimingData(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Timing Information</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    <div class="metadata-grid">
+                        ${this.generateParameterRows(timing)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    /**
+     * Extract generation settings from metadata
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Array} Array of parameter objects
+     */
+    extractGenerationSettings(metadata) {
+        const settings = [];
+        
+        try {
+            const generation = metadata.generation || {};
+            const model = metadata.model || {};
+            
+            // Model information
+            if (model.name) {
+                settings.push({
+                    label: 'Model',
+                    value: model.name,
+                    type: 'text',
+                    copyable: true
+                });
+            }
+            
+            // Sampler information
+            if (generation.sampler) {
+                settings.push({
+                    label: 'Sampler',
+                    value: generation.sampler,
+                    type: 'text',
+                    copyable: true
+                });
+            }
+            
+            // Steps
+            if (generation.steps) {
+                settings.push({
+                    label: 'Steps',
+                    value: generation.steps.toString(),
+                    type: 'number'
+                });
+            }
+            
+            // CFG Scale
+            if (generation.cfg) {
+                settings.push({
+                    label: 'CFG Scale',
+                    value: generation.cfg.toString(),
+                    type: 'number'
+                });
+            }
+            
+            // Seed
+            if (generation.seed) {
+                settings.push({
+                    label: 'Seed',
+                    value: generation.seed.toString(),
+                    type: 'number',
+                    copyable: true
+                });
+            }
+            
+            // Scheduler
+            if (generation.scheduler) {
+                settings.push({
+                    label: 'Scheduler',
+                    value: generation.scheduler,
+                    type: 'text'
+                });
+            }
+            
+            // Guidance
+            if (generation.guidance) {
+                settings.push({
+                    label: 'Guidance',
+                    value: generation.guidance.toString(),
+                    type: 'number'
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error extracting generation settings:', error);
+        }
+        
+        return settings;
+    }
+    
+    /**
+     * Extract prompt information from metadata
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Object} Prompt information object
+     */
+    extractPromptInfo(metadata) {
+        const prompts = {
+            positive: '',
+            negative: ''
+        };
+        
+        try {
+            const promptData = metadata.prompts || {};
+            
+            if (promptData.positive) {
+                prompts.positive = promptData.positive;
+            }
+            
+            if (promptData.negative) {
+                prompts.negative = promptData.negative;
+            }
+            
+        } catch (error) {
+            console.error('Error extracting prompt info:', error);
+        }
+        
+        return prompts;
+    }
+    
+    /**
+     * Extract image properties from metadata
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Array} Array of property objects
+     */
+    extractImageProperties(metadata) {
+        const properties = [];
+        
+        try {
+            const generation = metadata.generation || {};
+            const dimensions = generation.dimensions || {};
+            
+            // Dimensions
+            if (dimensions.width && dimensions.height) {
+                properties.push({
+                    label: 'Dimensions',
+                    value: `${dimensions.width} × ${dimensions.height}`,
+                    type: 'text'
+                });
+            }
+            
+            // Batch size
+            if (generation.batchSize) {
+                properties.push({
+                    label: 'Batch Size',
+                    value: generation.batchSize.toString(),
+                    type: 'number'
+                });
+            }
+            
+            // Aspect ratio
+            if (dimensions.width && dimensions.height) {
+                const ratio = this.calculateAspectRatio(dimensions.width, dimensions.height);
+                properties.push({
+                    label: 'Aspect Ratio',
+                    value: ratio,
+                    type: 'text'
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error extracting image properties:', error);
+        }
+        
+        return properties;
+    }
+    
+    /**
+     * Extract timing data from metadata
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Array} Array of timing objects
+     */
+    extractTimingData(metadata) {
+        const timing = [];
+        
+        try {
+            const timingData = metadata.timing || {};
+            
+            // Generation time
+            if (timingData.formatted && timingData.formatted.duration) {
+                timing.push({
+                    label: 'Generation Time',
+                    value: timingData.formatted.duration,
+                    type: 'text'
+                });
+            }
+            
+            // Start time
+            if (timingData.formatted && timingData.formatted.startTime) {
+                timing.push({
+                    label: 'Started',
+                    value: timingData.formatted.startTime,
+                    type: 'text',
+                    copyable: true
+                });
+            }
+            
+            // Completion time
+            if (timingData.formatted && timingData.formatted.endTime) {
+                timing.push({
+                    label: 'Completed',
+                    value: timingData.formatted.endTime,
+                    type: 'text',
+                    copyable: true
+                });
+            }
+            
+            // Per-step timing (if available)
+            if (timingData.perStep && timingData.perStep.steps && timingData.perStep.steps.length > 0) {
+                const avgStepTime = timingData.perStep.analysis.averageStepTime || 0;
+                timing.push({
+                    label: 'Avg Step Time',
+                    value: timingCalculator.formatDuration(avgStepTime),
+                    type: 'text'
+                });
+            }
+            
+        } catch (error) {
+            console.error('Error extracting timing data:', error);
+        }
+        
+        return timing;
+    }
+    
+    /**
+     * Generate parameter rows HTML
+     * @param {Array} parameters - Array of parameter objects
+     * @returns {string} HTML string
+     */
+    generateParameterRows(parameters) {
+        if (!parameters || parameters.length === 0) {
+            return '<div class="metadata-empty">No data available</div>';
+        }
+        
+        return parameters.map(param => {
+            const value = this.truncateValue(param.value, this.maxValueLength);
+            const copyButton = param.copyable ? `
+                <button class="copy-btn" onclick="metadataPanel.copyToClipboard('${param.value.replace(/'/g, "\\'")}', '${param.label}')" title="Copy ${param.label}">
+                    <svg viewBox="0 0 24 24" width="12" height="12">
+                        <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                    </svg>
+                </button>
+            ` : '';
+            
+            return `
+                <div class="metadata-row">
+                    <div class="metadata-label">${param.label}</div>
+                    <div class="metadata-value-container">
+                        <div class="metadata-value ${param.type}">${value}</div>
+                        ${copyButton}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    /**
+     * Generate prompt content HTML with truncation
+     * @param {Object} prompts - Prompt information object
+     * @returns {string} HTML string
+     */
+    generatePromptContent(prompts) {
+        if (!prompts.positive && !prompts.negative) {
+            return '<div class="metadata-empty">No prompt information available</div>';
+        }
+        
+        let content = '';
+        
+        // Positive prompt
+        if (prompts.positive) {
+            const truncated = this.truncatePrompt(prompts.positive);
+            content += `
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Positive Prompt</span>
+                        <button class="copy-btn" onclick="metadataPanel.copyToClipboard('${prompts.positive.replace(/'/g, "\\'")}', 'Positive Prompt')" title="Copy positive prompt">
+                            <svg viewBox="0 0 24 24" width="12" height="12">
+                                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-text ${truncated.isTruncated ? 'truncated' : ''}" id="positive-prompt-text">
+                            ${truncated.text}
+                        </div>
+                        ${truncated.isTruncated ? `
+                            <button class="expand-prompt-btn" onclick="metadataPanel.togglePromptExpansion('positive-prompt-text', '${prompts.positive.replace(/'/g, "\\'")}')">
+                                Show More
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Negative prompt
+        if (prompts.negative) {
+            const truncated = this.truncatePrompt(prompts.negative);
+            content += `
+                <div class="prompt-section">
+                    <div class="prompt-header">
+                        <span class="prompt-label">Negative Prompt</span>
+                        <button class="copy-btn" onclick="metadataPanel.copyToClipboard('${prompts.negative.replace(/'/g, "\\'")}', 'Negative Prompt')" title="Copy negative prompt">
+                            <svg viewBox="0 0 24 24" width="12" height="12">
+                                <path fill="currentColor" d="M19,21H8V7H19M19,5H8A2,2 0 0,0 6,7V21A2,2 0 0,0 8,23H19A2,2 0 0,0 21,21V7A2,2 0 0,0 19,5M16,1H4A2,2 0 0,0 2,3V17H4V3H16V1Z" />
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="prompt-content">
+                        <div class="prompt-text ${truncated.isTruncated ? 'truncated' : ''}" id="negative-prompt-text">
+                            ${truncated.text}
+                        </div>
+                        ${truncated.isTruncated ? `
+                            <button class="expand-prompt-btn" onclick="metadataPanel.togglePromptExpansion('negative-prompt-text', '${prompts.negative.replace(/'/g, "\\'")}')">
+                                Show More
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        return content;
+    }
+    
+    /**
+     * Generate error HTML
+     * @param {string} message - Error message
+     * @returns {string} HTML string
+     */
+    generateErrorHTML(message) {
+        return `
+            <div class="metadata-error">
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M13,14H11V10H13M13,18H11V16H13M1,21H23L12,2L1,21Z" />
+                </svg>
+                <p>${message}</p>
+            </div>
+        `;
+    }
+    
+    /**
+     * Utility Methods
+     */
+    
+    truncateValue(value, maxLength) {
+        if (!value || value.length <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength) + '...';
+    }
+    
+    truncatePrompt(prompt) {
+        if (!prompt || prompt.length <= this.maxPromptLength) {
+            return {
+                text: prompt,
+                isTruncated: false
+            };
+        }
+        
+        return {
+            text: prompt.substring(0, this.maxPromptLength) + '...',
+            isTruncated: true
+        };
+    }
+    
+    calculateAspectRatio(width, height) {
+        const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+        const divisor = gcd(width, height);
+        return `${width / divisor}:${height / divisor}`;
+    }
+    
+    /**
+     * Event Handlers
+     */
+    
+    toggleSection(sectionId) {
+        this.sectionStates[sectionId] = !this.sectionStates[sectionId];
+        
+        const content = document.getElementById(`${sectionId}-content`);
+        const icon = document.querySelector(`[data-section="${sectionId}"] .expand-icon`);
+        
+        if (content && icon) {
+            if (this.sectionStates[sectionId]) {
+                content.classList.add('expanded');
+                icon.classList.add('expanded');
+            } else {
+                content.classList.remove('expanded');
+                icon.classList.remove('expanded');
+            }
+        }
+    }
+    
+    togglePromptExpansion(elementId, fullText) {
+        const element = document.getElementById(elementId);
+        const button = element.parentElement.querySelector('.expand-prompt-btn');
+        
+        if (element && button) {
+            const isExpanded = element.classList.contains('expanded');
+            
+            if (isExpanded) {
+                // Collapse
+                const truncated = this.truncatePrompt(fullText);
+                element.textContent = truncated.text;
+                element.classList.remove('expanded');
+                button.textContent = 'Show More';
+            } else {
+                // Expand
+                element.textContent = fullText;
+                element.classList.add('expanded');
+                button.textContent = 'Show Less';
+            }
+        }
+    }
+    
+    async copyToClipboard(text, label) {
+        try {
+            await navigator.clipboard.writeText(text);
+            Utils.showToast(`${label} copied to clipboard`, 'success');
+        } catch (error) {
+            console.error('Failed to copy to clipboard:', error);
+            Utils.showToast('Failed to copy to clipboard', 'error');
+        }
+    }
+    
+    async copyAllMetadata(panelId) {
+        const panel = document.getElementById(panelId);
+        if (!panel) return;
+        
+        try {
+            // Extract all metadata text
+            const metadataText = this.extractMetadataText(panel);
+            await navigator.clipboard.writeText(metadataText);
+            Utils.showToast('All metadata copied to clipboard', 'success');
+        } catch (error) {
+            console.error('Failed to copy metadata:', error);
+            Utils.showToast('Failed to copy metadata', 'error');
+        }
+    }
+    
+    extractMetadataText(panel) {
+        const sections = panel.querySelectorAll('.metadata-section');
+        let text = 'Generation Details\n\n';
+        
+        sections.forEach(section => {
+            const header = section.querySelector('.metadata-section-header h5');
+            if (header) {
+                text += `${header.textContent}:\n`;
+            }
+            
+            const rows = section.querySelectorAll('.metadata-row');
+            rows.forEach(row => {
+                const label = row.querySelector('.metadata-label');
+                const value = row.querySelector('.metadata-value');
+                if (label && value) {
+                    text += `  ${label.textContent}: ${value.textContent}\n`;
+                }
+            });
+            
+            const prompts = section.querySelectorAll('.prompt-section');
+            prompts.forEach(prompt => {
+                const label = prompt.querySelector('.prompt-label');
+                const content = prompt.querySelector('.prompt-text');
+                if (label && content) {
+                    text += `  ${label.textContent}: ${content.textContent}\n`;
+                }
+            });
+            
+            text += '\n';
+        });
+        
+        return text;
+    }
+}
+
+// Global instance
+const metadataPanel = new MetadataPanel();
+
+// ================================================================================
+// End Metadata Display Component Structure
+// ================================================================================
+
+// ================================================================================
+// Preset Management System
+// ================================================================================
+
+/**
+ * Preset Manager Class
+ * Handles all preset-related UI interactions and operations
+ */
+class PresetManager {
+    constructor() {
+        if (!window.presetStorage) {
+            console.error('PresetStorageService not available');
+            throw new Error('PresetStorageService must be loaded before PresetManager');
+        }
+        
+        this.storage = window.presetStorage;
+        this.elements = {};
+        this.currentPresetId = null;
+        this.isExpanded = false;
+        
+        this.initializeElements();
+        this.setupEventListeners();
+        this.updateStorageDisplay();
+        this.refreshPresetList();
+    }
+    
+    /**
+     * Initialize DOM element references
+     */
+    initializeElements() {
+        this.elements = {
+            // Main preset section
+            presetToggleBtn: document.getElementById('preset-toggle-btn'),
+            presetContent: document.getElementById('preset-content'),
+            presetDropdown: document.getElementById('preset-dropdown'),
+            presetSaveBtn: document.getElementById('preset-save-btn'),
+            presetDeleteBtn: document.getElementById('preset-delete-btn'),
+            
+            // Storage info
+            storageUsage: document.getElementById('storage-usage'),
+            storageFill: document.getElementById('storage-fill'),
+            
+            // Save modal
+            saveModal: document.getElementById('save-preset-modal'),
+            saveBackdrop: document.getElementById('save-preset-backdrop'),
+            saveClose: document.getElementById('save-preset-close'),
+            saveCancel: document.getElementById('save-preset-cancel'),
+            saveConfirm: document.getElementById('save-preset-confirm'),
+            presetNameInput: document.getElementById('preset-name-input'),
+            presetNameError: document.getElementById('preset-name-error'),
+            
+            // Delete modal
+            deleteModal: document.getElementById('delete-preset-modal'),
+            deleteBackdrop: document.getElementById('delete-preset-backdrop'),
+            deleteCancel: document.getElementById('delete-preset-cancel'),
+            deleteConfirm: document.getElementById('delete-preset-confirm'),
+            deletePresetName: document.getElementById('delete-preset-name')
+        };
+        
+        // Validate critical elements
+        const missing = Object.entries(this.elements)
+            .filter(([key, element]) => !element)
+            .map(([key]) => key);
+        
+        if (missing.length > 0) {
+            console.error('Missing preset elements:', missing);
+        }
+    }
+    
+    /**
+     * Setup event listeners for all preset interactions
+     */
+    setupEventListeners() {
+        // Toggle preset panel
+        this.elements.presetToggleBtn?.addEventListener('click', () => {
+            this.togglePresetPanel();
+        });
+        
+        // Also make the header clickable
+        const presetHeader = document.querySelector('.preset-header');
+        presetHeader?.addEventListener('click', () => {
+            this.togglePresetPanel();
+        });
+        
+        // Preset dropdown selection
+        this.elements.presetDropdown?.addEventListener('change', (e) => {
+            this.loadSelectedPreset(e.target.value);
+        });
+        
+        // Save preset button
+        this.elements.presetSaveBtn?.addEventListener('click', () => {
+            this.showSaveModal();
+        });
+        
+        // Delete preset button
+        this.elements.presetDeleteBtn?.addEventListener('click', () => {
+            this.showDeleteModal();
+        });
+        
+        // Save modal events
+        this.elements.saveBackdrop?.addEventListener('click', () => this.hideSaveModal());
+        this.elements.saveClose?.addEventListener('click', () => this.hideSaveModal());
+        this.elements.saveCancel?.addEventListener('click', () => this.hideSaveModal());
+        this.elements.saveConfirm?.addEventListener('click', () => this.saveCurrentPreset());
+        
+        // Delete modal events
+        this.elements.deleteBackdrop?.addEventListener('click', () => this.hideDeleteModal());
+        this.elements.deleteCancel?.addEventListener('click', () => this.hideDeleteModal());
+        this.elements.deleteConfirm?.addEventListener('click', () => this.deleteSelectedPreset());
+        
+        // Preset name input validation
+        this.elements.presetNameInput?.addEventListener('input', () => {
+            this.validatePresetName();
+        });
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                this.hideSaveModal();
+                this.hideDeleteModal();
+            }
+        });
+    }
+    
+    /**
+     * Toggle the preset panel visibility
+     */
+    togglePresetPanel() {
+        this.isExpanded = !this.isExpanded;
+        
+        if (this.isExpanded) {
+            this.elements.presetContent.style.display = 'block';
+            this.elements.presetToggleBtn.setAttribute('aria-expanded', 'true');
+            this.refreshPresetList();
+            this.updateStorageDisplay();
+        } else {
+            this.elements.presetContent.style.display = 'none';
+            this.elements.presetToggleBtn.setAttribute('aria-expanded', 'false');
+        }
+    }
+    
+    /**
+     * Refresh the preset dropdown list
+     */
+    refreshPresetList() {
+        if (!this.elements.presetDropdown) return;
+        
+        try {
+            const metadata = this.storage.getMetadata();
+            const dropdown = this.elements.presetDropdown;
+            
+            // Clear existing options except the first one
+            dropdown.innerHTML = '<option value="">Select a preset...</option>';
+            
+            // Sort presets by last used (most recent first)
+            const sortedPresets = [...metadata].sort((a, b) => 
+                new Date(b.lastUsedAt) - new Date(a.lastUsedAt)
+            );
+            
+            // Add preset options
+            sortedPresets.forEach(preset => {
+                const option = document.createElement('option');
+                option.value = preset.id;
+                
+                // Format display text with last used info
+                const lastUsed = this.formatLastUsed(preset.lastUsedAt);
+                option.textContent = `${preset.name} (${lastUsed})`;
+                
+                if (preset.id === this.currentPresetId) {
+                    option.selected = true;
+                }
+                
+                dropdown.appendChild(option);
+            });
+            
+            // Update delete button state
+            this.updateDeleteButtonState();
+            
+        } catch (error) {
+            console.error('Error refreshing preset list:', error);
+            Utils.showToast('Failed to load presets', 'error');
+        }
+    }
+    
+    /**
+     * Format last used timestamp
+     */
+    formatLastUsed(timestamp) {
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) {
+            return 'Today';
+        } else if (diffDays === 1) {
+            return 'Yesterday';
+        } else if (diffDays < 7) {
+            return `${diffDays} days ago`;
+        } else {
+            return date.toLocaleDateString();
+        }
+    }
+    
+    /**
+     * Update delete button enabled/disabled state
+     */
+    updateDeleteButtonState() {
+        if (!this.elements.presetDeleteBtn) return;
+        
+        const hasSelection = this.elements.presetDropdown?.value;
+        this.elements.presetDeleteBtn.disabled = !hasSelection;
+    }
+    
+    /**
+     * Load selected preset from dropdown
+     */
+    async loadSelectedPreset(presetId) {
+        if (!presetId) {
+            this.currentPresetId = null;
+            this.updateDeleteButtonState();
+            return;
+        }
+        
+        try {
+            const { metadata, workflowData } = this.storage.loadPreset(presetId);
+            
+            // Update app state with loaded workflow
+            AppState.workflowData = workflowData;
+            AppState.workflowMetadata = null; // Will be parsed in extractWorkflowParameters
+            this.currentPresetId = presetId;
+            
+            // Extract and populate parameters from workflow
+            const extractedParams = Utils.extractWorkflowParameters(workflowData);
+            Utils.populateFormParameters(extractedParams);
+            
+            // Parse metadata
+            const parsedMetadata = metadataParser.parseWorkflowMetadata(workflowData);
+            const normalizedMetadata = metadataParser.normalizeMetadata(parsedMetadata);
+            AppState.workflowMetadata = normalizedMetadata;
+            
+            // Update metadata display (with safety check)
+            try {
+                if (metadataPanel && typeof metadataPanel.updateDisplay === 'function') {
+                    metadataPanel.updateDisplay(normalizedMetadata);
+                }
+            } catch (error) {
+                console.warn('Failed to update metadata display:', error);
+            }
+            
+            // Update UI status
+            if (elements?.uploadStatus) {
+                elements.uploadStatus.textContent = `Loaded preset: ${metadata.name}`;
+                elements.uploadStatus.className = 'upload-status success';
+            }
+            
+            // Update dropdown selection
+            if (this.elements.presetDropdown) {
+                this.elements.presetDropdown.value = presetId;
+            }
+            
+            this.updateDeleteButtonState();
+            this.refreshPresetList(); // Refresh to update last used timestamps
+            
+            Utils.showToast(`Loaded preset: ${metadata.name}`, 'success');
+            console.log('✅ Preset loaded:', metadata.name);
+            
+        } catch (error) {
+            console.error('Error loading preset:', error);
+            Utils.showToast('Failed to load preset', 'error');
+            
+            // Reset selection on error
+            this.elements.presetDropdown.value = '';
+            this.currentPresetId = null;
+            this.updateDeleteButtonState();
+        }
+    }
+    
+    /**
+     * Show save preset modal
+     */
+    showSaveModal() {
+        if (!AppState.workflowData) {
+            Utils.showToast('Please upload a workflow first', 'error');
+            return;
+        }
+        
+        // Clear previous input
+        this.elements.presetNameInput.value = '';
+        this.elements.presetNameError.textContent = '';
+        
+        // Generate default name
+        const timestamp = new Date().toLocaleString();
+        this.elements.presetNameInput.value = `Workflow ${timestamp}`;
+        this.elements.presetNameInput.select();
+        
+        this.elements.saveModal.style.display = 'flex';
+        this.elements.presetNameInput.focus();
+    }
+    
+    /**
+     * Hide save preset modal
+     */
+    hideSaveModal() {
+        this.elements.saveModal.style.display = 'none';
+    }
+    
+    /**
+     * Validate preset name input
+     */
+    validatePresetName() {
+        const name = this.elements.presetNameInput.value.trim();
+        const errorElement = this.elements.presetNameError;
+        
+        if (!name) {
+            errorElement.textContent = 'Preset name is required';
+            this.elements.saveConfirm.disabled = true;
+            return false;
+        }
+        
+        if (name.length > 100) {
+            errorElement.textContent = 'Preset name must be 100 characters or less';
+            this.elements.saveConfirm.disabled = true;
+            return false;
+        }
+        
+        // Check for duplicate names
+        const metadata = this.storage.getMetadata();
+        const duplicate = metadata.find(p => p.name === name);
+        if (duplicate) {
+            errorElement.textContent = 'A preset with this name already exists';
+            this.elements.saveConfirm.disabled = true;
+            return false;
+        }
+        
+        errorElement.textContent = '';
+        this.elements.saveConfirm.disabled = false;
+        return true;
+    }
+    
+    /**
+     * Save current workflow as preset
+     */
+    async saveCurrentPreset() {
+        if (!this.validatePresetName()) {
+            return;
+        }
+        
+        const name = this.elements.presetNameInput.value.trim();
+        
+        try {
+            console.log('🔄 Saving preset with data:', {
+                name,
+                dataType: typeof AppState.workflowData,
+                dataExists: !!AppState.workflowData,
+                dataKeys: AppState.workflowData ? Object.keys(AppState.workflowData).length : 0
+            });
+            
+            const metadata = this.storage.savePreset(name, AppState.workflowData);
+            this.currentPresetId = metadata.id;
+            
+            this.hideSaveModal();
+            this.refreshPresetList();
+            this.updateStorageDisplay();
+            
+            // Select the newly saved preset
+            this.elements.presetDropdown.value = metadata.id;
+            
+            Utils.showToast(`Preset saved: ${name}`, 'success');
+            console.log('✅ Preset saved:', name);
+            
+        } catch (error) {
+            console.error('Error saving preset:', error);
+            
+            if (error.message.includes('quota')) {
+                this.elements.presetNameError.textContent = 'Storage quota exceeded. Please delete some presets.';
+            } else {
+                this.elements.presetNameError.textContent = 'Failed to save preset. Please try again.';
+            }
+        }
+    }
+    
+    /**
+     * Show delete confirmation modal
+     */
+    showDeleteModal() {
+        const selectedId = this.elements.presetDropdown.value;
+        if (!selectedId) return;
+        
+        const metadata = this.storage.getMetadata();
+        const preset = metadata.find(p => p.id === selectedId);
+        if (!preset) return;
+        
+        this.elements.deletePresetName.textContent = preset.name;
+        this.elements.deleteModal.style.display = 'flex';
+    }
+    
+    /**
+     * Hide delete confirmation modal
+     */
+    hideDeleteModal() {
+        this.elements.deleteModal.style.display = 'none';
+    }
+    
+    /**
+     * Delete selected preset
+     */
+    async deleteSelectedPreset() {
+        const selectedId = this.elements.presetDropdown.value;
+        if (!selectedId) return;
+        
+        try {
+            const success = this.storage.deletePreset(selectedId);
+            
+            if (success) {
+                // Clear selection if deleted preset was selected
+                if (this.currentPresetId === selectedId) {
+                    this.currentPresetId = null;
+                }
+                
+                this.hideDeleteModal();
+                this.refreshPresetList();
+                this.updateStorageDisplay();
+                
+                // Reset dropdown selection
+                this.elements.presetDropdown.value = '';
+                this.updateDeleteButtonState();
+                
+                Utils.showToast('Preset deleted', 'success');
+                console.log('✅ Preset deleted:', selectedId);
+            } else {
+                throw new Error('Delete operation failed');
+            }
+            
+        } catch (error) {
+            console.error('Error deleting preset:', error);
+            Utils.showToast('Failed to delete preset', 'error');
+        }
+    }
+    
+    /**
+     * Update storage usage display
+     */
+    updateStorageDisplay() {
+        if (!this.elements.storageUsage || !this.elements.storageFill) return;
+        
+        try {
+            const usage = this.storage.getStorageUsage();
+            
+            // Update text
+            this.elements.storageUsage.textContent = `${usage.totalSizeKB}KB / 5MB`;
+            
+            // Update progress bar
+            this.elements.storageFill.style.width = `${usage.percentage}%`;
+            
+            // Update color based on usage
+            this.elements.storageFill.className = 'storage-fill';
+            if (usage.percentage >= 90) {
+                this.elements.storageFill.classList.add('danger');
+            } else if (usage.percentage >= 70) {
+                this.elements.storageFill.classList.add('warning');
+            }
+            
+            // Show warning if approaching limit
+            if (usage.isWarning && usage.percentage >= 90) {
+                Utils.showToast(`Storage almost full (${usage.percentage}%). Consider deleting old presets.`, 'warning');
+            }
+            
+        } catch (error) {
+            console.error('Error updating storage display:', error);
+        }
+    }
+    
+    /**
+     * Auto-load last used workflow on app initialization
+     */
+    autoLoadLastWorkflow() {
+        console.log('🔄 Attempting to auto-load last used workflow...');
+        
+        try {
+            const lastWorkflowId = this.storage.getLastUsedWorkflowId();
+            if (!lastWorkflowId) {
+                console.log('ℹ️ No last used workflow ID found');
+                return false;
+            }
+            
+            console.log('📋 Last used workflow ID:', lastWorkflowId);
+            
+            const metadata = this.storage.getMetadata();
+            const preset = metadata.find(p => p.id === lastWorkflowId);
+            if (!preset) {
+                console.warn('⚠️ Last used workflow preset not found in metadata, cleaning up reference');
+                localStorage.removeItem(this.storage.LAST_WORKFLOW_KEY);
+                return false;
+            }
+            
+            console.log('📋 Found preset in metadata:', preset.name);
+            
+            // Load the workflow
+            this.loadSelectedPreset(lastWorkflowId);
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Error auto-loading last workflow:', error);
+            // Clean up potentially corrupted reference
+            try {
+                localStorage.removeItem(this.storage.LAST_WORKFLOW_KEY);
+            } catch (e) {
+                console.error('Failed to clean up last workflow reference:', e);
+            }
+            return false;
+        }
+    }
+}
+
+// Global preset manager instance
+let presetManager = null;
+
+// ================================================================================
+// End Preset Management System
 // ================================================================================
 
 // Cleanup on page unload
