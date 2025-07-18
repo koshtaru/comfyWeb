@@ -1,0 +1,151 @@
+# Task ID: 29
+# Title: Phase 1.3: Service Layer Foundation - Create modular service architecture for ComfyUI API, WebSocket management, and localStorage operations with TypeScript interfaces and error handling
+# Status: pending
+# Dependencies: 27
+# Priority: medium
+# Description: Build a comprehensive service layer architecture with TypeScript interfaces for all ComfyUI operations including API communication, WebSocket event handling, and local storage management, establishing a clean separation of concerns between UI components and business logic
+# Details:
+Implement a modular service architecture with the following components:
+
+1. **Core Service Interfaces**: Define TypeScript interfaces for all service contracts:
+   - `IComfyUIService`: Main API service for workflow submission, queue management, history retrieval
+   - `IWebSocketService`: Real-time connection management with typed event handlers
+   - `IStorageService`: Generic storage interface for localStorage operations
+   - `IWorkflowService`: Workflow manipulation and validation operations
+   - `IPresetService`: Preset CRUD operations extending storage service
+
+2. **ComfyUI API Service Implementation**:
+   ```typescript
+   interface IComfyUIService {
+     submitWorkflow(workflow: WorkflowData): Promise<QueueResponse>;
+     getQueue(): Promise<QueueStatus>;
+     getHistory(maxItems?: number): Promise<HistoryResponse>;
+     interrupt(): Promise<void>;
+     checkConnection(): Promise<boolean>;
+   }
+   ```
+   - Implement with axios for HTTP operations
+   - Add request/response interceptors for error handling
+   - Include retry logic with exponential backoff
+   - Create typed DTOs for all API responses
+
+3. **WebSocket Service Architecture**:
+   ```typescript
+   interface IWebSocketService {
+     connect(url: string): Promise<void>;
+     disconnect(): void;
+     on<T>(event: WebSocketEventType, handler: (data: T) => void): void;
+     off(event: WebSocketEventType, handler: Function): void;
+     getConnectionState(): ConnectionState;
+   }
+   ```
+   - Implement event emitter pattern for typed events
+   - Add automatic reconnection with configurable backoff
+   - Queue messages during disconnection
+   - Handle all ComfyUI WebSocket message types
+
+4. **Storage Service Layer**:
+   ```typescript
+   interface IStorageService<T> {
+     get(key: string): Promise<T | null>;
+     set(key: string, value: T): Promise<void>;
+     remove(key: string): Promise<void>;
+     clear(): Promise<void>;
+     getSize(): Promise<number>;
+   }
+   ```
+   - Implement with localStorage adapter
+   - Add compression for large data
+   - Include storage quota management
+   - Create typed storage keys enum
+
+5. **Error Handling Strategy**:
+   - Create custom error classes hierarchy:
+     ```typescript
+     class ComfyUIError extends Error {}
+     class NetworkError extends ComfyUIError {}
+     class ValidationError extends ComfyUIError {}
+     class StorageQuotaError extends ComfyUIError {}
+     ```
+   - Implement global error boundary
+   - Add error recovery mechanisms
+   - Create error notification service
+
+6. **Service Container and Dependency Injection**:
+   ```typescript
+   class ServiceContainer {
+     private static instance: ServiceContainer;
+     private services: Map<string, any> = new Map();
+     
+     register<T>(token: string, service: T): void;
+     resolve<T>(token: string): T;
+   }
+   ```
+   - Implement singleton pattern for service container
+   - Register all services at app initialization
+   - Use React context for service injection
+
+7. **Service Configuration**:
+   ```typescript
+   interface ServiceConfig {
+     api: {
+       baseUrl: string;
+       timeout: number;
+       retryAttempts: number;
+     };
+     websocket: {
+       reconnectInterval: number;
+       maxReconnectAttempts: number;
+     };
+     storage: {
+       keyPrefix: string;
+       compressionThreshold: number;
+     };
+   }
+   ```
+   - Load configuration from environment variables
+   - Support runtime configuration updates
+   - Validate configuration on startup
+
+# Test Strategy:
+1. **Unit Testing**: Create comprehensive unit tests for each service using Jest and React Testing Library. Mock external dependencies (localStorage, WebSocket, fetch). Test error handling scenarios including network failures, timeout errors, and invalid responses. Verify retry logic and exponential backoff calculations.
+
+2. **Integration Testing**: Test service interactions with real ComfyUI backend. Verify WebSocket reconnection after network interruption. Test storage quota exceeded scenarios. Validate service container dependency resolution.
+
+3. **Type Safety Testing**: Use TypeScript strict mode to catch type errors. Verify all API responses match defined interfaces. Test generic type constraints in storage service. Validate event handler type safety in WebSocket service.
+
+4. **Performance Testing**: Measure service initialization time. Test WebSocket message handling under high load. Verify storage compression effectiveness. Profile memory usage during long sessions.
+
+5. **Error Scenario Testing**: Simulate various failure modes: API timeout, WebSocket disconnection, localStorage quota exceeded, malformed API responses. Verify error propagation and recovery mechanisms work correctly.
+
+# Subtasks:
+## 1. Define Core Service TypeScript Interfaces [pending]
+### Dependencies: None
+### Description: Create comprehensive TypeScript interface definitions for all service contracts including IComfyUIService, IWebSocketService, IStorageService, IWorkflowService, and IPresetService with proper type safety and method signatures
+### Details:
+Create a services/interfaces directory structure and define each interface with complete method signatures, parameter types, and return types. Include generic type parameters for IStorageService<T> to ensure type safety across different storage operations. Define enums for WebSocketEventType, ConnectionState, and StorageKeys. Create type definitions for all DTOs including WorkflowData, QueueResponse, QueueStatus, HistoryResponse, and ServiceConfig. Ensure interfaces follow SOLID principles with clear separation of concerns.
+
+## 2. Implement ComfyUI API Service with Axios [pending]
+### Dependencies: 29.1
+### Description: Build the concrete implementation of IComfyUIService using axios for HTTP operations, including request/response interceptors, retry logic with exponential backoff, and comprehensive error handling
+### Details:
+Create ComfyUIService class implementing IComfyUIService interface. Configure axios instance with baseURL from ServiceConfig, timeout settings, and custom headers. Implement request interceptor for authentication tokens and response interceptor for error transformation. Add retry logic using axios-retry or custom implementation with exponential backoff (1s, 2s, 4s, 8s). Create methods for submitWorkflow (POST /prompt), getQueue (GET /queue), getHistory (GET /history/:max_items), interrupt (POST /interrupt), and checkConnection (GET /system_stats). Transform all responses to typed DTOs and handle HTTP errors with custom ComfyUIError classes.
+
+## 3. Build WebSocket Service with Event Emitter Pattern [pending]
+### Dependencies: 29.1
+### Description: Implement IWebSocketService with typed event handling, automatic reconnection strategy, message queueing during disconnection, and support for all ComfyUI WebSocket message types
+### Details:
+Create WebSocketService class extending EventEmitter with TypeScript generics for typed events. Implement connection management with states (CONNECTING, CONNECTED, DISCONNECTING, DISCONNECTED). Add automatic reconnection with configurable exponential backoff and max attempts. Queue outgoing messages during disconnection and flush on reconnect. Handle ComfyUI message types: 'executing', 'progress', 'executed', 'execution_error', 'execution_cached'. Implement typed event listeners with on<T>() and off() methods. Add heartbeat/ping mechanism to detect connection drops. Create connection state observables for UI reactivity.
+
+## 4. Create Storage Service Layer with Compression [pending]
+### Dependencies: 29.1
+### Description: Implement generic IStorageService<T> with localStorage adapter, data compression for large objects, storage quota management, and typed storage keys for type safety
+### Details:
+Create LocalStorageService implementing IStorageService<T> with async/await pattern. Implement compression using LZ-string or similar library for data above compressionThreshold (default 5KB). Add storage quota checking before write operations using navigator.storage.estimate(). Create StorageKeys enum for type-safe key management. Implement serialization/deserialization with JSON.stringify/parse and error handling. Add key prefixing from ServiceConfig for namespace isolation. Create storage migration system for schema updates. Implement batch operations for performance optimization.
+
+## 5. Implement Service Container and Error Handling [pending]
+### Dependencies: 29.2, 29.3, 29.4
+### Description: Build dependency injection container with singleton pattern, custom error class hierarchy, global error boundary implementation, and service registration/resolution mechanisms
+### Details:
+Create ServiceContainer singleton with register() and resolve() methods using Map<string, any> for service storage. Implement service tokens as constants for type-safe resolution. Create error class hierarchy: ComfyUIError (base), NetworkError, ValidationError, StorageQuotaError, WebSocketError with proper error codes and context. Build global error boundary React component to catch and handle errors gracefully. Implement error notification service for user feedback. Create service initialization sequence with proper dependency order. Add React Context Provider for service injection into components. Implement service lifecycle hooks (onInit, onDestroy) for cleanup.
+

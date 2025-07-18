@@ -1,0 +1,121 @@
+# Task ID: 35
+# Title: Phase 4.1: Testing Framework and Performance Optimization
+# Status: pending
+# Dependencies: 22, 25
+# Priority: medium
+# Description: Implement comprehensive testing strategy with Jest, React Testing Library, and performance monitoring for the migrated React components
+# Details:
+Implement a robust testing and performance optimization framework for the React-migrated ComfyUI interface:
+
+1. **Testing Framework Setup**:
+   - Configure Jest with TypeScript support and appropriate test environment (jsdom)
+   - Set up React Testing Library with custom render utilities for theme/context providers
+   - Configure coverage thresholds (80% statements, 70% branches, 75% functions)
+   - Implement test utilities for mocking WebSocket connections, API responses, and localStorage
+   - Set up continuous integration with GitHub Actions for automated test runs
+
+2. **Component Testing Strategy**:
+   - Unit tests for all React components focusing on user interactions and state management
+   - Integration tests for complex workflows (generation, preset management, queue handling)
+   - Accessibility tests using jest-axe for WCAG compliance
+   - Snapshot tests for UI consistency across component updates
+   - Mock ComfyUI API responses and WebSocket events for isolated testing
+
+3. **Performance Monitoring**:
+   - Implement React DevTools Profiler integration for component render analysis
+   - Add performance marks using Performance API for critical user journeys
+   - Set up bundle size monitoring with size-limit and bundlesize
+   - Implement lazy loading for heavy components (workflow editor, preset manager)
+   - Add React.memo optimization for frequently re-rendered components
+
+4. **Testing Patterns**:
+   ```typescript
+   // Custom render with providers
+   const renderWithProviders = (ui: ReactElement, options?: RenderOptions) => {
+     return render(
+       <ThemeProvider theme={darkTheme}>
+         <WebSocketProvider>
+           <AppStateProvider>
+             {ui}
+           </AppStateProvider>
+         </WebSocketProvider>
+       </ThemeProvider>,
+       options
+     );
+   };
+
+   // WebSocket mock utility
+   class MockWebSocket {
+     static instances: MockWebSocket[] = [];
+     onmessage: ((event: MessageEvent) => void) | null = null;
+     
+     constructor(url: string) {
+       MockWebSocket.instances.push(this);
+     }
+     
+     send(data: string) {
+       // Mock implementation
+     }
+     
+     simulateMessage(data: any) {
+       this.onmessage?.({ data: JSON.stringify(data) } as MessageEvent);
+     }
+   }
+   ```
+
+5. **Performance Optimization Techniques**:
+   - Implement virtual scrolling for large result galleries using react-window
+   - Add debouncing for parameter inputs to reduce re-renders
+   - Use React.lazy for code splitting (workflow editor, advanced settings)
+   - Implement service worker for caching static assets and API responses
+   - Add performance budgets: Initial bundle < 200KB, Total JS < 500KB
+
+6. **E2E Testing with Playwright**:
+   - Set up Playwright for cross-browser testing (Chrome, Firefox, Safari)
+   - Implement visual regression tests for UI consistency
+   - Create user journey tests for critical paths (generate image, manage presets)
+   - Add performance testing scenarios measuring Time to Interactive (TTI)
+   - Configure parallel test execution for faster CI/CD
+
+# Test Strategy:
+1. **Framework Verification**: Ensure Jest and React Testing Library are properly configured with TypeScript support. Verify test utilities correctly mock external dependencies. Confirm coverage reports generate accurately with defined thresholds.
+
+2. **Component Testing**: Write tests for each React component covering props, state changes, and user interactions. Verify accessibility compliance with automated tools. Ensure snapshot tests catch unintended UI changes. Test error boundaries and loading states.
+
+3. **Integration Testing**: Test complete user workflows from upload to generation. Verify WebSocket reconnection logic and real-time updates. Test preset management including storage limits and compression. Validate API error handling and retry mechanisms.
+
+4. **Performance Testing**: Measure initial load time and Time to Interactive. Verify lazy-loaded components load on demand. Check bundle sizes stay within defined budgets. Profile render performance for complex components. Test application performance with large datasets (100+ presets, 50+ history items).
+
+5. **E2E Testing**: Run visual regression tests across different viewports. Test critical user journeys in multiple browsers. Verify offline functionality with service worker. Measure and track Core Web Vitals (LCP, FID, CLS). Test progressive enhancement for JavaScript-disabled scenarios.
+
+# Subtasks:
+## 1. Set up Jest and React Testing Library with TypeScript [pending]
+### Dependencies: None
+### Description: Configure Jest testing framework with TypeScript support, React Testing Library, and jsdom environment for component testing
+### Details:
+Install and configure Jest with ts-jest for TypeScript compilation. Set up React Testing Library with custom render utilities that wrap components in necessary providers (ThemeProvider, WebSocketProvider, AppStateProvider). Configure jest.config.js with proper module resolution, transform settings, and test environment. Set up coverage thresholds (80% statements, 70% branches, 75% functions) and configure coverage reporters. Create setupTests.ts file with global test utilities and mock implementations.
+
+## 2. Create comprehensive test utilities and mocks [pending]
+### Dependencies: 35.1
+### Description: Implement test utilities for mocking WebSocket connections, ComfyUI API responses, localStorage, and other external dependencies
+### Details:
+Develop MockWebSocket class with methods to simulate connection states, message events, and error scenarios. Create API mock utilities using MSW (Mock Service Worker) or manual mocks for ComfyUI endpoints (/prompt, /queue, /history, /interrupt). Implement localStorage mock with methods to track storage operations. Build custom matchers for testing WebSocket events and API calls. Create factory functions for generating test data (workflows, metadata, generation results).
+
+## 3. Implement component and integration test suites [pending]
+### Dependencies: 35.2
+### Description: Write comprehensive unit and integration tests for all React components, focusing on user interactions, state management, and accessibility
+### Details:
+Create unit tests for individual components (GenerationControls, PresetManager, MetadataPanel, QueueDisplay) testing props, state changes, and user interactions. Write integration tests for complex workflows like end-to-end generation flow, preset creation/loading, and queue management. Implement accessibility tests using jest-axe to ensure WCAG compliance. Add snapshot tests for UI consistency. Test error boundaries and fallback states. Focus on testing component behavior rather than implementation details.
+
+## 4. Set up performance monitoring and optimization [pending]
+### Dependencies: 35.3
+### Description: Implement performance monitoring tools and optimize React components for better runtime performance
+### Details:
+Integrate React DevTools Profiler API to measure component render times and identify performance bottlenecks. Add performance marks using Performance API for critical user journeys (initial load, generation start, results display). Implement React.memo for components that re-render frequently with same props. Add useMemo and useCallback hooks where appropriate. Set up bundle size monitoring with size-limit and configure performance budgets (initial bundle < 200KB, total JS < 500KB). Implement code splitting with React.lazy for heavy components.
+
+## 5. Configure E2E testing with Playwright and CI/CD integration [pending]
+### Dependencies: 35.4
+### Description: Set up Playwright for cross-browser E2E testing and integrate all tests into GitHub Actions CI/CD pipeline
+### Details:
+Install and configure Playwright for testing in Chrome, Firefox, and Safari. Write E2E tests for critical user paths: image generation workflow, preset management, queue operations, and settings configuration. Implement visual regression tests to catch UI inconsistencies. Add performance testing scenarios measuring Time to Interactive (TTI) and Largest Contentful Paint (LCP). Configure GitHub Actions workflow to run unit tests, integration tests, and E2E tests on pull requests. Set up parallel test execution and test result reporting.
+

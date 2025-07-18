@@ -1,0 +1,64 @@
+# Task ID: 24
+# Title: Create Dark-Themed Header Bar Navigation System
+# Status: done
+# Dependencies: 1, 11, 14
+# Priority: medium
+# Description: Build a ComfyUI-style header navigation bar with tab-based mode switching between Generate, History, Models, Settings, and Queue sections, featuring sticky positioning and dark theme integration
+# Details:
+Implement a comprehensive header navigation system with the following components:
+
+1. **Header Structure and Layout**: Create fixed header container (100% width, 60px height) with dark background (#0b0f19) and subtle bottom border (#181825). Position at top with z-index:1000 for sticky behavior. Use flexbox for horizontal tab arrangement with left-aligned branding/logo area and center-aligned navigation tabs.
+
+2. **Tab Component Design**: Build tab buttons with following states:
+   - Default: #181825 background, #a6a6a6 text color, 14px Helvetica Neue
+   - Hover: #1f2937 background with smooth transition (200ms)
+   - Active: #ff7c00 bottom border (3px), white text color
+   - Include subtle padding (16px horizontal, 20px vertical)
+   - Implement smooth color transitions for all interactive states
+
+3. **Navigation Implementation**: Create JavaScript module for mode switching:
+   ```javascript
+   class NavigationManager {
+     constructor() {
+       this.modes = ['generate', 'history', 'models', 'settings', 'queue'];
+       this.currentMode = 'generate';
+       this.modeChangeCallbacks = [];
+     }
+     
+     switchMode(mode) {
+       if (this.modes.includes(mode)) {
+         this.currentMode = mode;
+         this.updateTabStates();
+         this.showModeContent(mode);
+         this.notifyListeners(mode);
+       }
+     }
+   }
+   ```
+
+4. **Content Panel Management**: Implement show/hide logic for main content areas corresponding to each mode. Use CSS classes for visibility control with smooth fade transitions. Maintain panel state in sessionStorage for persistence across page reloads.
+
+5. **Responsive Design**: Implement mobile-friendly navigation:
+   - Tablet (768px): Reduce tab padding, adjust font size to 13px
+   - Mobile (480px): Convert to hamburger menu with slide-out drawer
+   - Ensure touch-friendly tap targets (min 44px height)
+
+6. **Integration Points**: Connect with existing systems:
+   - Generate mode: Show existing workflow controls
+   - History mode: Display image generation history panel
+   - Models mode: Show available model selection interface
+   - Settings mode: Display app configuration options
+   - Queue mode: Show current generation queue status
+
+7. **Accessibility**: Include ARIA labels, keyboard navigation support (Tab/Shift+Tab), and focus indicators matching the orange accent color.
+
+# Test Strategy:
+1. **Visual Testing**: Verify header renders with correct dark theme colors and 60px height. Test sticky positioning on scroll. Validate tab hover and active states match design specs. Check responsive breakpoints and mobile menu functionality.
+
+2. **Interaction Testing**: Test click events on each tab trigger correct mode switch. Verify active tab highlighting updates correctly. Test keyboard navigation between tabs. Validate smooth transitions between hover/active states.
+
+3. **State Management Testing**: Verify current mode persists across page reloads via sessionStorage. Test mode change callbacks fire correctly. Validate content panels show/hide appropriately for each mode.
+
+4. **Integration Testing**: Test navigation with existing Generate panel functionality. Verify History mode loads generation history. Check Settings mode displays configuration options. Test Queue mode shows active queue status.
+
+5. **Cross-browser Testing**: Validate sticky positioning in Chrome, Firefox, Safari. Test CSS transitions and hover states across browsers. Verify mobile responsiveness on actual devices.

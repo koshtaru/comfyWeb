@@ -1,0 +1,23 @@
+# Task ID: 26
+# Title: Fix Prompt Box Styling Issues - Remove Fieldset Border and Improve Textarea UX
+# Status: done
+# Dependencies: 1, 11
+# Priority: medium
+# Description: Remove unwanted fieldset border outline and enhance textarea user experience with better height and padding for more comfortable text input in the prompt box component.
+# Details:
+1. **Fieldset Border Removal**: Locate and remove the default fieldset border styling that creates unwanted outline around the prompt box. Add CSS rule 'border: none' or 'border: 0' to fieldset elements. Ensure any legend elements are properly styled without relying on fieldset borders for visual hierarchy.
+
+2. **Textarea Height Optimization**: Increase textarea minimum height from current value to provide more comfortable text input space. Implement responsive height that grows with content using CSS resize: vertical or JavaScript auto-resize functionality. Set appropriate max-height to prevent excessive expansion.
+
+3. **Padding and Spacing Improvements**: Increase internal padding within textarea for better text readability and input comfort. Ensure consistent spacing between textarea and surrounding elements. Update line-height for optimal text display and readability.
+
+4. **Visual Polish**: Apply consistent dark theme styling matching the application's design system. Ensure focus states provide clear visual feedback without unwanted borders. Test across different browser environments for consistent appearance.
+
+# Test Strategy:
+1. **Visual Testing**: Verify fieldset borders are completely removed without affecting layout structure. Test textarea height provides comfortable input space and grows appropriately with content. Confirm padding improvements enhance text readability and input experience.
+
+2. **Cross-Browser Testing**: Test styling consistency across Chrome, Firefox, Safari, and Edge browsers. Verify mobile responsiveness and touch input experience on tablets and phones.
+
+3. **Accessibility Testing**: Ensure focus states remain visible and accessible after border removal. Test keyboard navigation and screen reader compatibility. Verify contrast ratios meet accessibility standards.
+
+4. **User Experience Testing**: Validate improved comfort for longer text input sessions. Test auto-resize functionality doesn't interfere with page layout. Confirm styling matches overall application design system.

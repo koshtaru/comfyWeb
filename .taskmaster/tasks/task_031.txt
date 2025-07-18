@@ -1,0 +1,65 @@
+# Task ID: 31
+# Title: Phase 2.2: API Connection Component Migration - Convert existing API connection management to React component with Apply/Test functionality and comprehensive error handling
+# Status: pending
+# Dependencies: 29, 28, 27
+# Priority: medium
+# Description: Migrate the existing API connection management system from vanilla JavaScript to a React component with TypeScript, implementing the Apply/Test button functionality, connection state management, and comprehensive error handling while preserving the current dark theme design
+# Details:
+Implement a comprehensive React-based API connection management component with the following features:
+
+1. **React Component Architecture**: Create `APIConnectionPanel.tsx` component using React hooks and TypeScript interfaces. Define interface `IAPIConnectionState` with properties: apiUrl (string), isConnected (boolean), isLoading (boolean), lastError (string | null), lastTestTime (Date | null). Implement useState for local state management and useEffect for side effects. Create custom hook `useAPIConnection` to encapsulate connection logic and state management.
+
+2. **UI Component Structure**: Migrate existing HTML structure to JSX preserving all styling classes and dark theme design. Create controlled input component for API URL with proper validation (IPv4, IPv6, hostname, port). Implement Test button with loading states, disabled during testing, and proper error feedback. Implement Apply button to save URL without testing, updating localStorage immediately. Add connection status indicator showing success (green), error (red), or neutral states.
+
+3. **Connection Testing Logic**: Implement `testConnection` async function using the ComfyUI service layer from Task 29. Make GET request to `/system_stats` endpoint with configurable timeout (5 seconds). Handle various error scenarios: network errors, timeouts, invalid responses, CORS issues. Update connection state based on test results with proper error messages. Implement retry logic with exponential backoff for transient failures.
+
+4. **Apply Functionality**: Create `applySettings` function to save API URL without validation. Update localStorage with new endpoint immediately. Emit custom event 'api-url-changed' for other components to react. Preserve existing connection state if previously tested successfully. Show toast notification confirming settings saved.
+
+5. **Error Handling and Validation**: Implement comprehensive URL validation supporting IPv4, IPv6, hostnames, and ports. Create error boundary component to catch and display connection errors gracefully. Implement user-friendly error messages for common scenarios: connection refused, timeout, invalid URL format. Add tooltip hints for proper URL format examples.
+
+6. **State Persistence**: Use localStorage service from Task 29 to persist API URL and connection state. Implement auto-load of saved settings on component mount. Save last successful test timestamp for connection age indication. Handle localStorage quota errors gracefully.
+
+7. **Accessibility and UX**: Add ARIA labels and roles for screen reader support. Implement keyboard navigation between input and buttons. Show loading spinner during connection test with proper accessibility. Disable form submission on Enter to prevent accidental testing. Add visual feedback for all interactive states.
+
+# Test Strategy:
+1. **Component Unit Tests**: Test APIConnectionPanel renders with correct initial state from localStorage. Verify Test button triggers connection test and updates UI appropriately. Confirm Apply button saves URL without testing and emits proper events. Test error states display correct messages for various failure scenarios.
+
+2. **Integration Tests**: Mock ComfyUI service responses for successful and failed connections. Test timeout handling with delayed mock responses. Verify localStorage updates occur at correct times. Test event emission and propagation to parent components.
+
+3. **Validation Tests**: Test URL validation accepts valid IPv4, IPv6, hostnames with ports. Verify rejection of malformed URLs with appropriate error messages. Test edge cases like localhost, 0.0.0.0, and non-standard ports.
+
+4. **Accessibility Tests**: Run axe-core tests for WCAG 2.1 AA compliance. Test keyboard navigation flow through all interactive elements. Verify screen reader announces connection status changes. Test focus management during loading states.
+
+5. **Visual Regression Tests**: Capture screenshots of all component states: default, loading, success, error. Compare with existing vanilla JS implementation for visual parity. Test responsive behavior at different viewport sizes. Verify dark theme consistency with design system.
+
+# Subtasks:
+## 1. Create React Component Structure and TypeScript Interfaces [pending]
+### Dependencies: None
+### Description: Set up the foundational React component structure for APIConnectionPanel with TypeScript interfaces and custom hooks
+### Details:
+Create `APIConnectionPanel.tsx` component file with proper React and TypeScript imports. Define `IAPIConnectionState` interface with properties: apiUrl (string), isConnected (boolean), isLoading (boolean), lastError (string | null), lastTestTime (Date | null). Create `IAPIConnectionProps` interface for component props including onConnectionChange callback. Implement custom hook `useAPIConnection` that encapsulates connection state management, localStorage persistence, and connection testing logic. Set up initial component structure with useState hooks for local state management.
+
+## 2. Migrate HTML Structure to JSX with Controlled Components [pending]
+### Dependencies: 31.1
+### Description: Convert existing vanilla JavaScript HTML structure to React JSX while preserving all styling and implementing controlled input components
+### Details:
+Migrate the existing API connection HTML from index.html to JSX within APIConnectionPanel component. Create controlled input component for API URL with value bound to state and onChange handlers. Preserve all existing CSS classes and dark theme styling (#181825 panel background, #1f2937 input background). Implement Test button with disabled state during loading and proper onClick handler. Add Apply button with green styling (#10b981) positioned adjacent to Test button. Create connection status indicator component that displays different states (connected/disconnected/neutral) with appropriate colors and icons.
+
+## 3. Implement Connection Testing with Error Handling [pending]
+### Dependencies: 31.2
+### Description: Create comprehensive connection testing functionality with ComfyUI API integration and robust error handling
+### Details:
+Implement `testConnection` async function using the ComfyUI service layer from Task 29. Make GET request to `/system_stats` endpoint with 5-second timeout configuration. Handle multiple error scenarios: network failures (ERR_NETWORK_FAILED), timeout errors, CORS issues, invalid responses, and server errors. Implement retry logic with exponential backoff (3 attempts max, delays: 1s, 2s, 4s). Update component state with connection results including success status, error messages, and timestamp. Create user-friendly error message mapping for technical errors (e.g., 'ECONNREFUSED' -> 'Unable to connect to ComfyUI. Please ensure it is running.').
+
+## 4. Build Apply Functionality with Event System [pending]
+### Dependencies: 31.3
+### Description: Implement Apply button functionality to save settings without testing and notify other components of changes
+### Details:
+Create `applySettings` function that validates URL format and saves to localStorage immediately without connection testing. Implement comprehensive URL validation supporting IPv4 addresses (e.g., 192.168.1.1:8188), IPv6 addresses (e.g., [2001:db8::1]:8188), hostnames (e.g., localhost:8188), and domain names with ports. Use localStorage service from Task 29 for persistence with error handling for quota exceeded scenarios. Emit custom event 'api-url-changed' using CustomEvent API with detail payload containing new URL. Show toast notification using existing notification system confirming 'API settings saved successfully'. Preserve existing connection state if URL hasn't changed and was previously tested successfully.
+
+## 5. Add Accessibility Features and Error Boundaries [pending]
+### Dependencies: 31.4
+### Description: Implement comprehensive accessibility support and error boundary components for graceful error handling
+### Details:
+Create ErrorBoundary component wrapping APIConnectionPanel to catch and display React errors gracefully. Add ARIA labels to all interactive elements: aria-label for input ('ComfyUI API URL'), buttons ('Test connection', 'Apply settings'), and status indicator. Implement keyboard navigation with Tab order: input -> Test -> Apply, and Enter key handling on input to trigger Test action. Add aria-live region for announcing connection status changes to screen readers. Create loading state with accessible spinner including aria-busy and descriptive text. Add tooltip component showing URL format examples on input focus (IPv4: http://192.168.1.1:8188, IPv6: http://[::1]:8188, Hostname: http://localhost:8188).
+

@@ -1,0 +1,77 @@
+# Task ID: 34
+# Title: Phase 3.1: Preset Management Component Migration - Convert existing preset system to React with modal management, storage operations, and comprehensive UI controls
+# Status: pending
+# Dependencies: 23, 27, 29
+# Priority: medium
+# Description: Migrate the existing vanilla JavaScript preset management system to a React component architecture with TypeScript, implementing modal-based preset operations, enhanced storage management, and comprehensive UI controls while maintaining compatibility with the existing localStorage schema
+# Details:
+Implement a comprehensive React-based preset management system with the following components:
+
+1. **React Component Architecture**: Create `PresetManager.tsx` as the main container component using React hooks and TypeScript. Define interface `IPreset` with properties: id (string), name (string), createdAt (Date), lastUsedAt (Date), workflowData (object), metadata (IPresetMetadata). Create interface `IPresetMetadata` with: model, sampler, steps, cfg, seed, dimensions. Implement `PresetList.tsx` for displaying presets in a virtualized list for performance. Create `PresetModal.tsx` for save/rename/delete operations using React Portal for proper z-index management.
+
+2. **State Management with Context API**: Implement `PresetContext.tsx` using React Context API for global preset state management. Define `IPresetState` interface with: presets (IPreset[]), activePresetId (string | null), isLoading (boolean), error (string | null). Create custom hooks: `usePresets()` for accessing preset state, `useActivePreset()` for current preset operations, `usePresetStorage()` for storage operations. Implement reducer pattern for complex state updates with actions: ADD_PRESET, UPDATE_PRESET, DELETE_PRESET, SET_ACTIVE_PRESET, LOAD_PRESETS.
+
+3. **Modal Management System**: Create `ModalProvider.tsx` for centralized modal state management. Implement modal types: SavePresetModal, RenamePresetModal, DeleteConfirmationModal, ImportExportModal. Use React Portal to render modals at document root level. Implement focus trap using react-focus-lock for accessibility. Add keyboard navigation with Escape key handling and Tab cycling. Create smooth animations using CSS transitions or Framer Motion.
+
+4. **Enhanced Storage Operations**: Extend existing localStorage schema while maintaining backward compatibility. Implement `PresetStorageService.ts` with methods: savePreset(), loadPreset(), deletePreset(), getAllPresets(), importPresets(), exportPresets(). Add compression using lz-string library for large workflows. Implement storage quota monitoring with warnings at 80% capacity. Create migration logic for updating old preset formats to new schema. Add automatic cleanup of orphaned presets and corrupted data.
+
+5. **UI Components and Controls**: Create `PresetDropdown.tsx` with search/filter functionality using react-select or custom implementation. Implement `PresetCard.tsx` for individual preset display with metadata preview. Add drag-and-drop reordering using react-beautiful-dnd or @dnd-kit/sortable. Create action buttons with loading states and optimistic updates. Implement batch operations UI for selecting multiple presets. Add preset thumbnail generation using Canvas API for visual preview.
+
+6. **Import/Export Functionality**: Create file upload component supporting .json and .zip formats. Implement bulk import with conflict resolution strategies (skip, overwrite, rename). Add export options: single preset, selected presets, all presets. Create preset bundles with metadata and thumbnails. Implement progress indicators for large import/export operations. Add validation for imported preset compatibility.
+
+7. **Search and Filter System**: Implement fuzzy search using fuse.js for preset names and metadata. Create filter sidebar with options: date range, model type, sampler, dimensions. Add sorting options: name, created date, last used, file size. Implement tag system for preset categorization. Create saved filter presets for quick access.
+
+8. **Performance Optimizations**: Implement React.memo for preset list items to prevent unnecessary re-renders. Use React.lazy for modal components with code splitting. Add virtual scrolling using react-window for large preset lists. Implement debounced search and filter operations. Create indexes for faster preset lookup operations. Use Web Workers for compression/decompression of large workflows.
+
+9. **Accessibility Features**: Implement ARIA labels and roles for all interactive elements. Add keyboard shortcuts: Ctrl+S for save, Delete for remove, Ctrl+I for import. Create screen reader announcements for preset operations. Implement high contrast mode support. Add focus indicators matching design system. Create skip navigation links for preset list.
+
+10. **Integration with Existing System**: Connect to existing WebSocket service for auto-saving active workflows. Integrate with workflow submission system for applying presets. Maintain compatibility with existing preset loading logic. Create migration path from vanilla JS to React components. Implement event system for cross-component communication.
+
+# Test Strategy:
+1. **Component Unit Tests**: Test PresetManager renders with empty and populated preset lists. Verify PresetModal opens/closes correctly with proper focus management. Test PresetDropdown search and filter functionality with various inputs. Validate PresetCard displays correct metadata and handles missing data gracefully. Test virtual scrolling performance with 1000+ presets.
+
+2. **State Management Tests**: Test Context Provider supplies correct initial state to consumers. Verify reducer handles all action types correctly with immutable updates. Test custom hooks return expected values and update functions. Validate optimistic updates rollback on errors correctly. Test state persistence across component unmounts.
+
+3. **Storage Integration Tests**: Test saving new presets creates correct localStorage entries. Verify loading presets maintains data integrity and handles corrupted data. Test storage quota warnings trigger at correct thresholds. Validate migration logic updates old preset formats correctly. Test cleanup operations remove orphaned data without affecting valid presets.
+
+4. **Modal Interaction Tests**: Test focus trap prevents tabbing outside modal boundaries. Verify Escape key closes modals and returns focus correctly. Test form validation in save/rename modals with invalid inputs. Validate delete confirmation requires explicit user action. Test modal stacking behavior with multiple modals.
+
+5. **Import/Export Tests**: Test file upload accepts valid formats and rejects invalid ones. Verify bulk import handles conflicts according to user selection. Test export generates valid JSON/ZIP files with correct structure. Validate progress indicators update accurately during operations. Test large file handling without browser freezing.
+
+6. **Performance Tests**: Measure render performance with 1000+ presets using React DevTools Profiler. Test search/filter operations complete within 100ms for typical datasets. Verify virtual scrolling maintains 60fps scrolling performance. Test memory usage remains stable during extended usage. Validate Web Worker compression doesn't block UI thread.
+
+7. **Accessibility Tests**: Test keyboard navigation through all interactive elements. Verify screen reader announces preset operations correctly. Test high contrast mode maintains UI usability. Validate focus management after modal operations. Test all functionality available without mouse interaction.
+
+8. **Integration Tests**: Test preset selection updates workflow in main application. Verify WebSocket auto-save creates new presets correctly. Test backward compatibility with existing preset data. Validate event communication between React and vanilla JS components. Test migration path preserves all user data and preferences.
+
+# Subtasks:
+## 1. Create React Component Architecture and TypeScript Interfaces [pending]
+### Dependencies: None
+### Description: Set up the foundational React components and TypeScript interfaces for the preset management system
+### Details:
+Create PresetManager.tsx as the main container component using React hooks. Define IPreset interface with properties: id (string), name (string), createdAt (Date), lastUsedAt (Date), workflowData (object), metadata (IPresetMetadata). Define IPresetMetadata interface with model, sampler, steps, cfg, seed, dimensions properties. Create PresetList.tsx component structure for displaying presets with virtual scrolling preparation. Set up PresetModal.tsx base component using React Portal for proper z-index management. Establish proper file structure under src/components/PresetManager/ directory.
+
+## 2. Implement Context API State Management and Custom Hooks [pending]
+### Dependencies: 34.1
+### Description: Build the state management layer using React Context API with reducer pattern and custom hooks
+### Details:
+Create PresetContext.tsx implementing React Context API for global preset state. Define IPresetState interface with presets array, activePresetId, isLoading, and error properties. Implement reducer with actions: ADD_PRESET, UPDATE_PRESET, DELETE_PRESET, SET_ACTIVE_PRESET, LOAD_PRESETS, SET_LOADING, SET_ERROR. Create usePresets() hook for accessing preset state and dispatch. Implement useActivePreset() hook for current preset operations. Build usePresetStorage() hook wrapping storage operations with state updates. Add error boundary for context provider.
+
+## 3. Build Modal Management System with Accessibility [pending]
+### Dependencies: 34.1, 34.2
+### Description: Create a comprehensive modal system with proper focus management and keyboard navigation
+### Details:
+Create ModalProvider.tsx for centralized modal state management. Implement SavePresetModal with form validation and name input. Build RenamePresetModal with current name pre-filled. Create DeleteConfirmationModal with preset name display. Implement ImportExportModal for file operations. Use React Portal to render modals at document.body. Integrate react-focus-lock for focus trapping. Add Escape key handler for modal dismissal. Implement Tab cycling within modal boundaries. Add backdrop click to close functionality. Create smooth fade-in/out animations using CSS transitions.
+
+## 4. Develop Enhanced Storage Service with Migration Logic [pending]
+### Dependencies: 34.2
+### Description: Create a robust storage service layer with compression, quota monitoring, and backward compatibility
+### Details:
+Create PresetStorageService.ts class with methods: savePreset(), loadPreset(), deletePreset(), getAllPresets(), importPresets(), exportPresets(). Implement lz-string compression for workflows over 100KB. Add storage quota monitoring with getStorageUsage() method. Create migration logic to update old preset formats: add lastUsedAt field, validate metadata structure, fix corrupted data. Implement automatic cleanup for presets older than 90 days without use. Add batch operations for multiple preset handling. Create backup/restore functionality. Handle localStorage exceptions gracefully.
+
+## 5. Create UI Components and Integration Layer [pending]
+### Dependencies: 34.1, 34.2, 34.3, 34.4
+### Description: Build the user interface components and integrate with existing ComfyUI system
+### Details:
+Create PresetDropdown.tsx using react-select with custom styling matching dark theme. Build PresetCard.tsx displaying name, date, model info with hover actions. Implement drag-drop reordering using @dnd-kit/sortable. Add batch selection checkboxes with shift-click support. Create action buttons: apply, rename, delete, export with loading states. Build search/filter sidebar with model type, date range, dimension filters. Integrate with existing WebSocket service for auto-save on generation complete. Connect to workflow submission system via applyPreset() method. Maintain backward compatibility with existing preset loading logic. Add keyboard shortcuts: Ctrl+S for save, Delete for remove.
+

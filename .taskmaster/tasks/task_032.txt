@@ -1,0 +1,67 @@
+# Task ID: 32
+# Title: Phase 2.3: Prompt Input Component Migration - Convert enhanced prompt textarea to React with improved styling, validation, and accessibility features
+# Status: pending
+# Dependencies: 26, 28, 29
+# Priority: medium
+# Description: Migrate the existing enhanced prompt textarea from vanilla JavaScript to a fully-featured React component with TypeScript, implementing real-time validation, character counting, auto-resize functionality, and WCAG 2.1 AA accessibility standards while preserving the current dark theme design
+# Details:
+Implement a comprehensive React-based prompt input component with the following features:
+
+1. **React Component Architecture**: Create `PromptInput.tsx` component using React hooks and TypeScript. Define interface `IPromptInputProps` with properties: value (string), onChange (function), placeholder (string), maxLength (number), minHeight (number), maxHeight (number), validationRules (array), onValidationChange (function). Implement controlled component pattern with proper state management. Create custom hooks: `useAutoResize` for dynamic height adjustment, `useValidation` for real-time prompt validation, `useCharacterCount` for length tracking.
+
+2. **Enhanced Textarea Features**: Implement auto-resize functionality that grows/shrinks based on content while respecting min/max height constraints. Add character counter displaying current/max characters with visual warning states at 80% and 95% thresholds. Implement syntax highlighting for common prompt weights and modifiers (e.g., (word:1.2), [word], <lora:name:weight>). Add prompt history with up/down arrow key navigation stored in localStorage. Implement paste formatting that cleans up multi-line prompts and removes excessive whitespace.
+
+3. **Validation System**: Create comprehensive validation framework supporting: minimum/maximum length validation, forbidden word detection, syntax validation for weight modifiers, balanced parentheses/brackets checking. Display inline validation messages below textarea with smooth fade-in animations. Implement debounced validation to avoid UI flicker during typing. Support custom validation rules passed via props for extensibility.
+
+4. **Styling and Theme Integration**: Migrate existing textarea styles preserving exact dark theme colors and spacing. Remove fieldset borders while maintaining visual hierarchy through proper spacing and subtle backgrounds. Implement focus states with accent color outline (#ff7c00) and smooth transitions. Add hover states with slight background lightening for better interactivity. Ensure consistent padding (16px) and comfortable line-height (1.6) for extended typing sessions.
+
+5. **Accessibility Implementation**: Add proper ARIA labels and descriptions for screen readers. Implement keyboard shortcuts: Ctrl/Cmd+Enter for submission, Escape to clear focus, Tab for proper focus management. Provide clear focus indicators meeting WCAG contrast requirements. Add aria-live regions for validation message announcements. Support high contrast mode with appropriate CSS media queries.
+
+6. **Performance Optimizations**: Implement React.memo with proper comparison function to prevent unnecessary re-renders. Use useCallback for event handlers to maintain referential stability. Debounce validation and auto-resize calculations for smooth performance. Implement virtual scrolling for prompt history dropdown if history exceeds 50 items. Use CSS containment for better paint performance during resize operations.
+
+7. **Integration with Existing Systems**: Emit custom events for backward compatibility with vanilla JS components during migration. Maintain localStorage key structure for prompt history compatibility. Support both controlled and uncontrolled component patterns. Provide imperative handle using useImperativeHandle for focus management. Ensure seamless integration with form submission and generation workflow.
+
+# Test Strategy:
+1. **Component Unit Tests**: Test PromptInput renders with correct initial state and props. Verify controlled component behavior with value/onChange props. Test auto-resize adjusts height based on content within min/max bounds. Validate character counter updates accurately and shows warning states. Test validation rules trigger appropriate error messages. Verify keyboard shortcuts (Ctrl+Enter, arrow keys) work correctly.
+
+2. **Validation Testing**: Test minimum/maximum length validation with boundary cases. Verify syntax validation catches unbalanced parentheses and invalid weight formats. Test custom validation rules execute and return proper messages. Confirm debouncing prevents excessive validation calls during rapid typing. Test validation state persists across component re-renders.
+
+3. **Accessibility Testing**: Run axe-core accessibility audit for WCAG 2.1 AA compliance. Test keyboard navigation with screen reader (NVDA/JAWS) for proper announcements. Verify focus management and tab order work correctly. Test high contrast mode renders appropriately. Validate ARIA attributes are properly set and updated.
+
+4. **Integration Tests**: Test prompt history saves/loads from localStorage correctly. Verify component integrates with parent form submission. Test event emission for vanilla JS compatibility layer. Confirm imperative methods (focus, clear) work when called externally. Test component handles prop updates gracefully without losing local state.
+
+5. **Performance Tests**: Profile component with React DevTools for unnecessary re-renders. Test with large prompts (5000+ characters) for lag or stuttering. Verify memory usage remains stable during extended usage. Test auto-resize performance with rapid content changes. Benchmark validation performance with complex rule sets.
+
+6. **Visual Regression Tests**: Capture screenshots of all component states (empty, filled, focused, error, warning). Test responsive behavior at different viewport sizes. Verify dark theme styling matches original implementation exactly. Test CSS transitions and animations render smoothly. Validate component appearance in different browsers (Chrome, Firefox, Safari, Edge).
+
+# Subtasks:
+## 1. Create React Component Architecture and TypeScript Interfaces [pending]
+### Dependencies: None
+### Description: Set up the foundational React component structure with TypeScript interfaces and custom hooks for the PromptInput component
+### Details:
+Create src/components/PromptInput/PromptInput.tsx with React functional component using TypeScript. Define IPromptInputProps interface with all required properties (value, onChange, placeholder, maxLength, minHeight, maxHeight, validationRules, onValidationChange). Implement custom hooks in separate files: useAutoResize.ts for dynamic height adjustment logic, useValidation.ts for real-time validation framework, and useCharacterCount.ts for character tracking. Set up the controlled component pattern with proper state management using useState and useEffect. Create index.ts for clean exports and types.ts for shared type definitions.
+
+## 2. Implement Enhanced Textarea Features and Interactions [pending]
+### Dependencies: 32.1
+### Description: Build auto-resize functionality, character counter, syntax highlighting, prompt history, and paste formatting features
+### Details:
+Implement auto-resize using ResizeObserver API in useAutoResize hook, respecting min/max height constraints with smooth transitions. Create character counter component displaying current/max with visual states at 80% (warning) and 95% (danger) thresholds using color changes. Add basic syntax highlighting for prompt weights ((word:1.2), [word], <lora:name:weight>) using regex parsing and span wrapping. Implement prompt history storage in localStorage with up/down arrow navigation, maintaining a maximum of 50 entries with FIFO eviction. Add paste event handler that cleans multi-line prompts, removes excessive whitespace, and normalizes line breaks.
+
+## 3. Build Comprehensive Validation System [pending]
+### Dependencies: 32.1
+### Description: Create a flexible validation framework with real-time feedback, custom rules support, and smooth UI transitions
+### Details:
+Implement validation engine in useValidation hook supporting: length validation (min/max), forbidden word detection with configurable list, syntax validation for weight modifiers using regex, balanced parentheses/brackets checking with stack algorithm. Create ValidationMessage component with fade-in animation and proper positioning below textarea. Implement 300ms debounce for validation to prevent UI flicker during typing. Support custom validation rules array passed via props with rule interface {validate: (value: string) => boolean, message: string}. Add validation state management with error collection and priority ordering.
+
+## 4. Migrate Styling and Ensure Theme Consistency [pending]
+### Dependencies: 32.1, 32.2, 32.3
+### Description: Transfer existing textarea styles to React component while preserving dark theme aesthetics and improving interactivity
+### Details:
+Extract current textarea styles from style.css and convert to styled-components or CSS modules maintaining exact colors (#1f2937 background, #ff7c00 accent). Remove fieldset borders while preserving visual hierarchy through 8px margin spacing and subtle box-shadow. Implement focus states with 2px solid #ff7c00 outline and smooth 200ms transitions. Add hover states with background lightening to #2a3441 for improved interactivity. Ensure consistent 16px padding and 1.6 line-height across all states. Create theme variables file for maintainable color management. Add responsive adjustments for mobile viewports.
+
+## 5. Implement Accessibility and Performance Optimizations [pending]
+### Dependencies: 32.1, 32.2, 32.3, 32.4
+### Description: Add WCAG 2.1 AA compliance features, keyboard navigation, and performance optimizations for smooth user experience
+### Details:
+Add comprehensive ARIA attributes: aria-label, aria-describedby for validation messages, aria-invalid for error states, aria-live="polite" for dynamic updates. Implement keyboard shortcuts using useKeyboardShortcuts hook: Ctrl/Cmd+Enter for form submission, Escape to blur, Tab for proper focus flow. Ensure focus indicators meet 3:1 contrast ratio against all backgrounds. Wrap component in React.memo with custom comparison function checking only relevant props. Implement useCallback for all event handlers to prevent recreation. Add CSS contain: layout style for resize performance. Use requestAnimationFrame for auto-resize calculations. Implement intersection observer for virtual scrolling in prompt history dropdown.
+

@@ -1,0 +1,69 @@
+# Task ID: 33
+# Title: Phase 2.4: Real-time Progress and WebSocket Integration - Convert existing WebSocket progress tracking to React hooks with typed event handling and connection management
+# Status: pending
+# Dependencies: 11, 12, 29
+# Priority: medium
+# Description: Migrate the existing WebSocket connection manager and real-time progress tracking system to React hooks with TypeScript, implementing proper connection lifecycle management, typed event handling, and integration with the React component architecture
+# Details:
+Implement a comprehensive React hooks-based WebSocket integration with the following components:
+
+1. **Custom WebSocket Hook Architecture**: Create `useWebSocket.ts` custom hook with TypeScript interfaces for connection management. Define interface `IWebSocketConfig` with properties: url (string), reconnectInterval (number), maxReconnectAttempts (number), heartbeatInterval (number). Implement interface `IWebSocketState` with: connectionStatus (enum: connecting | connected | disconnected | error), lastMessage (IWebSocketMessage | null), error (Error | null). Create typed event system with discriminated unions for ComfyUI events: executing, progress, executed, execution_error.
+
+2. **Connection Lifecycle Management**: Implement automatic connection establishment on hook mount with cleanup on unmount. Create reconnection logic with exponential backoff (initial: 1s, max: 30s, factor: 1.5). Handle WebSocket lifecycle events: onopen, onclose, onerror, onmessage with proper TypeScript typing. Implement heartbeat mechanism to detect stale connections. Create connection quality monitoring with metrics: latency, message drop rate, reconnection count.
+
+3. **Event Handling and State Management**: Parse incoming WebSocket messages into typed ComfyUI events using zod or io-ts for runtime validation. Create event-specific handlers: handleExecutingEvent, handleProgressEvent, handleExecutedEvent, handleErrorEvent. Implement message queue with priority handling for critical events. Use useReducer for complex state updates with actions: CONNECTION_ESTABLISHED, MESSAGE_RECEIVED, CONNECTION_LOST, RECONNECT_ATTEMPT. Create event subscription system allowing components to subscribe to specific event types.
+
+4. **React Integration Patterns**: Create `WebSocketProvider` component wrapping application with connection context. Implement `useWebSocketConnection` hook for connection status monitoring. Create `useWebSocketEvent` hook for subscribing to specific event types with TypeScript generics. Implement `useProgressTracking` hook specifically for generation progress updates. Ensure proper cleanup and memory leak prevention with useEffect dependencies.
+
+5. **Progress Tracking Enhancement**: Migrate existing progress bar component to use new WebSocket hooks. Create interface `IProgressState` with: currentStep (number), totalSteps (number), percentage (number), currentNode (string), eta (number | null). Implement smooth progress updates with requestAnimationFrame for visual smoothness. Add progress history tracking for analytics and performance monitoring. Create progress event aggregation to handle rapid update bursts.
+
+6. **Error Handling and Recovery**: Implement comprehensive error handling for connection failures, malformed messages, and timeout scenarios. Create user-friendly error messages with recovery suggestions. Implement circuit breaker pattern to prevent excessive reconnection attempts. Add connection state persistence to localStorage for recovery after page refresh. Create fallback polling mechanism when WebSocket is unavailable.
+
+7. **Performance Optimization**: Implement message debouncing for high-frequency events. Use React.memo and useMemo to prevent unnecessary re-renders. Create selective event subscription to reduce processing overhead. Implement WebSocket message compression negotiation. Add performance monitoring with metrics: message processing time, render impact, memory usage.
+
+8. **Testing Infrastructure**: Create mock WebSocket server for testing using ws library. Implement test utilities for simulating connection states and events. Create custom render hooks for testing WebSocket hooks in isolation. Add integration tests for full connection lifecycle scenarios.
+
+# Test Strategy:
+1. **Hook Unit Testing**: Test useWebSocket hook initialization with various configurations. Verify connection establishment and cleanup on mount/unmount. Test reconnection logic with different failure scenarios and backoff calculations. Validate event parsing and type safety with malformed messages. Test state updates through reducer actions.
+
+2. **Integration Testing**: Create integration tests with mock WebSocket server simulating ComfyUI behavior. Test full connection lifecycle: connect, receive messages, disconnect, reconnect. Verify event subscription and unsubscription mechanisms. Test concurrent connections and message ordering. Validate memory cleanup and leak prevention.
+
+3. **Component Testing**: Test WebSocketProvider renders children and provides context correctly. Verify useWebSocketConnection returns accurate connection status. Test useWebSocketEvent filters events correctly by type. Validate useProgressTracking aggregates progress events properly. Test error boundary integration for WebSocket failures.
+
+4. **Performance Testing**: Measure render performance with high-frequency WebSocket events. Test memory usage over extended connections with many messages. Verify debouncing reduces unnecessary updates. Test performance impact of multiple event subscribers. Validate smooth progress bar animations under load.
+
+5. **Error Scenario Testing**: Test network disconnection and recovery scenarios. Verify handling of malformed WebSocket messages. Test timeout handling for stale connections. Validate circuit breaker prevents connection storms. Test fallback mechanisms when WebSocket unavailable.
+
+6. **End-to-End Testing**: Create E2E tests simulating real ComfyUI workflows. Test progress tracking during actual image generation. Verify connection recovery after network interruptions. Test interaction between WebSocket events and UI updates. Validate complete user journey with real-time feedback.
+
+# Subtasks:
+## 1. Create Core WebSocket Hook with TypeScript Interfaces [pending]
+### Dependencies: None
+### Description: Implement the foundational useWebSocket.ts custom hook with comprehensive TypeScript interfaces for connection configuration, state management, and typed event handling using discriminated unions for ComfyUI events
+### Details:
+Define IWebSocketConfig interface with url, reconnectInterval, maxReconnectAttempts, and heartbeatInterval properties. Create IWebSocketState interface with connectionStatus enum (connecting | connected | disconnected | error), lastMessage, and error properties. Implement discriminated union types for ComfyUI events: executing, progress, executed, execution_error. Set up the basic hook structure with useState for connection state, useEffect for lifecycle management, and useCallback for memoized handlers. Include TypeScript generics for flexible message typing.
+
+## 2. Implement Connection Lifecycle and Reconnection Logic [pending]
+### Dependencies: 33.1
+### Description: Build robust connection management with automatic reconnection using exponential backoff, heartbeat mechanism for connection health monitoring, and proper cleanup handling to prevent memory leaks
+### Details:
+Implement connection establishment logic within useEffect, handling WebSocket lifecycle events (onopen, onclose, onerror, onmessage) with proper TypeScript typing. Create exponential backoff algorithm starting at 1s, maxing at 30s with 1.5x factor. Implement heartbeat mechanism sending ping messages every 30s and tracking pong responses. Add connection quality metrics tracking latency, message drop rate, and reconnection count. Ensure proper cleanup in useEffect return function, clearing all timers and closing connections. Handle edge cases like rapid mount/unmount cycles and connection attempts during component teardown.
+
+## 3. Create Event Handling System with Runtime Validation [pending]
+### Dependencies: 33.2
+### Description: Develop a type-safe event handling system using zod for runtime validation, implementing event-specific handlers and a priority message queue for managing high-frequency updates from ComfyUI
+### Details:
+Install and configure zod for runtime message validation. Create schemas for each ComfyUI event type: executingSchema, progressSchema, executedSchema, errorSchema. Implement message parsing with try-catch blocks and fallback to raw message on validation failure. Create event-specific handlers: handleExecutingEvent (updates current node), handleProgressEvent (updates step progress), handleExecutedEvent (marks completion), handleErrorEvent (handles failures). Implement priority queue using a heap structure for message processing, prioritizing error and completion events. Use useReducer for state management with actions: CONNECTION_ESTABLISHED, MESSAGE_RECEIVED, CONNECTION_LOST, RECONNECT_ATTEMPT, MESSAGE_QUEUED.
+
+## 4. Build React Integration Components and Hooks [pending]
+### Dependencies: 33.3
+### Description: Create a complete React integration layer with WebSocketProvider context, specialized hooks for different use cases, and proper TypeScript generics for type-safe event subscriptions
+### Details:
+Create WebSocketProvider component using React Context API to provide WebSocket connection throughout the app. Implement useWebSocketConnection hook returning connection status and quality metrics. Create generic useWebSocketEvent<T> hook allowing components to subscribe to specific event types with full type safety. Develop specialized useProgressTracking hook that specifically handles progress events and provides currentStep, totalSteps, percentage, currentNode, and eta. Ensure all hooks properly handle provider absence with helpful error messages. Implement proper dependency arrays and cleanup functions to prevent stale closures and memory leaks.
+
+## 5. Migrate Progress Components and Add Enhanced Features [pending]
+### Dependencies: 33.4
+### Description: Convert existing progress bar component to use new WebSocket hooks, implement smooth animations with requestAnimationFrame, add progress history tracking, and create comprehensive error handling with fallback mechanisms
+### Details:
+Refactor existing progress bar component to use useProgressTracking hook, removing direct WebSocket dependencies. Implement smooth progress transitions using requestAnimationFrame for 60fps updates. Create progress history system storing last 100 progress events for analytics. Add debouncing for rapid progress updates using a 16ms threshold. Implement error boundary around progress component with fallback UI. Create circuit breaker pattern preventing more than 5 reconnection attempts in 60 seconds. Add localStorage persistence for connection state and last known progress. Implement fallback HTTP polling (every 2s) when WebSocket fails. Add performance monitoring tracking render time, update frequency, and memory usage.
+

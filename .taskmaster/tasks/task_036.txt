@@ -1,0 +1,73 @@
+# Task ID: 36
+# Title: Phase 3.2: Metadata Display System Migration - Convert existing metadata parser and display components to React with collapsible sections, timing analysis, and copy functionality
+# Status: pending
+# Dependencies: 14, 27, 28, 29
+# Priority: medium
+# Description: Migrate the existing metadata extraction and display system from vanilla JavaScript to a comprehensive React component architecture with TypeScript, implementing collapsible sections, enhanced timing analysis, and clipboard functionality while maintaining compatibility with ComfyUI's history API
+# Details:
+Implement a comprehensive React-based metadata display system with the following components:
+
+1. **React Component Architecture**: Create `MetadataPanel.tsx` as the main container component using React hooks and TypeScript. Define interface `IMetadata` with properties: generation (IGenerationParams), model (IModelInfo), image (IImageParams), timing (ITimingInfo), prompts (IPromptInfo), workflow (IWorkflowInfo). Create interface `IGenerationParams` with: steps (number), cfg (number), sampler (string), scheduler (string), seed (number), denoise (number). Implement interface `IModelInfo` with: name (string), architecture (string), hash (string), vae (string). Create interface `IImageParams` with: width (number), height (number), batchSize (number). Define interface `ITimingInfo` with: startTime (Date), endTime (Date), duration (number), nodeTimings (Map<string, number>).
+
+2. **Metadata Parser Service**: Migrate existing metadata parser to `metadataParser.ts` service with TypeScript. Implement `parseComfyUIHistory(historyData: any): IMetadata[]` function to extract metadata from ComfyUI history responses. Create specialized parsers for different architectures: `parseSD15Metadata()`, `parseSDXLMetadata()`, `parseFluxMetadata()`, `parseSD3Metadata()`. Implement node traversal logic to find KSampler, CLIPTextEncode, CheckpointLoaderSimple, and other relevant nodes. Add error handling for malformed or incomplete workflow data.
+
+3. **Collapsible Section Components**: Create `CollapsibleSection.tsx` component with smooth expand/collapse animations. Implement interface `ICollapsibleSectionProps` with: title (string), defaultExpanded (boolean), icon (ReactNode), children (ReactNode). Use React Spring or Framer Motion for smooth height animations. Implement keyboard navigation with Enter/Space to toggle sections. Add ARIA attributes for accessibility: aria-expanded, aria-controls, role="button".
+
+4. **Timing Analysis Component**: Create `TimingAnalysis.tsx` to display detailed generation timing information. Implement duration formatting utilities: `formatDuration(ms: number): string` for human-readable time display. Create timing breakdown visualization showing per-node execution times. Implement performance metrics: average generation time, node bottleneck identification. Add comparison functionality to compare timing across multiple generations.
+
+5. **Copy Functionality Integration**: Implement `useCopyToClipboard` custom hook with success/error feedback. Create `CopyButton.tsx` component with tooltip feedback on copy action. Add copy options: full metadata JSON, formatted text, individual parameters. Implement keyboard shortcut (Ctrl/Cmd+C) when metadata section is focused. Use navigator.clipboard API with fallback for older browsers.
+
+6. **Metadata Display Components**: Create `MetadataSection.tsx` for individual parameter groups with consistent styling. Implement `MetadataValue.tsx` component for displaying key-value pairs with proper formatting. Create specialized components: `PromptDisplay.tsx` for multiline prompt display with syntax highlighting, `ModelInfoDisplay.tsx` with model architecture badge, `SeedDisplay.tsx` with copy and reuse functionality. Add hover tooltips explaining each parameter's purpose.
+
+7. **State Management**: Implement metadata state using React Context API or Zustand. Create `MetadataContext` with actions: setMetadata, clearMetadata, updateTiming. Implement metadata caching to prevent redundant API calls. Add metadata comparison state for side-by-side analysis. Integrate with existing app state for coordinated updates.
+
+8. **Dark Theme Styling**: Preserve existing dark theme colors: panel background (#181825), text (#ffffff, #9ca3af), borders (#374151). Implement CSS-in-JS or CSS Modules for component styling. Add hover states with subtle background color changes. Implement focus styles for keyboard navigation. Create loading skeletons for async metadata loading.
+
+9. **Integration with History API**: Create `useComfyUIHistory` hook to fetch and parse history data. Implement polling or WebSocket updates for real-time metadata updates. Add error handling for API failures with retry logic. Cache parsed metadata to improve performance. Implement pagination for large history lists.
+
+10. **Accessibility and UX**: Ensure WCAG 2.1 AA compliance for all interactive elements. Implement keyboard navigation for all collapsible sections. Add screen reader announcements for copy actions and state changes. Implement responsive design for mobile devices. Add loading states and error boundaries for robust error handling.
+
+# Test Strategy:
+1. **Component Unit Tests**: Test MetadataPanel renders correctly with various metadata structures. Verify CollapsibleSection expands/collapses with proper animations and ARIA updates. Test CopyButton successfully copies different data formats to clipboard. Validate MetadataSection displays all parameter types correctly.
+
+2. **Parser Testing**: Test metadataParser with various ComfyUI history response formats. Verify architecture-specific parsers extract correct parameters. Test error handling with malformed or incomplete workflow data. Validate timing calculations and duration formatting.
+
+3. **Integration Tests**: Test integration with ComfyUI history API endpoints. Verify real-time updates when new generations complete. Test metadata caching prevents redundant API calls. Validate state synchronization between metadata and app contexts.
+
+4. **Accessibility Testing**: Verify keyboard navigation works for all interactive elements. Test screen reader announcements for state changes. Validate ARIA attributes update correctly. Test focus management in collapsible sections.
+
+5. **Performance Tests**: Measure render performance with large metadata objects. Test animation performance on lower-end devices. Verify memory usage with extended metadata history. Test clipboard operations with large data sets.
+
+6. **Visual Regression Tests**: Capture screenshots of all metadata display states. Test dark theme consistency across components. Verify responsive layouts at different breakpoints. Test loading and error states visually.
+
+# Subtasks:
+## 1. Create Core TypeScript Interfaces and Data Models [pending]
+### Dependencies: None
+### Description: Define all TypeScript interfaces and types for the metadata display system including IMetadata, IGenerationParams, IModelInfo, IImageParams, ITimingInfo, and IPromptInfo
+### Details:
+Create a new file `src/types/metadata.types.ts` containing all interface definitions. Define IMetadata as the root interface with properties for generation, model, image, timing, prompts, and workflow. Implement IGenerationParams with steps, cfg, sampler, scheduler, seed, and denoise properties. Create IModelInfo with name, architecture, hash, and vae fields. Define IImageParams with width, height, and batchSize. Implement ITimingInfo with startTime, endTime, duration, and nodeTimings Map. Create IPromptInfo for positive and negative prompts. Add IWorkflowInfo for raw workflow data storage.
+
+## 2. Implement Metadata Parser Service with Architecture-Specific Parsers [pending]
+### Dependencies: 36.1
+### Description: Migrate the existing metadata parser from vanilla JavaScript to a TypeScript service with specialized parsers for different model architectures
+### Details:
+Create `src/services/metadataParser.ts` with the main `parseComfyUIHistory()` function. Implement node traversal logic to extract data from KSampler, CLIPTextEncode, CheckpointLoaderSimple nodes. Create specialized parser functions: `parseSD15Metadata()`, `parseSDXLMetadata()`, `parseFluxMetadata()`, and `parseSD3Metadata()` to handle architecture-specific differences. Add comprehensive error handling for malformed data, missing nodes, and unexpected workflow structures. Implement fallback values for optional parameters. Create helper functions for common parsing tasks like extracting prompt text, model names, and timing data.
+
+## 3. Build MetadataPanel Container Component with State Management [pending]
+### Dependencies: 36.1, 36.2
+### Description: Create the main MetadataPanel React component with integrated state management using Context API or Zustand
+### Details:
+Implement `src/components/metadata/MetadataPanel.tsx` as the primary container component. Set up MetadataContext with actions for setMetadata, clearMetadata, and updateTiming. Create the component structure with proper TypeScript typing and React hooks. Implement metadata fetching logic using the parser service. Add caching mechanism to prevent redundant API calls. Create loading and error states with appropriate UI feedback. Integrate with the existing app state for coordinated updates. Implement the component layout to match the existing dark theme design with proper spacing and organization.
+
+## 4. Create Collapsible Section Components with Animations and Accessibility [pending]
+### Dependencies: 36.3
+### Description: Build reusable CollapsibleSection components with smooth animations, keyboard navigation, and full accessibility support
+### Details:
+Create `src/components/common/CollapsibleSection.tsx` with ICollapsibleSectionProps interface. Implement smooth height animations using React Spring or Framer Motion for expand/collapse transitions. Add keyboard event handlers for Enter and Space keys to toggle sections. Implement proper ARIA attributes including aria-expanded, aria-controls, and role='button'. Create visual indicators for section state with rotating chevron icons. Add focus management and tab navigation support. Style components to match the dark theme with hover states (#1f2937 on hover) and focus rings. Ensure smooth performance even with large content areas.
+
+## 5. Implement Specialized Display Components with Copy Functionality [pending]
+### Dependencies: 36.3, 36.4
+### Description: Create specialized metadata display components including TimingAnalysis, CopyButton, PromptDisplay, and other parameter-specific components with clipboard integration
+### Details:
+Build `src/components/metadata/TimingAnalysis.tsx` with duration formatting utilities and per-node execution visualization. Create `src/hooks/useCopyToClipboard.ts` custom hook with success/error feedback and fallback for older browsers. Implement `src/components/common/CopyButton.tsx` with tooltip feedback and keyboard shortcuts (Ctrl/Cmd+C). Create `src/components/metadata/PromptDisplay.tsx` with multiline text display and optional syntax highlighting. Build `src/components/metadata/ModelInfoDisplay.tsx` with architecture badges and model details. Implement `src/components/metadata/SeedDisplay.tsx` with copy and reuse functionality. Style all components with consistent dark theme colors and spacing.
+

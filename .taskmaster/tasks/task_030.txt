@@ -1,0 +1,76 @@
+# Task ID: 30
+# Title: Phase 2.1: Navigation System Migration - Convert existing tab-based navigation to React Router with proper state management and accessibility features
+# Status: pending
+# Dependencies: 24, 27, 28
+# Priority: medium
+# Description: Migrate the existing ComfyUI tab-based navigation header to React Router v6, implementing proper route management, state persistence, and WCAG 2.1 AA accessibility standards while preserving the current dark theme design and responsive behavior
+# Details:
+Implement a comprehensive React Router navigation system with the following components:
+
+1. **React Router Setup and Configuration**: Install react-router-dom v6 and configure BrowserRouter in App.tsx root component. Define route structure matching existing tabs: /generate (default), /history, /models, /settings, /queue. Implement route guards and lazy loading for performance optimization using React.lazy() and Suspense boundaries. Configure 404 fallback route redirecting to /generate.
+
+2. **Navigation Component Migration**: Convert existing header navigation tabs to React Router NavLink components. Preserve exact styling from Task 24 including dark theme colors (#0b0f19 background, #ff7c00 active state). Implement activeClassName handling for visual feedback matching current active tab styling. Add aria-current="page" for active routes and proper ARIA labels for screen readers. Maintain sticky positioning behavior (position: fixed, z-index: 1000).
+
+3. **Route State Management**: Implement custom useNavigationState hook for managing navigation-related state. Create NavigationContext using React Context API for sharing navigation data across components. Handle browser back/forward button navigation with proper state restoration. Implement beforeunload handlers for unsaved changes warnings. Add URL parameter support for deep linking to specific UI states.
+
+4. **Component Route Integration**: Create route-specific container components for each navigation tab:
+   - GenerateRoute: Main generation interface with workflow management
+   - HistoryRoute: Generation history with metadata display
+   - ModelsRoute: Model management interface
+   - SettingsRoute: Application settings and configuration
+   - QueueRoute: Active generation queue management
+
+5. **Accessibility Enhancements**: Implement keyboard navigation with Tab/Shift+Tab for focus management. Add Skip Navigation link for screen reader users. Ensure all interactive elements have focus indicators matching design system. Implement ARIA live regions for route change announcements. Add proper heading hierarchy (h1 for page title, h2 for sections).
+
+6. **Performance Optimizations**: Implement route-based code splitting with dynamic imports. Add loading skeletons for lazy-loaded routes matching dark theme aesthetic. Prefetch route components on hover/focus for instant navigation. Implement route transition animations using CSS transitions (opacity/transform).
+
+7. **Mobile Responsive Behavior**: Adapt navigation for mobile breakpoints (<768px) with hamburger menu pattern. Implement touch-friendly tap targets (minimum 44x44px). Add swipe gestures for navigation between adjacent routes. Ensure proper viewport handling for iOS Safari.
+
+8. **Testing Infrastructure**: Set up React Router testing utilities with MemoryRouter for unit tests. Create navigation test helpers for simulating route changes. Add accessibility testing with jest-axe for WCAG compliance. Implement visual regression tests for navigation states.
+
+# Test Strategy:
+1. **Route Navigation Testing**: Verify all routes render correct components (/generate, /history, /models, /settings, /queue). Test browser back/forward navigation maintains proper state. Validate deep linking with URL parameters works correctly. Ensure 404 fallback redirects to /generate route.
+
+2. **Visual Consistency Testing**: Compare migrated navigation with original implementation using visual regression tests. Verify dark theme colors match exactly (#0b0f19, #ff7c00, etc). Test sticky positioning behavior on scroll across all routes. Validate responsive breakpoints maintain proper layout.
+
+3. **Accessibility Testing**: Run axe-core automated accessibility tests on all routes. Test keyboard navigation with Tab key through entire navigation. Verify screen reader announces route changes properly. Validate ARIA attributes (aria-current, aria-label) are correctly applied.
+
+4. **Performance Testing**: Measure route transition times and ensure <100ms for perceived instant navigation. Verify code splitting reduces initial bundle size by at least 30%. Test lazy loading shows appropriate loading states. Monitor memory usage across multiple navigation cycles.
+
+5. **State Management Testing**: Test navigation state persistence across route changes. Verify unsaved changes warnings appear when appropriate. Test URL parameter handling for various edge cases. Validate context updates propagate to all consuming components.
+
+6. **Mobile Testing**: Test touch interactions on actual devices (iOS Safari, Chrome Android). Verify hamburger menu opens/closes smoothly. Test swipe gestures for navigation work intuitively. Validate viewport handling prevents horizontal scroll.
+
+7. **Integration Testing**: Test navigation integration with existing ComfyUI API calls. Verify WebSocket connections maintain across route changes. Test localStorage persistence works with navigation state. Validate preset management functions correctly on all routes.
+
+# Subtasks:
+## 1. Install and Configure React Router v6 [pending]
+### Dependencies: None
+### Description: Set up React Router dependencies and configure the base routing infrastructure with BrowserRouter in App.tsx
+### Details:
+Install react-router-dom v6 package. Create routing configuration in App.tsx with BrowserRouter wrapping the application. Define base route structure matching existing tabs: /generate (default), /history, /models, /settings, /queue. Configure 404 fallback route that redirects to /generate. Set up React.lazy and Suspense boundaries for route-level code splitting. Create route constants file for centralized route definitions.
+
+## 2. Migrate Navigation Header to React Router Components [pending]
+### Dependencies: 30.1
+### Description: Convert the existing tab-based navigation header from Task 24 to use React Router NavLink components while preserving all styling and behavior
+### Details:
+Create NavigationHeader component using NavLink instead of button elements. Preserve exact dark theme styling: #0b0f19 background, #ff7c00 active state, hover effects. Implement activeClassName handling to match current active tab visual feedback. Maintain sticky positioning (position: fixed, z-index: 1000) and flexbox layout. Add aria-current='page' for active routes and proper ARIA labels. Ensure smooth transitions between route changes matching existing animations.
+
+## 3. Implement Route State Management and Context [pending]
+### Dependencies: 30.2
+### Description: Create navigation state management system with React Context API for sharing navigation data and handling browser navigation events
+### Details:
+Create custom useNavigationState hook for managing navigation-related state. Implement NavigationContext provider wrapping the app for sharing navigation data. Handle browser back/forward button navigation with popstate event listeners. Implement beforeunload handlers to warn users about unsaved changes in generation forms. Add URL parameter support for deep linking (e.g., /generate?workflow=preset-id). Create route transition middleware for state persistence between navigation changes.
+
+## 4. Create Route-Specific Container Components [pending]
+### Dependencies: 30.3
+### Description: Build container components for each navigation route that integrate with existing UI components and manage route-specific state
+### Details:
+Create GenerateRoute component integrating workflow upload, parameter controls, and generation UI. Build HistoryRoute component displaying generation history with metadata from Task 13. Implement ModelsRoute for model management interface. Create SettingsRoute for API configuration and preferences. Build QueueRoute showing active generation queue with cancel functionality from Task 13. Each component should handle route-specific state, lifecycle methods, and cleanup on unmount.
+
+## 5. Implement Accessibility and Performance Enhancements [pending]
+### Dependencies: 30.4
+### Description: Add WCAG 2.1 AA accessibility features and performance optimizations including mobile responsiveness and route transitions
+### Details:
+Implement keyboard navigation with Tab/Shift+Tab focus management across routes. Add Skip Navigation link for screen reader users at the top of the page. Ensure focus indicators match design system (outline with #ff7c00 color). Implement ARIA live regions announcing route changes. Add proper heading hierarchy (h1 for route titles). Create hamburger menu for mobile breakpoints (<768px) with touch-friendly tap targets (44x44px minimum). Add route prefetching on hover/focus. Implement smooth route transitions using CSS opacity/transform animations.
+

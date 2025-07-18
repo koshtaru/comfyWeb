@@ -1,0 +1,53 @@
+# Task ID: 22
+# Title: Implement Advanced Sequence Seed Generator integration with AdvancedSequenceSeedNode
+# Status: done
+# Dependencies: 5
+# Priority: medium
+# Description: Replace basic seed control with sophisticated sequence-based seed generation supporting Fibonacci, Random, Linear, and Custom sequences. Include seed range controls, noise factors, sequence navigation, and collapsible UI panel.
+# Details:
+Create a comprehensive seed generation system with the following components:
+
+1. **AdvancedSequenceSeedNode Integration**: Implement TypeScript interface for AdvancedSequenceSeedNode matching ComfyUI's node structure. Create service class to manage seed sequence generation with methods for each sequence type (Fibonacci, Random, Linear, Custom). Include seed caching mechanism to maintain sequence state across generations.
+
+2. **Sequence Generation Algorithms**:
+   - Fibonacci: Implement F(n) = F(n-1) + F(n-2) with configurable starting seeds
+   - Linear: Create arithmetic progression with configurable step size
+   - Random: Use cryptographically secure random generation with range constraints
+   - Custom: Parse user-defined comma-separated seed lists with validation
+
+3. **UI Components**:
+   - Create collapsible panel component using existing design system patterns (dark theme #1f2937 background)
+   - Implement sequence type dropdown with icons for each mode
+   - Add dual number inputs for seed range (min/max) with validation
+   - Create noise factor slider (0-1) with real-time preview
+   - Build sequence navigation controls (prev/next/reset) with disabled states
+   - Display current seed value and position in sequence
+
+4. **Workflow Integration**:
+   - Detect and update seed values in workflow JSON for all nodes supporting seed parameters
+   - Implement seed synchronization across multiple nodes when 'sync seeds' option is enabled
+   - Create seed history tracking for undo/redo functionality
+   - Add seed export/import for sequence persistence
+
+5. **State Management**:
+   - Store sequence state in component with React hooks
+   - Implement sequence position tracking and boundary handling
+   - Add noise application logic: finalSeed = baseSeed + (noise * randomFactor)
+   - Create seed preview system showing next 5 seeds in sequence
+
+6. **Error Handling**:
+   - Validate seed ranges (min <= max, positive values)
+   - Handle custom sequence parsing errors gracefully
+   - Implement overflow protection for Fibonacci sequences
+   - Add clear error messages following existing UI patterns
+
+# Test Strategy:
+1. **Unit Tests**: Test each sequence generation algorithm with edge cases (overflow, negative values, empty custom lists). Verify noise factor application produces expected variations. Test seed range validation and clamping logic.
+
+2. **Component Tests**: Verify collapsible panel animations and state persistence. Test sequence navigation controls enable/disable correctly at boundaries. Validate dropdown selection updates UI and generates correct sequences. Test number input validation and error display.
+
+3. **Integration Tests**: Verify workflow JSON is correctly updated with generated seeds. Test seed synchronization across multiple nodes. Validate sequence state persists across component re-renders. Test seed history and undo/redo functionality.
+
+4. **E2E Tests**: Generate images with each sequence type and verify seed progression. Test sequence reset and navigation during active generation. Verify UI updates in real-time during sequence progression. Test edge cases like switching sequence types mid-generation.
+
+5. **Performance Tests**: Measure Fibonacci calculation performance for large indices. Test UI responsiveness with rapid sequence navigation. Verify memory usage remains stable with long sequence histories.

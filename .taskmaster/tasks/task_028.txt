@@ -1,0 +1,65 @@
+# Task ID: 28
+# Title: Phase 1.2: CSS Migration and Component Architecture - Preserve existing dark theme design system and establish React component architecture with proper CSS organization and responsive design
+# Status: pending
+# Dependencies: 27
+# Priority: medium
+# Description: Migrate the existing dark theme CSS design system to a modular React component architecture with CSS-in-JS or CSS Modules, preserving all visual styling while establishing scalable component patterns and responsive design breakpoints
+# Details:
+Implement a comprehensive CSS migration strategy with the following components:
+
+1. **Design System Migration**: Extract CSS variables from style.css (:root definitions) into a centralized theme configuration. Create theme provider using React Context API to enable dynamic theming. Preserve exact color values: --color-bg-primary (#0b0f19), --color-bg-secondary (#181825), --color-bg-tertiary (#1f2937), --color-accent-orange (#ff7c00), --color-accent-blue (#1f77b4). Migrate typography scales, spacing units, and shadow definitions to JavaScript theme object.
+
+2. **CSS Architecture Selection**: Evaluate and implement CSS-in-JS solution (styled-components or emotion) vs CSS Modules based on bundle size and performance requirements. For CSS-in-JS: Install styled-components with TypeScript definitions, create styled.d.ts for theme typing, implement global styles with createGlobalStyle. For CSS Modules: Configure Vite for CSS Modules support, create component.module.css files, implement typed CSS modules with typescript-plugin-css-modules.
+
+3. **Component Architecture Setup**: Create atomic design structure: atoms (Button, Input, Label), molecules (FormField, Card, Modal), organisms (Header, Sidebar, GenerationControls). Implement base components with proper TypeScript interfaces and prop validation. Create compound components for complex UI patterns (Tab.Group, Tab.List, Tab.Panel). Establish naming conventions and file organization patterns.
+
+4. **Responsive Design System**: Migrate existing breakpoints (480px, 768px, 1024px) to JavaScript constants or CSS custom properties. Implement responsive utilities using CSS Grid and Flexbox with mobile-first approach. Create useMediaQuery custom hook for JavaScript-based responsive behavior. Build responsive typography scale with clamp() for fluid sizing. Ensure touch-friendly tap targets (minimum 44px) on mobile devices.
+
+5. **Style Migration Strategy**: Create migration checklist for each CSS file section. Start with global styles and CSS reset, then migrate component styles in dependency order. Preserve all hover states, focus styles, and transition animations. Maintain exact visual parity with before/after screenshot comparisons. Document any CSS specificity changes or cascade differences.
+
+6. **Performance Optimization**: Implement CSS code splitting by route or component lazy loading. Use CSS containment for layout performance. Optimize critical CSS delivery for above-the-fold content. Implement CSS purging for unused styles in production builds. Monitor bundle size impact with webpack-bundle-analyzer.
+
+# Test Strategy:
+1. **Visual Regression Testing**: Set up Percy or Chromatic for automated visual regression tests. Capture baseline screenshots of all major UI states from current implementation. Run visual diffs after each component migration to ensure pixel-perfect accuracy. Test responsive breakpoints at 320px, 768px, 1024px, and 1440px widths.
+
+2. **Theme System Testing**: Unit test theme provider and context implementation. Verify CSS variables are correctly injected and accessible. Test theme switching functionality if implemented. Validate TypeScript theme typing catches invalid theme values.
+
+3. **Component Testing**: Write unit tests for each migrated component using React Testing Library. Test component props, states, and event handlers. Verify CSS classes or styled-components are applied correctly. Test responsive behavior with different viewport sizes.
+
+4. **Performance Testing**: Measure initial CSS bundle size vs new implementation. Run Lighthouse performance audits before and after migration. Test time to first contentful paint (FCP) and largest contentful paint (LCP). Verify no CSS-in-JS runtime performance degradation.
+
+5. **Cross-Browser Testing**: Test on Chrome, Firefox, Safari, and Edge latest versions. Verify CSS Grid and Flexbox layouts render consistently. Test CSS custom properties fallbacks for older browsers. Validate responsive design on actual mobile devices (iOS Safari, Chrome Android).
+
+6. **Accessibility Testing**: Run axe-core automated accessibility tests on all components. Verify focus styles meet WCAG 2.1 AA contrast requirements. Test keyboard navigation maintains visual focus indicators. Validate color contrast ratios in both light and dark themes.
+
+# Subtasks:
+## 1. Extract and Migrate Design System Variables [pending]
+### Dependencies: None
+### Description: Extract all CSS custom properties from style.css and create a centralized JavaScript theme object with TypeScript definitions
+### Details:
+Parse style.css to extract all :root CSS variables including colors (--color-bg-primary: #0b0f19, --color-bg-secondary: #181825, --color-bg-tertiary: #1f2937, --color-accent-orange: #ff7c00, --color-accent-blue: #1f77b4), typography scales, spacing units, border radii, and shadow definitions. Create a theme.ts file with proper TypeScript interfaces for theme structure. Implement ThemeProvider component using React Context API to provide theme values throughout the application. Create useTheme custom hook for accessing theme values in components.
+
+## 2. Implement CSS-in-JS Solution with Styled Components [pending]
+### Dependencies: 28.1
+### Description: Set up styled-components with TypeScript support and create foundational styling utilities
+### Details:
+Install styled-components and @types/styled-components dependencies. Create styled.d.ts file to extend DefaultTheme interface with our custom theme structure. Implement GlobalStyles component using createGlobalStyle to handle CSS reset, base typography, and global styles. Create styled utility functions for common patterns like media queries, theme value access, and CSS mixins. Set up babel-plugin-styled-components for better debugging experience with component names. Configure Vite to properly handle styled-components in both development and production builds.
+
+## 3. Build Atomic Component Architecture Foundation [pending]
+### Dependencies: 28.2
+### Description: Create base component library following atomic design principles with proper TypeScript interfaces
+### Details:
+Establish component directory structure: src/components/atoms/, molecules/, organisms/, templates/. Create foundational atom components: Button (with variants: primary, secondary, ghost), Input (text, number, file types), Label, Icon, Spinner. Build molecule components: FormField (combining Label + Input + error state), Card, Modal, Tooltip. Implement organism components: Header (with navigation tabs), Sidebar, GenerationControls panel. Each component should have TypeScript interface for props, styled-components implementation, and Storybook story for documentation. Ensure all components support theme values and maintain visual parity with existing CSS.
+
+## 4. Implement Responsive Design System and Utilities [pending]
+### Dependencies: 28.2
+### Description: Create responsive design utilities and migrate existing breakpoints to React-compatible system
+### Details:
+Define breakpoint constants matching existing values (mobile: 480px, tablet: 768px, desktop: 1024px) in theme configuration. Create media query utility functions for styled-components that support min-width, max-width, and between queries. Implement useMediaQuery custom hook using window.matchMedia API with proper SSR support. Create responsive grid and flex layout components with mobile-first approach. Build responsive typography system using CSS clamp() for fluid font sizes. Ensure all interactive elements meet 44px minimum touch target size on mobile. Create useResponsive hook that provides current breakpoint information to components.
+
+## 5. Execute Systematic Style Migration and Visual Validation [pending]
+### Dependencies: 28.3, 28.4
+### Description: Migrate all component styles from CSS to styled-components while maintaining exact visual parity
+### Details:
+Create detailed migration checklist mapping each CSS file section to corresponding React components. Start migration with global styles and CSS reset into GlobalStyles component. Migrate component styles in order of dependency: atoms first, then molecules, then organisms. For each component: extract relevant CSS rules, convert to styled-components syntax, preserve all pseudo-classes (:hover, :focus, :active), maintain transition animations and timing functions, ensure CSS specificity matches original. Use visual regression testing tool (Percy or Chromatic) to capture before/after screenshots. Document any necessary CSS cascade adjustments. Handle edge cases like third-party library styling overrides.
+

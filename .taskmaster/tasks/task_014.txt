@@ -1,6 +1,6 @@
 # Task ID: 14
 # Title: Build Metadata Extraction and Display System
-# Status: pending
+# Status: done
 # Dependencies: None
 # Priority: medium
 # Description: Create comprehensive metadata display panel showing generation parameters, timing, and workflow details
@@ -11,31 +11,140 @@ Build metadata parser for ComfyUI history responses. Extract generation paramete
 Unit tests for metadata parsing from various ComfyUI response formats. Component tests for metadata display and organization. User testing for metadata readability and usefulness. Integration tests with different workflow types.
 
 # Subtasks:
-## 1. Create Metadata Parser Module [pending]
+## 1. Create Metadata Parser Module [done]
 ### Dependencies: None
 ### Description: Build a robust parser to extract metadata from ComfyUI history API responses
 ### Details:
 Create a metadata parser module that handles various ComfyUI response formats. Parse workflow execution data to extract: prompt text, negative prompt, model name/hash, sampler type, scheduler, CFG scale, steps, seed values, image dimensions (width/height), batch size, clip skip, VAE settings. Handle nested JSON structures and optional fields gracefully. Create type definitions for metadata structure. Implement error handling for malformed or incomplete responses.
+<info added on 2025-07-17T17:46:02.939Z>
+Successfully implemented the MetadataParser module with comprehensive functionality:
 
-## 2. Implement Timing Information Calculator [pending]
+## Core Implementation:
+- **MetadataParser Class**: Created robust parser class with support for various ComfyUI response formats
+- **Comprehensive Metadata Structure**: Defined complete metadata object with sections for generation, prompts, model, timing, and technical info
+- **parseWorkflowMetadata()**: Extracts metadata from ComfyUI workflow JSON files
+- **parseHistoryResponse()**: Parses ComfyUI history API responses for timing and execution data
+- **Enhanced Parameter Extraction**: Supports all major node types (KSampler, FluxSampler, CLIPTextEncode, etc.)
+
+## Key Features:
+- **Multi-Architecture Support**: Handles SD1.5, SDXL, Flux, and SD3 workflows
+- **Robust Error Handling**: Graceful handling of malformed/incomplete responses
+- **Type Safety**: Comprehensive validation and normalization of extracted values
+- **Extensible Design**: Easy to add new node types and parameters
+- **Integration Ready**: Seamlessly integrated with existing workflow upload and history polling systems
+
+## Integration Points:
+- Workflow metadata parsed and stored in AppState.workflowMetadata during file upload
+- History metadata extracted and returned with generation results
+- Automatic cleanup when workflows are cleared or errors occur
+- Global metadataParser instance available for use throughout the application
+
+## Technical Details:
+- Supports 17+ different node types across all major ComfyUI workflows
+- Extracts 15+ different parameter types (steps, CFG, sampler, scheduler, seed, dimensions, etc.)
+- Intelligent negative prompt detection using keyword analysis
+- Model architecture detection based on node type patterns
+- Timing information calculation from execution data
+- Comprehensive metadata validation and normalization
+
+The MetadataParser is now ready to support the metadata display components in subsequent tasks.
+</info added on 2025-07-17T17:46:02.939Z>
+
+## 2. Implement Timing Information Calculator [done]
 ### Dependencies: 14.1
 ### Description: Create functions to calculate and format generation timing data from ComfyUI responses
 ### Details:
 Extract timestamp data from ComfyUI history responses including start time, end time, and node execution times. Calculate total generation duration in seconds/minutes. Format timestamps for display (e.g., '2 min 34 sec' or 'Started at 14:23:45'). Calculate per-step timing if available. Handle timezone conversions for accurate local time display. Create utility functions for consistent time formatting across the UI.
+<info added on 2025-07-17T17:56:23.633Z>
+Successfully implemented comprehensive timing information calculator with advanced features:
 
-## 3. Design Metadata Display Component Structure [pending]
+## Core Implementation:
+- **TimingCalculator Class**: Comprehensive timing utilities for ComfyUI generation data
+- **Enhanced MetadataParser Integration**: Updated extractTimingInfo() to use TimingCalculator
+- **Comprehensive Timing Structure**: Extended metadata timing object with formatted, analysis, and per-step data
+- **Utils Integration**: Added timing utilities to Utils object for easy UI consumption
+
+## Key Features:
+- **Duration Formatting**: Multiple formats (short: '2:34', long: '2 minutes 34 seconds')
+- **Timestamp Formatting**: Locale-aware with timezone support using Intl.DateTimeFormat
+- **Relative Time**: 'just now', '3 minutes ago', '2 hours ago', etc.
+- **Time Range Formatting**: 'Started at 14:23:45 - Completed at 14:26:19'
+- **Per-Step Timing Analysis**: Identifies slowest/fastest nodes with percentage breakdown
+- **Timezone Support**: Automatic timezone detection with DST handling
+- **Efficiency Analysis**: Queue vs execution time percentages
+
+## Enhanced Metadata Structure:
+Extended timing object with formatted strings, analysis data, per-step breakdowns, and timezone information for comprehensive timing display.
+
+## Utils Integration:
+- Utils.formatGenerationTime(metadata) - Complete timing summary
+- Utils.formatDurationShort(ms) - Short format like '2:34'
+- Utils.formatDurationLong(ms) - Long format like '2 minutes 34 seconds'
+- Utils.getRelativeTime(timestamp) - '3 minutes ago'
+- Utils.formatTimeWithTimezone(timestamp) - Timezone-aware formatting
+- Utils.formatTimingSummary(timingData) - Comprehensive timing analysis
+
+## Advanced Features:
+- **Error Handling**: Comprehensive error handling with fallback to basic timing
+- **Performance**: Efficient calculations without blocking UI
+- **Flexibility**: Configurable formatting options and localization
+- **Cross-browser**: Compatible with all modern browsers
+- **Type Safety**: Robust validation and type checking
+
+## Integration Points:
+- Automatic enhancement of MetadataParser timing extraction
+- Ready for metadata display components (14.3)
+- Seamless integration with existing WebSocket timing events
+- Prepared for future timing analytics features
+
+The TimingCalculator is now fully integrated and ready to provide rich timing information for the metadata display system.
+</info added on 2025-07-17T17:56:23.633Z>
+
+## 3. Design Metadata Display Component Structure [done]
 ### Dependencies: 14.1, 14.2
 ### Description: Create React component architecture for the metadata panel with proper state management
 ### Details:
 Design MetadataPanel component with collapsible/expandable sections. Create sub-components for parameter groups: Generation Settings (model, sampler, steps, CFG), Prompt Information (positive/negative with truncation), Image Properties (dimensions, batch size), Timing Data (start, duration, completion). Implement component state for expand/collapse functionality. Use React hooks for state management and memoization for performance. Structure components for reusability and maintainability.
+<info added on 2025-07-17T19:23:37.844Z>
+COMPLETED: Fixed MetadataPanel CSS Grid layout positioning issue.
 
-## 4. Implement Dark Theme Styling and Layout [pending]
+PROBLEM: The 3-column layout (Generation Settings, Image Properties, Timing Information) wasn't working correctly. The Timing Information section was appearing below Image Properties instead of in the third column of the same row.
+
+ROOT CAUSE: The nth-child CSS selectors were incorrect. The HTML structure includes a title element as the first child, so the metadata sections are actually children 2, 3, and 4, not 1, 2, and 3.
+
+SOLUTION IMPLEMENTED:
+1. Identified HTML structure in generatePanelHTML() method:
+   - Child 1: .metadata-title (Generation Details)
+   - Child 2: Generation Settings .metadata-section 
+   - Child 3: Image Properties .metadata-section
+   - Child 4: Timing Information .metadata-section
+   - Child 5: .metadata-prompt-section (full width)
+   - Child 6: .metadata-actions (full width)
+
+2. Updated CSS Grid positioning in style.css:
+   - .metadata-section:nth-child(2) { grid-column: 1; grid-row: 1; }
+   - .metadata-section:nth-child(3) { grid-column: 2; grid-row: 1; } 
+   - .metadata-section:nth-child(4) { grid-column: 3; grid-row: 1; }
+
+RESULT: All three sections now appear correctly in the first row with proper grid positioning, and the Prompt Information section spans full width below them.
+
+FILES MODIFIED:
+- /Users/james.crawford/ComfyotgTest/style.css (lines 1744-1747)
+
+TECHNICAL DETAILS:
+- Used explicit CSS Grid positioning with nth-child selectors
+- Maintained responsive breakpoints for mobile/tablet views
+- Preserved existing full-width sections (.metadata-prompt-section, .metadata-actions)
+- Layout now matches user requirements: 3 columns top row + full-width bottom row
+</info added on 2025-07-17T19:23:37.844Z>
+
+## 4. Implement Dark Theme Styling and Layout [done]
 ### Dependencies: 14.3
 ### Description: Apply consistent dark theme styling to metadata panel matching the design system
 ### Details:
 Style metadata panel with dark theme colors: background #181825, borders #2A2A40, text hierarchy using #FFFFFF, #8B8B9A. Implement collapsible sections with smooth CSS transitions. Create organized layout with proper spacing: 16px padding, 8px between items. Style parameter labels with #8B8B9A and values with #FFFFFF. Add hover states for interactive elements. Implement responsive layout for mobile screens. Use CSS Grid or Flexbox for parameter organization. Add subtle shadows and rounded corners matching design system.
 
-## 5. Add Copy-to-Clipboard and Integration Features [pending]
+## 5. Add Copy-to-Clipboard and Integration Features [done]
 ### Dependencies: 14.3, 14.4
 ### Description: Implement clipboard functionality and integrate metadata panel with existing UI
 ### Details:

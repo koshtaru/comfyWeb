@@ -1,0 +1,93 @@
+# Task ID: 27
+# Title: Phase 1.1: React Project Setup and Environment Configuration
+# Status: pending
+# Dependencies: None
+# Priority: medium
+# Description: Initialize React + TypeScript project with proper tooling, development environment, and build configuration based on the ComfyUI interface migration blueprint
+# Details:
+Create a comprehensive React + TypeScript development environment with the following components:
+
+1. **Project Initialization**: Use Vite for fast HMR and optimal build performance. Run `npm create vite@latest comfyui-react -- --template react-ts`. Configure TypeScript with strict mode, proper module resolution, and path aliases. Set up baseUrl and paths in tsconfig.json for clean imports (@/components, @/hooks, @/services).
+
+2. **Development Dependencies**: Install essential tooling:
+   - ESLint with React hooks plugin and TypeScript parser
+   - Prettier with tailwindcss plugin for consistent formatting
+   - Husky + lint-staged for pre-commit hooks
+   - Vitest + React Testing Library for unit/integration tests
+   - MSW for API mocking during development
+
+3. **CSS Framework Setup**: Install and configure Tailwind CSS with custom configuration matching the existing dark theme design system:
+   ```javascript
+   // tailwind.config.js
+   colors: {
+     'bg-primary': '#0b0f19',
+     'bg-secondary': '#181825',
+     'bg-tertiary': '#1f2937',
+     'accent-orange': '#ff7c00',
+     'accent-blue': '#1f77b4',
+     'border': '#374151'
+   }
+   ```
+
+4. **State Management**: Install Zustand for lightweight state management with TypeScript support. Create initial store structure for application state, API configuration, and workflow management.
+
+5. **Routing Setup**: Install React Router v6 with type-safe routing. Configure routes for main sections: Generate (/), History (/history), Models (/models), Settings (/settings), Queue (/queue).
+
+6. **API Client Configuration**: Set up Axios with interceptors for ComfyUI API communication. Create base configuration with timeout, retry logic, and error handling. Implement TypeScript interfaces for all API responses.
+
+7. **Environment Configuration**: Create .env files for development and production with VITE_ prefixed variables. Set up environment-specific API endpoints and feature flags.
+
+8. **Build Configuration**: Configure Vite build options for code splitting, chunk optimization, and asset handling. Set up GitHub Actions workflow for CI/CD with test, lint, and build steps.
+
+9. **Development Scripts**: Add npm scripts for common tasks:
+   - dev: Start development server
+   - build: Production build
+   - test: Run test suite
+   - lint: Run ESLint
+   - format: Run Prettier
+   - type-check: Run TypeScript compiler
+
+# Test Strategy:
+1. **Environment Verification**: Run `npm run dev` and verify Vite dev server starts on port 5173. Check HMR works by modifying App.tsx and seeing instant updates. Verify TypeScript compilation with `npm run type-check`.
+
+2. **Build Testing**: Run `npm run build` and verify dist folder contains optimized assets. Test production build with `npm run preview`. Check bundle size is under 200KB for initial load.
+
+3. **Tooling Validation**: Create a test component with intentional ESLint error and verify linting catches it. Make formatting error and verify Prettier fixes it. Create failing test and verify Vitest reports correctly.
+
+4. **CSS Framework**: Create test component using Tailwind classes with custom colors and verify styles apply correctly. Test responsive utilities work as expected.
+
+5. **State Management**: Create simple Zustand store and verify TypeScript types are properly inferred. Test store persistence and hydration.
+
+6. **Routing**: Navigate between routes and verify components load correctly. Test protected routes and navigation guards work as expected.
+
+# Subtasks:
+## 1. Initialize Vite React TypeScript Project [pending]
+### Dependencies: None
+### Description: Create a new React project using Vite with TypeScript template and configure the base project structure
+### Details:
+Execute `npm create vite@latest comfyui-react -- --template react-ts` to initialize the project. Set up the initial directory structure with src/, public/, and config folders. Configure TypeScript with strict mode enabled in tsconfig.json. Set up path aliases for clean imports: @/components, @/hooks, @/services, @/store, @/types, @/utils. Configure baseUrl as './src' and update Vite config to resolve these aliases. Remove default Vite boilerplate and create a basic App.tsx with 'ComfyUI React' placeholder.
+
+## 2. Install and Configure Development Tooling [pending]
+### Dependencies: 27.1
+### Description: Set up ESLint, Prettier, Husky, and testing frameworks with proper TypeScript integration
+### Details:
+Install ESLint with React and TypeScript plugins: `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-react`, `eslint-plugin-react-hooks`. Configure .eslintrc.cjs with recommended rules and React 18 settings. Install Prettier with `prettier-plugin-tailwindcss` and create .prettierrc with consistent formatting rules. Set up Husky and lint-staged for pre-commit hooks that run ESLint and Prettier. Install Vitest, @testing-library/react, @testing-library/jest-dom, and jsdom for testing. Configure vitest.config.ts with proper test environment settings. Install MSW (Mock Service Worker) for API mocking during development and tests.
+
+## 3. Configure Tailwind CSS with Dark Theme Design System [pending]
+### Dependencies: 27.1
+### Description: Install Tailwind CSS and create a custom configuration matching the existing ComfyUI dark theme
+### Details:
+Install Tailwind CSS with PostCSS and Autoprefixer: `npm install -D tailwindcss postcss autoprefixer`. Initialize Tailwind config with `npx tailwindcss init -p`. Configure tailwind.config.js with custom color palette matching the existing design: bg-primary (#0b0f19), bg-secondary (#181825), bg-tertiary (#1f2937), accent-orange (#ff7c00), accent-blue (#1f77b4), text-primary (#ffffff), text-secondary (#9ca3af), border (#374151), error (#ef4444), success (#10b981). Set up custom spacing, typography with Helvetica Neue font family, and shadow utilities. Create src/index.css with Tailwind directives and custom CSS variables for the theme. Configure responsive breakpoints matching the original design (480px, 768px, 1024px).
+
+## 4. Set Up State Management and Routing [pending]
+### Dependencies: 27.1, 27.2
+### Description: Install and configure Zustand for state management and React Router for navigation with TypeScript support
+### Details:
+Install Zustand with `npm install zustand` and create src/store directory structure. Define TypeScript interfaces for application state: IAppState (isGenerating, currentWorkflow, workflowMetadata, generationHistory), IAPIConfig (endpoint, isConnected, connectionStatus), IPresetState (presets, activePreset). Create individual store slices: useAppStore, useAPIStore, usePresetStore with proper TypeScript typing and actions. Install React Router v6 with `npm install react-router-dom @types/react-router-dom`. Set up router configuration with type-safe routes: / (Generate), /history, /models, /settings, /queue. Create route constants file for centralized route management. Implement layout component with navigation matching the original tab structure.
+
+## 5. Configure API Client and Build Pipeline [pending]
+### Dependencies: 27.1, 27.2
+### Description: Set up Axios for API communication, environment configuration, and complete build/deployment pipeline
+### Details:
+Install Axios with `npm install axios` and create src/services/api directory. Define TypeScript interfaces for all ComfyUI API endpoints: IPromptRequest, IPromptResponse, IHistoryResponse, IQueueResponse, ISystemStatsResponse. Create axios instance with base configuration: timeout (30s), retry logic with exponential backoff, request/response interceptors for error handling and auth headers. Set up .env.development and .env.production files with VITE_API_URL and feature flags. Configure Vite build options in vite.config.ts: enable code splitting, configure chunk size warnings, set up asset optimization. Create GitHub Actions workflow (.github/workflows/ci.yml) with jobs for: dependency installation, linting, type checking, unit tests, build verification, and optional deployment. Add comprehensive npm scripts: dev, build, preview, test, test:ui, lint, format, type-check, analyze.
+

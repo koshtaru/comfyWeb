@@ -1,0 +1,81 @@
+# Task ID: 25
+# Title: Add Apply Button to API Connection Section with Validation and Persistence
+# Status: done
+# Dependencies: 11
+# Priority: medium
+# Description: Implement an Apply button adjacent to the Test button in the API Connection section that saves IP address and port configuration to localStorage without testing the connection, featuring URL validation and green styling consistent with the design system
+# Details:
+Implement a comprehensive Apply button feature with the following components:
+
+1. **Button Component Design**: Create Apply button with green accent styling (#10b981 background, #047857 hover) matching design system conventions. Position button adjacent to existing Test button with 8px spacing. Use consistent button height (36px) and padding (12px horizontal). Include save/check icon from icon library. Implement loading state with spinner during save operation.
+
+2. **URL Validation Logic**: Implement comprehensive validation for IP address and port:
+   - IP validation: Support IPv4 (xxx.xxx.xxx.xxx) and IPv6 formats
+   - Port validation: Range 1-65535, numeric only
+   - Hostname validation: Support localhost, domain names, and IP addresses
+   - Protocol handling: Assume http:// if not specified
+   - Real-time validation with error messages below input fields
+   - Disable Apply button when validation fails
+
+3. **LocalStorage Integration**: Design storage schema using key 'comfyui_api_config' with structure:
+   ```typescript
+   interface APIConfig {
+     host: string;
+     port: number;
+     lastSaved: string;
+     protocol: 'http' | 'https';
+   }
+   ```
+   Implement save method with error handling for quota exceeded. Load saved configuration on component mount. Trigger custom event 'api-config-updated' for other components.
+
+4. **UI State Management**: Implement button states:
+   - Default: Enabled when inputs are valid
+   - Loading: Show spinner during save operation
+   - Success: Brief green checkmark animation (1s)
+   - Error: Red styling with error message
+   - Disabled: When validation fails or inputs empty
+
+5. **Integration with Existing Systems**: Ensure Apply button works alongside Test button without conflicts. Update connection manager to check localStorage before using defaults. Maintain separation between save (Apply) and test (Test) operations. Trigger re-initialization of WebSocket connections when config changes. Update any dependent components that rely on API configuration.
+
+# Test Strategy:
+1. **Validation Testing**: Test IP address validation with valid IPv4 (192.168.1.1), IPv6 (2001:db8::1), and invalid formats. Verify port validation accepts 1-65535 and rejects 0, 70000, and non-numeric values. Test hostname validation with localhost, example.com, and special characters. Ensure real-time validation updates as user types.
+
+2. **LocalStorage Testing**: Verify configuration saves correctly to localStorage with proper JSON structure. Test loading saved configuration on page refresh. Validate error handling when localStorage is full or disabled. Test migration from old config formats if applicable.
+
+3. **UI Integration Testing**: Verify Apply button positioning and spacing relative to Test button. Test all button states: default, loading, success, error, disabled. Ensure loading states don't block UI interaction. Validate success feedback displays for exactly 1 second.
+
+4. **System Integration Testing**: Verify saved configuration is used by API connection services. Test that WebSocket connections update when configuration changes. Ensure Apply button doesn't trigger connection test. Validate custom events fire correctly for dependent components.
+
+5. **Accessibility Testing**: Verify button has proper ARIA labels and keyboard navigation. Test screen reader announcements for validation errors and success states. Ensure focus management during state transitions.
+
+# Subtasks:
+## 1. Design and Implement Apply Button Component [done]
+### Dependencies: None
+### Description: Create the Apply button with green accent styling that matches the design system, positioned adjacent to the Test button
+### Details:
+Implement a button component with green accent colors (#10b981 background, #047857 hover) following the established design system. Position the button to the right of the existing Test button with 8px spacing. Set button dimensions to 36px height with 12px horizontal padding. Include a save/checkmark icon from the existing icon library. Implement CSS transitions for hover states and ensure the button inherits the same styling patterns as other buttons in the application.
+
+## 2. Implement Comprehensive URL Validation System [done]
+### Dependencies: None
+### Description: Build validation logic for IP addresses, ports, hostnames, and protocols with real-time error messaging
+### Details:
+Create a validation service with methods for IPv4 (xxx.xxx.xxx.xxx pattern), IPv6 (full and compressed formats), hostname (alphanumeric with dots/hyphens), and port validation (1-65535 range). Implement real-time validation that triggers on input change events. Display contextual error messages below input fields using the existing error styling patterns. Support automatic protocol detection, defaulting to http:// when not specified. Create validation state management that enables/disables the Apply button based on overall validity.
+
+## 3. Create LocalStorage Integration Layer [done]
+### Dependencies: 25.2
+### Description: Implement storage schema and methods for persisting API configuration with error handling and event broadcasting
+### Details:
+Design storage interface using key 'comfyui_api_config' with TypeScript interface containing host, port, lastSaved timestamp, and protocol fields. Implement save method with try-catch for quota exceeded errors, displaying appropriate user feedback. Create load method that retrieves and validates stored configuration on component mount. Implement custom event 'api-config-updated' dispatching using CustomEvent API for cross-component communication. Add migration logic to handle any future schema changes.
+
+## 4. Implement Button State Management and Animations [done]
+### Dependencies: 25.1, 25.3
+### Description: Create comprehensive state handling for the Apply button including loading, success, error, and disabled states with visual feedback
+### Details:
+Implement state machine for button with states: default (enabled/disabled based on validation), loading (with spinner animation), success (1-second checkmark animation), and error (red styling with message). Create loading spinner using CSS animations matching existing UI patterns. Implement success checkmark animation that transitions from spinner to checkmark icon over 300ms, holds for 700ms, then reverts. Add error state styling with red background (#ef4444) and error message display. Ensure smooth transitions between all states using CSS transitions.
+
+## 5. Integrate Apply Button with Existing Connection Systems [done]
+### Dependencies: 25.3, 25.4
+### Description: Ensure Apply button works seamlessly with current API connection infrastructure and triggers appropriate system updates
+### Details:
+Update APIConnectionPanel component to include Apply button without breaking existing Test button functionality. Modify connection manager to check localStorage for saved configuration before applying defaults. Implement separation of concerns where Apply saves without testing, Test connects without saving. Add WebSocket reconnection trigger when configuration changes through the 'api-config-updated' event. Update any components that reference API configuration to listen for the custom event and refresh their state. Ensure backward compatibility with existing connection flows.
+
