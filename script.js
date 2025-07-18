@@ -1103,6 +1103,7 @@ const AppState = {
 // DOM Elements
 const elements = {
     apiUrl: document.getElementById('api-url'),
+    applyConnection: document.getElementById('apply-connection'),
     testConnection: document.getElementById('test-connection'),
     connectionStatus: document.getElementById('connection-status'),
     fileUpload: document.getElementById('workflow-file'),
@@ -2942,8 +2943,34 @@ function handleFileUpload(file) {
 function initializeConnectionTest() {
     elements.testConnection.addEventListener('click', async () => {
         const url = elements.apiUrl.value.trim();
+        
+        // Validate elements exist
+        if (!elements.connectionStatus) {
+            console.error('❌ Connection status element not found');
+            Utils.showToast('UI error: Connection status not found', 'error');
+            return;
+        }
+        
         const indicator = elements.connectionStatus.querySelector('.status-indicator');
         const statusText = elements.connectionStatus.querySelector('.status-text');
+        
+        // Debug DOM state
+        console.log('🔍 DOM Debug - connectionStatus:', elements.connectionStatus);
+        console.log('🔍 DOM Debug - statusText:', statusText);
+        console.log('🔍 DOM Debug - indicator:', indicator);
+        
+        if (!statusText) {
+            console.error('❌ Status text element not found');
+            console.log('🔍 Available elements in connectionStatus:', elements.connectionStatus.innerHTML);
+            Utils.showToast('UI error: Status text not found', 'error');
+            return;
+        }
+        
+        if (!indicator) {
+            console.error('❌ Status indicator element not found');
+            Utils.showToast('UI error: Status indicator not found', 'error');
+            return;
+        }
         
         // Validate URL format
         if (!url) {
@@ -2961,8 +2988,12 @@ function initializeConnectionTest() {
         // Update UI
         elements.testConnection.textContent = 'Testing...';
         elements.testConnection.disabled = true;
-        statusText.textContent = 'Testing connection...';
-        indicator.dataset.status = 'unknown';
+        if (statusText) {
+            statusText.textContent = 'Testing connection...';
+        }
+        if (indicator) {
+            indicator.dataset.status = 'unknown';
+        }
         
         console.log(`🔍 Testing connection to: ${testUrl}`);
         console.log(`📊 Current state - AppState.isConnected: ${AppState.isConnected}, WebSocket: ${AppState.websocket ? AppState.websocket.getState() : 'not initialized'}`);
@@ -2976,8 +3007,12 @@ function initializeConnectionTest() {
             console.error('🚨 Connection test fail-safe timeout reached (30s)');
             elements.testConnection.textContent = 'Test';
             elements.testConnection.disabled = false;
-            statusText.textContent = 'Connection test timed out';
-            indicator.dataset.status = 'disconnected';
+            if (statusText) {
+                statusText.textContent = 'Connection test timed out';
+            }
+            if (indicator) {
+                indicator.dataset.status = 'disconnected';
+            }
             Utils.showToast('Connection test timed out - please try again', 'error');
         }, 30000); // 30 second fail-safe
 
@@ -3094,8 +3129,12 @@ function initializeConnectionTest() {
                         AppState.interruptService.setApiEndpoint(testUrl);
                     }
                     
-                    indicator.dataset.status = 'connected';
-                    statusText.textContent = 'Connected to ComfyUI';
+                    if (indicator) {
+                        indicator.dataset.status = 'connected';
+                    }
+                    if (statusText) {
+                        statusText.textContent = 'Connected to ComfyUI';
+                    }
                     Utils.showToast(`Connected to ComfyUI via ${successfulEndpoint.name}`, 'success');
                     
                     console.log('✅ Connection test completed successfully');
@@ -3106,7 +3145,9 @@ function initializeConnectionTest() {
             } else {
                 // Try WebSocket as fallback
                 console.log('🔄 HTTP endpoints failed, trying WebSocket fallback...');
-                statusText.textContent = 'Trying WebSocket...';
+                if (statusText) {
+                    statusText.textContent = 'Trying WebSocket...';
+                }
                 
                 try {
                     await Utils.testWebSocketConnection(testUrl);
@@ -3120,8 +3161,12 @@ function initializeConnectionTest() {
                         AppState.interruptService.setApiEndpoint(testUrl);
                     }
                     
-                    indicator.dataset.status = 'connected';
-                    statusText.textContent = 'Connected via WebSocket';
+                    if (indicator) {
+                        indicator.dataset.status = 'connected';
+                    }
+                    if (statusText) {
+                        statusText.textContent = 'Connected via WebSocket';
+                    }
                     Utils.showToast('Connected to ComfyUI via WebSocket (CORS may be blocking HTTP)', 'success');
                     console.log('✅ ComfyUI WebSocket connection successful!');
                 } catch (wsError) {
@@ -3132,7 +3177,9 @@ function initializeConnectionTest() {
         } catch (error) {
             console.error('Connection failed:', error);
             AppState.isConnected = false;
-            indicator.dataset.status = 'disconnected';
+            if (indicator) {
+                indicator.dataset.status = 'disconnected';
+            }
             
             // Provide detailed error messages with solutions
             let errorMessage = 'Connection failed';
@@ -3167,7 +3214,9 @@ function initializeConnectionTest() {
                 solution = 'Verify the IP address is correct';
             }
             
-            statusText.textContent = errorMessage;
+            if (statusText) {
+                statusText.textContent = errorMessage;
+            }
             
             // Show comprehensive error message
             if (solution) {
@@ -3207,6 +3256,161 @@ function initializeConnectionTest() {
         const url = elements.apiUrl.value.trim();
         if (url && url !== AppState.apiEndpoint) {
             localStorage.setItem('comfyui_endpoint', url);
+        }
+    });
+}
+
+// Apply Button Implementation
+function initializeApplyButton() {
+    // URL Validation functions
+    function isValidIPv4(ip) {
+        const ipv4Regex = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+        return ipv4Regex.test(ip);
+    }
+
+    function isValidIPv6(ip) {
+        const ipv6Regex = /^(?:[0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$|^::1$|^::$|^(?:[0-9a-fA-F]{1,4}:)*::[0-9a-fA-F]{1,4}(?::[0-9a-fA-F]{1,4})*$/;
+        return ipv6Regex.test(ip);
+    }
+
+    function isValidHostname(hostname) {
+        if (hostname === 'localhost') return true;
+        const hostnameRegex = /^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+        return hostnameRegex.test(hostname);
+    }
+
+    function isValidPort(port) {
+        const portNum = parseInt(port, 10);
+        return !isNaN(portNum) && portNum >= 1 && portNum <= 65535;
+    }
+
+    function validateURL(url) {
+        if (!url || url.trim() === '') {
+            return { valid: false, message: 'URL cannot be empty' };
+        }
+
+        try {
+            // Add protocol if missing
+            let testUrl = url;
+            if (!testUrl.startsWith('http://') && !testUrl.startsWith('https://')) {
+                testUrl = 'http://' + testUrl;
+            }
+
+            const urlObj = new URL(testUrl);
+            const hostname = urlObj.hostname;
+            const port = urlObj.port || (urlObj.protocol === 'https:' ? '443' : '80');
+
+            // Validate hostname/IP
+            if (!isValidIPv4(hostname) && !isValidIPv6(hostname) && !isValidHostname(hostname)) {
+                return { valid: false, message: 'Invalid hostname or IP address' };
+            }
+
+            // Validate port
+            if (!isValidPort(port)) {
+                return { valid: false, message: 'Port must be between 1 and 65535' };
+            }
+
+            return { valid: true, normalizedUrl: testUrl };
+        } catch (error) {
+            return { valid: false, message: 'Invalid URL format' };
+        }
+    }
+
+    function setButtonState(state, message = '') {
+        const button = elements.applyConnection;
+        const buttonText = button.querySelector('.button-text');
+        const buttonSpinner = button.querySelector('.button-spinner');
+
+        // Remove all state classes
+        button.classList.remove('loading', 'success', 'error');
+        button.disabled = false;
+
+        switch (state) {
+            case 'loading':
+                button.classList.add('loading');
+                button.disabled = true;
+                break;
+            case 'success':
+                button.classList.add('success');
+                buttonText.textContent = 'Saved';
+                setTimeout(() => {
+                    button.classList.remove('success');
+                    buttonText.textContent = 'Apply';
+                }, 1000);
+                break;
+            case 'error':
+                button.classList.add('error');
+                buttonText.textContent = 'Error';
+                setTimeout(() => {
+                    button.classList.remove('error');
+                    buttonText.textContent = 'Apply';
+                }, 2000);
+                break;
+            case 'disabled':
+                button.disabled = true;
+                break;
+            default:
+                buttonText.textContent = 'Apply';
+                break;
+        }
+    }
+
+    // Apply button click handler
+    elements.applyConnection.addEventListener('click', async () => {
+        const url = elements.apiUrl.value.trim();
+        
+        // Validate URL
+        const validation = validateURL(url);
+        if (!validation.valid) {
+            Utils.showToast(validation.message, 'error');
+            setButtonState('error');
+            return;
+        }
+
+        // Set loading state
+        setButtonState('loading');
+
+        try {
+            // Update input field with normalized URL
+            elements.apiUrl.value = validation.normalizedUrl;
+
+            // Save to localStorage and update AppState
+            AppState.apiEndpoint = validation.normalizedUrl;
+            localStorage.setItem('comfyui_endpoint', validation.normalizedUrl);
+
+            // Update interrupt service endpoint
+            if (AppState.interruptService) {
+                AppState.interruptService.setApiEndpoint(validation.normalizedUrl);
+            }
+
+            // Dispatch custom event for other components
+            window.dispatchEvent(new CustomEvent('api-config-updated', {
+                detail: { endpoint: validation.normalizedUrl }
+            }));
+
+            // Show success state
+            setButtonState('success');
+            Utils.showToast('API endpoint saved successfully', 'success');
+
+            console.log('✅ API endpoint applied:', validation.normalizedUrl);
+        } catch (error) {
+            console.error('❌ Error applying API endpoint:', error);
+            setButtonState('error');
+            Utils.showToast('Failed to save API endpoint', 'error');
+        }
+    });
+
+    // Real-time validation on input change
+    elements.apiUrl.addEventListener('input', () => {
+        const url = elements.apiUrl.value.trim();
+        const validation = validateURL(url);
+        
+        if (!validation.valid && url !== '') {
+            elements.applyConnection.disabled = true;
+            elements.applyConnection.title = validation.message;
+        } else {
+            elements.applyConnection.disabled = false;
+            elements.applyConnection.title = 'Save API endpoint';
         }
     });
 }
@@ -4025,6 +4229,7 @@ function initializeApp() {
         // Check if critical DOM elements exist
         const criticalElements = [
             { key: 'apiUrl', id: 'api-url' },
+            { key: 'applyConnection', id: 'apply-connection' },
             { key: 'fileUpload', id: 'workflow-file' },
             { key: 'fileUploadArea', id: 'file-upload-area' },
             { key: 'uploadStatus', id: 'upload-status' },
@@ -4064,6 +4269,7 @@ function initializeApp() {
         initializeSliders();
         initializeFileUpload();
         initializeConnectionTest();
+        initializeApplyButton();
         initializeFormSubmission();
         initializeClearResults();
         initializeCancelButton();
@@ -4438,7 +4644,24 @@ function updateConnectionStatus(state) {
             statusClass = status.class;
         }
         
-        elements.connectionStatus.textContent = statusText;
+        // Update status text while preserving HTML structure
+        const statusTextElement = elements.connectionStatus.querySelector('.status-text');
+        const statusIndicator = elements.connectionStatus.querySelector('.status-indicator');
+        
+        if (statusTextElement) {
+            statusTextElement.textContent = statusText;
+        } else {
+            // Fallback: if structure is broken, recreate it
+            elements.connectionStatus.innerHTML = `
+                <span class="status-indicator" data-status="${statusClass}"></span>
+                <span class="status-text">${statusText}</span>
+            `;
+        }
+        
+        if (statusIndicator) {
+            statusIndicator.dataset.status = statusClass;
+        }
+        
         elements.connectionStatus.className = `connection-status ${statusClass}`;
         
         console.log(`📊 Connection status updated: ${statusText} (HTTP: ${httpConnected}, WS: ${wsConnected})`);
