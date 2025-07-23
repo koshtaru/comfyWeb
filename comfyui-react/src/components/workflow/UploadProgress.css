@@ -1,0 +1,107 @@
+/* Upload Progress Component Styles */
+.upload-progress {
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+
+.upload-progress.error {
+  border-color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.upload-progress.complete {
+  border-color: var(--color-success);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.progress-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.status-icon {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.status-icon.spinning {
+  animation: spin 1s linear infinite;
+}
+
+.status-icon.success {
+  color: var(--color-success);
+}
+
+.status-icon.error {
+  color: var(--color-error);
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.progress-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.progress-info .file-name {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+.status-text {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-bar-bg {
+  flex: 1;
+  height: 6px;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--color-accent-orange);
+  transition: width 0.3s ease;
+  border-radius: 3px;
+}
+
+.progress-percentage {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  min-width: 3ch;
+  text-align: right;
+}
+
+/* Error state specific */
+.upload-progress.error .status-text {
+  color: var(--color-error);
+}
+
+/* Complete state specific */
+.upload-progress.complete .status-text {
+  color: var(--color-success);
+}

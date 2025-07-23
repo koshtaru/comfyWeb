@@ -25,22 +25,14 @@ interface APIState {
 
 const DEFAULT_ENDPOINT = 'http://127.0.0.1:8188'
 
-// Simple connection test function
+import { createCustomAPIClient } from '@/services/api'
+
+// API connection test using our API service
 const testAPIConnection = async (endpoint: string): Promise<boolean> => {
   try {
-    const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
-
-    const response = await fetch(`${endpoint}/system_stats`, {
-      method: 'GET',
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-
-    clearTimeout(timeoutId)
-    return response.ok
+    const customClient = createCustomAPIClient(endpoint)
+    const response = await customClient.get('/system_stats')
+    return response.status === 200
   } catch (error) {
     console.error('Connection test failed:', error)
     return false

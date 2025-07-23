@@ -2,8 +2,9 @@
 // ComfyUI React - Settings Page
 // ============================================================================
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAPIStore } from '@/store'
+import { comfyAPI } from '@/services/api'
 
 export default function SettingsPage() {
   const {
@@ -15,6 +16,22 @@ export default function SettingsPage() {
   } = useAPIStore()
 
   const [tempEndpoint, setTempEndpoint] = useState(endpoint)
+  const [serverInfo, setServerInfo] = useState<any>(null)
+
+  // Load server info on mount and endpoint change
+  useEffect(() => {
+    const loadServerInfo = async () => {
+      if (isConnected) {
+        try {
+          const status = await comfyAPI.util.getServerStatus()
+          setServerInfo(status)
+        } catch (error) {
+          console.error('Failed to load server info:', error)
+        }
+      }
+    }
+    loadServerInfo()
+  }, [isConnected])
 
   const handleTest = async () => {
     await testConnection()
@@ -93,6 +110,52 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* Server Information */}
+          {isConnected && serverInfo?.stats && (
+            <div>
+              <h2 className="mb-4 text-lg font-semibold text-comfy-text-primary">
+                Server Information
+              </h2>
+              
+              <div className="rounded-md bg-comfy-bg-tertiary p-4">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm font-medium text-comfy-text-primary">
+                      Operating System
+                    </p>
+                    <p className="text-sm text-comfy-text-secondary">
+                      {serverInfo.stats.system.os}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-comfy-text-primary">
+                      Python Version
+                    </p>
+                    <p className="text-sm text-comfy-text-secondary">
+                      {serverInfo.stats.system.python_version}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-comfy-text-primary">
+                      PyTorch Version
+                    </p>
+                    <p className="text-sm text-comfy-text-secondary">
+                      {serverInfo.stats.system.pytorch_version}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-comfy-text-primary">
+                      Devices
+                    </p>
+                    <p className="text-sm text-comfy-text-secondary">
+                      {serverInfo.stats.devices.length} device(s) available
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Application Settings */}
           <div>

@@ -2,10 +2,81 @@
 // ComfyUI React - Generate Page (txt2img)
 // ============================================================================
 
+import { useState } from 'react'
 import { useAppStore } from '@/store'
+import { FileUpload, UploadProgress } from '@/components/workflow'
 
 export default function GeneratePage() {
-  const { isGenerating, setIsGenerating } = useAppStore()
+  const { isGenerating, setIsGenerating, setCurrentWorkflow } = useAppStore()
+  const [uploadStatus, setUploadStatus] = useState<{
+    status: 'uploading' | 'processing' | 'complete' | 'error' | null
+    progress: number
+    error?: string
+    fileName?: string
+  }>({ status: null, progress: 0 })
+
+  const handleFileSelect = async (file: File) => {
+    setUploadStatus({ 
+      status: 'uploading', 
+      progress: 0,
+      fileName: file.name
+    })
+    
+    try {
+      // Read file content
+      const reader = new FileReader()
+      
+      reader.onprogress = (event) => {
+        if (event.lengthComputable) {
+          const progress = (event.loaded / event.total) * 100
+          setUploadStatus(prev => ({ ...prev, progress }))
+        }
+      }
+      
+      reader.onload = async (event) => {
+        setUploadStatus(prev => ({ ...prev, status: 'processing', progress: 100 }))
+        
+        try {
+          const content = event.target?.result as string
+          const workflow = JSON.parse(content)
+          
+          // TODO: Validate workflow structure
+          setCurrentWorkflow(workflow)
+          setUploadStatus(prev => ({ ...prev, status: 'complete' }))
+          
+          // Clear status after 3 seconds
+          setTimeout(() => {
+            setUploadStatus({ status: null, progress: 0 })
+          }, 3000)
+        } catch (error) {
+          setUploadStatus({
+            status: 'error',
+            progress: 100,
+            error: 'Invalid JSON format',
+            fileName: file.name
+          })
+        }
+      }
+      
+      reader.onerror = () => {
+        setUploadStatus({
+          status: 'error',
+          progress: 0,
+          error: 'Failed to read file',
+          fileName: file.name
+        })
+      }
+      
+      reader.readAsText(file)
+    } catch (error) {
+      setUploadStatus({
+        status: 'error',
+        progress: 0,
+        error: 'Upload failed',
+        fileName: file.name
+      })
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -23,12 +94,20 @@ export default function GeneratePage() {
             <label className="mb-2 block text-sm font-medium text-comfy-text-primary">
               Workflow Upload
             </label>
-            <input
-              type="file"
+            <FileUpload 
+              onFileSelect={handleFileSelect}
               accept=".json"
-              className="comfy-input"
-              disabled={isGenerating}
+              maxSize={10 * 1024 * 1024} // 10MB
             />
+            
+            {uploadStatus.status && (
+              <UploadProgress
+                status={uploadStatus.status}
+                progress={uploadStatus.progress}
+                error={uploadStatus.error}
+                fileName={uploadStatus.fileName}
+              />
+            )}
           </div>
 
           <div>
