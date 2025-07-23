@@ -1,5 +1,13 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { ExtractedParameters } from '@/utils/parameterExtractor'
+import { 
+  StepsControl, 
+  CFGScaleControl, 
+  DimensionsControl, 
+  SeedControl, 
+  BatchControl 
+} from '@/components/parameters'
+import '@/components/parameters/Parameters.css'
 
 interface ParameterDisplayProps {
   parameters: ExtractedParameters
@@ -13,6 +21,17 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
   readOnly = false
 }) => {
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['generation']))
+  
+  // Log parameter changes
+  useEffect(() => {
+    console.log('🏗️ [ParameterDisplay] Parameters updated:', {
+      steps: parameters.generation.steps,
+      cfg: parameters.generation.cfg,
+      seed: parameters.generation.seed,
+      width: parameters.image.width,
+      height: parameters.image.height
+    })
+  }, [parameters])
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections)
@@ -25,6 +44,14 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
   }
 
   const handleChange = (nodeId: string, parameter: string, value: any) => {
+    console.log('📊 [ParameterDisplay] handleChange called:', { 
+      nodeId, 
+      parameter, 
+      value,
+      readOnly,
+      hasCallback: !!onParameterChange 
+    })
+    
     if (!readOnly && onParameterChange) {
       onParameterChange(nodeId, parameter, value)
     }
@@ -41,36 +68,27 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
       >
         <div className="parameter-grid">
           {parameters.generation.steps && (
-            <ParameterField
-              label="Steps"
+            <StepsControl
               value={parameters.generation.steps}
-              type="number"
-              min={1}
-              max={150}
               onChange={(value) => handleChange(parameters.generation.nodeId || '', 'steps', value)}
-              readOnly={readOnly}
+              disabled={readOnly}
+              showPresets={!readOnly}
             />
           )}
           {parameters.generation.cfg && (
-            <ParameterField
-              label="CFG Scale"
+            <CFGScaleControl
               value={parameters.generation.cfg}
-              type="number"
-              min={1}
-              max={30}
-              step={0.1}
               onChange={(value) => handleChange(parameters.generation.nodeId || '', 'cfg', value)}
-              readOnly={readOnly}
+              disabled={readOnly}
+              showPresets={!readOnly}
             />
           )}
           {parameters.generation.seed !== undefined && (
-            <ParameterField
-              label="Seed"
+            <SeedControl
               value={parameters.generation.seed}
-              type="number"
-              min={0}
               onChange={(value) => handleChange(parameters.generation.nodeId || '', 'seed', value)}
-              readOnly={readOnly}
+              disabled={readOnly}
+              showCopy={true}
             />
           )}
           {parameters.generation.sampler && (
@@ -166,39 +184,52 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
         onToggle={() => toggleSection('image')}
       >
         <div className="parameter-grid">
-          {parameters.image.width && (
-            <ParameterField
-              label="Width"
-              value={parameters.image.width}
-              type="number"
-              min={64}
-              max={4096}
-              step={8}
-              onChange={(value) => handleChange(parameters.image.nodeId || '', 'width', value)}
-              readOnly={readOnly}
+          {(parameters.image.width && parameters.image.height) ? (
+            <DimensionsControl
+              width={parameters.image.width}
+              height={parameters.image.height}
+              onWidthChange={(value) => handleChange(parameters.image.nodeId || '', 'width', value)}
+              onHeightChange={(value) => handleChange(parameters.image.nodeId || '', 'height', value)}
+              disabled={readOnly}
+              showPresets={!readOnly}
+              showAspectRatio={!readOnly}
             />
-          )}
-          {parameters.image.height && (
-            <ParameterField
-              label="Height"
-              value={parameters.image.height}
-              type="number"
-              min={64}
-              max={4096}
-              step={8}
-              onChange={(value) => handleChange(parameters.image.nodeId || '', 'height', value)}
-              readOnly={readOnly}
-            />
+          ) : (
+            <>
+              {parameters.image.width && (
+                <ParameterField
+                  label="Width"
+                  value={parameters.image.width}
+                  type="number"
+                  min={64}
+                  max={4096}
+                  step={8}
+                  onChange={(value) => handleChange(parameters.image.nodeId || '', 'width', value)}
+                  readOnly={readOnly}
+                />
+              )}
+              {parameters.image.height && (
+                <ParameterField
+                  label="Height"
+                  value={parameters.image.height}
+                  type="number"
+                  min={64}
+                  max={4096}
+                  step={8}
+                  onChange={(value) => handleChange(parameters.image.nodeId || '', 'height', value)}
+                  readOnly={readOnly}
+                />
+              )}
+            </>
           )}
           {parameters.image.batchSize && (
-            <ParameterField
-              label="Batch Size"
-              value={parameters.image.batchSize}
-              type="number"
-              min={1}
-              max={10}
-              onChange={(value) => handleChange(parameters.image.nodeId || '', 'batch_size', value)}
-              readOnly={readOnly}
+            <BatchControl
+              batchSize={parameters.image.batchSize}
+              batchCount={1} // Default to 1 since we don't have batch count in extracted parameters
+              onBatchSizeChange={(value) => handleChange(parameters.image.nodeId || '', 'batch_size', value)}
+              onBatchCountChange={() => {}} // No-op since we don't have batch count parameter
+              disabled={readOnly}
+              showWarnings={!readOnly}
             />
           )}
         </div>
