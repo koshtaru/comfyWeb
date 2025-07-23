@@ -78,7 +78,63 @@
         "priority": "high",
         "details": "Create functions to handle API URL configuration with default value 'http://localhost:8188', implement connection testing via fetch API, add visual status indicators (connected/disconnected) using blue accent colors (#1f77b4) for connected state and red for disconnected. Store endpoint in localStorage for persistence. Style the API configuration panel with dark theme (#181825 panel background), use Helvetica Neue typography, and implement hover/focus states consistent with design system. Include error handling for network failures and invalid URLs with styled error messages.",
         "testStrategy": "Test connection with valid ComfyUI instance, verify localStorage persistence, test with invalid URLs and offline scenarios, validate design consistency with WebUI components",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create API Configuration Component Structure",
+            "description": "Build the HTML structure and base component for API endpoint configuration following Stable Diffusion WebUI design patterns",
+            "dependencies": [],
+            "details": "Create a dedicated section in the Settings tab for API configuration. Structure should include an input field for the API URL with proper labeling, a 'Test Connection' button, and a status indicator area. Use semantic HTML with proper ARIA labels for accessibility. Apply dark theme panel styling with #181825 background color and proper spacing following the established design system. Ensure the component fits seamlessly within the existing Settings tab layout.",
+            "status": "pending",
+            "testStrategy": "Verify HTML structure renders correctly, check accessibility with screen readers, validate dark theme styling matches design system, test responsive behavior across different screen sizes"
+          },
+          {
+            "id": 2,
+            "title": "Implement LocalStorage Persistence Layer",
+            "description": "Create functions to save and retrieve API endpoint configuration from browser localStorage",
+            "dependencies": [],
+            "details": "Develop a storage service with methods to save the API endpoint URL to localStorage with key 'comfyui_api_endpoint'. Implement retrieval function that returns the stored URL or defaults to 'http://localhost:8188' if not found. Add validation to ensure the stored value is a valid URL format before using it. Include error handling for localStorage access failures (e.g., private browsing mode). Create initialization logic to load saved endpoint on application startup.",
+            "status": "pending",
+            "testStrategy": "Test localStorage save/retrieve operations, verify default value fallback works correctly, test behavior in private browsing mode, validate URL format checking, ensure persistence across browser sessions"
+          },
+          {
+            "id": 3,
+            "title": "Build Connection Testing Logic with Fetch API",
+            "description": "Implement the core functionality to test API connectivity using fetch with proper error handling",
+            "dependencies": [
+              2
+            ],
+            "details": "Create an async function that attempts to connect to the ComfyUI API endpoint using fetch. Implement a test request to a lightweight endpoint like '/system_stats' or '/queue' with a reasonable timeout (5 seconds). Handle various failure scenarios including network errors, CORS issues, timeouts, and non-200 responses. Parse response to verify it's a valid ComfyUI server. Return a structured result object with success status, error messages, and response time for performance indication.",
+            "status": "pending",
+            "testStrategy": "Test with valid ComfyUI instance for successful connection, simulate network failures and timeouts, test CORS error handling, verify invalid URL handling, test with non-ComfyUI endpoints"
+          },
+          {
+            "id": 4,
+            "title": "Create Visual Status Indicators with Animations",
+            "description": "Design and implement status indicator UI components with smooth transitions and clear visual feedback",
+            "dependencies": [
+              1,
+              3
+            ],
+            "details": "Build status indicator components showing connection state using design system colors: blue (#1f77b4) for connected with checkmark icon, red (#ef4444) for disconnected with X icon, and gray for testing/unknown state with spinner. Implement smooth CSS transitions for state changes. Add connection status text like 'Connected to ComfyUI', 'Connection failed', or 'Testing connection...'. Include response time display for successful connections. Position indicators prominently near the URL input field.",
+            "status": "pending",
+            "testStrategy": "Verify correct color and icon display for each state, test transition animations are smooth, validate accessibility of status indicators, test visibility across different themes"
+          },
+          {
+            "id": 5,
+            "title": "Integrate Event Handlers and Error Messaging",
+            "description": "Wire up user interactions with comprehensive error handling and user feedback",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Attach event listeners to the Test Connection button that triggers the connection test. Implement input field change handler that saves to localStorage with debouncing. Create comprehensive error messages for different failure types: 'Invalid URL format', 'Connection timeout - ComfyUI may not be running', 'CORS error - check ComfyUI server settings'. Style error messages with red accent color and proper typography. Add loading states during connection testing with disabled button state. Implement automatic connection test on page load using saved endpoint.",
+            "status": "pending",
+            "testStrategy": "Test all user interaction flows, verify error messages display correctly for each error type, test debouncing on input changes, validate loading states appear and disappear appropriately, ensure automatic connection test runs on startup"
+          }
+        ]
       },
       {
         "id": 3,
@@ -643,19 +699,53 @@
         "id": 27,
         "title": "Phase 1.1: React Project Setup and Environment Configuration",
         "description": "Initialize React + TypeScript project with proper tooling, development environment, and build configuration based on the ComfyUI interface migration blueprint",
-        "details": "Create a comprehensive React + TypeScript development environment with the following components:\n\n1. **Project Initialization**: Use Vite for fast HMR and optimal build performance. Run `npm create vite@latest comfyui-react -- --template react-ts`. Configure TypeScript with strict mode, proper module resolution, and path aliases. Set up baseUrl and paths in tsconfig.json for clean imports (@/components, @/hooks, @/services).\n\n2. **Development Dependencies**: Install essential tooling:\n   - ESLint with React hooks plugin and TypeScript parser\n   - Prettier with tailwindcss plugin for consistent formatting\n   - Husky + lint-staged for pre-commit hooks\n   - Vitest + React Testing Library for unit/integration tests\n   - MSW for API mocking during development\n\n3. **CSS Framework Setup**: Install and configure Tailwind CSS with custom configuration matching the existing dark theme design system:\n   ```javascript\n   // tailwind.config.js\n   colors: {\n     'bg-primary': '#0b0f19',\n     'bg-secondary': '#181825',\n     'bg-tertiary': '#1f2937',\n     'accent-orange': '#ff7c00',\n     'accent-blue': '#1f77b4',\n     'border': '#374151'\n   }\n   ```\n\n4. **State Management**: Install Zustand for lightweight state management with TypeScript support. Create initial store structure for application state, API configuration, and workflow management.\n\n5. **Routing Setup**: Install React Router v6 with type-safe routing. Configure routes for main sections: Generate (/), History (/history), Models (/models), Settings (/settings), Queue (/queue).\n\n6. **API Client Configuration**: Set up Axios with interceptors for ComfyUI API communication. Create base configuration with timeout, retry logic, and error handling. Implement TypeScript interfaces for all API responses.\n\n7. **Environment Configuration**: Create .env files for development and production with VITE_ prefixed variables. Set up environment-specific API endpoints and feature flags.\n\n8. **Build Configuration**: Configure Vite build options for code splitting, chunk optimization, and asset handling. Set up GitHub Actions workflow for CI/CD with test, lint, and build steps.\n\n9. **Development Scripts**: Add npm scripts for common tasks:\n   - dev: Start development server\n   - build: Production build\n   - test: Run test suite\n   - lint: Run ESLint\n   - format: Run Prettier\n   - type-check: Run TypeScript compiler",
-        "testStrategy": "1. **Environment Verification**: Run `npm run dev` and verify Vite dev server starts on port 5173. Check HMR works by modifying App.tsx and seeing instant updates. Verify TypeScript compilation with `npm run type-check`.\n\n2. **Build Testing**: Run `npm run build` and verify dist folder contains optimized assets. Test production build with `npm run preview`. Check bundle size is under 200KB for initial load.\n\n3. **Tooling Validation**: Create a test component with intentional ESLint error and verify linting catches it. Make formatting error and verify Prettier fixes it. Create failing test and verify Vitest reports correctly.\n\n4. **CSS Framework**: Create test component using Tailwind classes with custom colors and verify styles apply correctly. Test responsive utilities work as expected.\n\n5. **State Management**: Create simple Zustand store and verify TypeScript types are properly inferred. Test store persistence and hydration.\n\n6. **Routing**: Navigate between routes and verify components load correctly. Test protected routes and navigation guards work as expected.",
         "status": "pending",
         "dependencies": [],
         "priority": "medium",
+        "details": "Create a comprehensive React + TypeScript development environment with the following components:\n\n1. **Project Initialization**: ✓ COMPLETED - Vite React TypeScript project initialized at /Users/james.crawford/ComfyotgTest/comfyui-react/ with proper path aliases and strict TypeScript configuration.\n\n2. **Development Dependencies**: ✓ COMPLETED - Full tooling environment established with ESLint, Prettier, Husky, lint-staged, Vitest, React Testing Library, and MSW configured and working.\n\n3. **CSS Framework Setup**: Configure Tailwind CSS with custom configuration matching the existing dark theme design system:\n   ```javascript\n   // tailwind.config.js\n   colors: {\n     'bg-primary': '#0b0f19',\n     'bg-secondary': '#181825',\n     'bg-tertiary': '#1f2937',\n     'accent-orange': '#ff7c00',\n     'accent-blue': '#1f77b4',\n     'border': '#374151'\n   }\n   ```\n\n4. **State Management**: Install Zustand for lightweight state management with TypeScript support. Create initial store structure for application state, API configuration, and workflow management.\n\n5. **Routing Setup**: Install React Router v6 with type-safe routing. Configure routes for main sections: Generate (/), History (/history), Models (/models), Settings (/settings), Queue (/queue).\n\n6. **API Client Configuration**: Set up Axios with interceptors for ComfyUI API communication. Create base configuration with timeout, retry logic, and error handling. Implement TypeScript interfaces for all API responses.\n\n7. **Environment Configuration**: Create .env files for development and production with VITE_ prefixed variables. Set up environment-specific API endpoints and feature flags.\n\n8. **Build Configuration**: Configure Vite build options for code splitting, chunk optimization, and asset handling. Set up GitHub Actions workflow for CI/CD with test, lint, and build steps.\n\n9. **Development Scripts**: ✓ COMPLETED - All npm scripts configured: dev, build, test, lint, format, type-check working correctly.\n\nProject foundation is complete and ready for Tailwind CSS configuration in Task 27.3.",
+        "testStrategy": "1. **Environment Verification**: ✓ COMPLETED - Vite dev server confirmed working on port 5173 with HMR. TypeScript compilation verified.\n\n2. **Build Testing**: ✓ COMPLETED - Production build verified with optimized dist folder under 200KB initial load.\n\n3. **Tooling Validation**: ✓ COMPLETED - ESLint, Prettier, and Vitest all working correctly with pre-commit hooks.\n\n4. **CSS Framework**: Create test component using Tailwind classes with custom colors and verify styles apply correctly. Test responsive utilities work as expected.\n\n5. **State Management**: Create simple Zustand store and verify TypeScript types are properly inferred. Test store persistence and hydration.\n\n6. **Routing**: Navigate between routes and verify components load correctly. Test protected routes and navigation guards work as expected.",
         "subtasks": [
+          {
+            "id": 3,
+            "title": "Configure Tailwind CSS with Dark Theme Design System",
+            "description": "Install Tailwind CSS and create a custom configuration matching the existing ComfyUI dark theme",
+            "status": "done",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Install Tailwind CSS with PostCSS and Autoprefixer: `npm install -D tailwindcss postcss autoprefixer`. Initialize Tailwind config with `npx tailwindcss init -p`. Configure tailwind.config.js with custom color palette matching the existing design: bg-primary (#0b0f19), bg-secondary (#181825), bg-tertiary (#1f2937), accent-orange (#ff7c00), accent-blue (#1f77b4), text-primary (#ffffff), text-secondary (#9ca3af), border (#374151), error (#ef4444), success (#10b981). Set up custom spacing, typography with Helvetica Neue font family, and shadow utilities. Create src/index.css with Tailwind directives and custom CSS variables for the theme. Configure responsive breakpoints matching the original design (480px, 768px, 1024px). Build on the completed foundation from tasks 27.1 and 27.2 to integrate seamlessly with existing tooling.",
+            "testStrategy": "Create a test component using all custom color classes and verify they render with correct hex values. Test responsive utilities by creating a component with different breakpoint styles and resizing the viewport. Verify Tailwind purging works in production build by checking final CSS file size. Test custom font family application and confirm Helvetica Neue loads correctly. Validate CSS variables are accessible throughout the application. Ensure Prettier plugin formats Tailwind classes correctly."
+          },
+          {
+            "id": 4,
+            "title": "Set Up State Management and Routing",
+            "description": "Install and configure Zustand for state management and React Router for navigation with TypeScript support",
+            "status": "pending",
+            "dependencies": [
+              3
+            ],
+            "details": "Install Zustand with `npm install zustand` and create src/store directory structure. Define TypeScript interfaces for application state: IAppState (isGenerating, currentWorkflow, workflowMetadata, generationHistory), IAPIConfig (endpoint, isConnected, connectionStatus), IPresetState (presets, activePreset). Create individual store slices: useAppStore, useAPIStore, usePresetStore with proper TypeScript typing and actions. Install React Router v6 with `npm install react-router-dom @types/react-router-dom`. Set up router configuration with type-safe routes: / (Generate), /history, /models, /settings, /queue. Create route constants file for centralized route management. Implement layout component with navigation matching the original tab structure using Tailwind CSS classes.",
+            "testStrategy": "Write unit tests for each Zustand store verifying state updates and actions work correctly. Test TypeScript interfaces catch type mismatches in store usage. Verify React Router navigation works between all defined routes. Test browser back/forward navigation maintains proper state. Confirm route parameters and query strings are properly typed and accessible. Validate layout component uses Tailwind classes correctly."
+          },
+          {
+            "id": 5,
+            "title": "Configure API Client and Build Pipeline",
+            "description": "Set up Axios for API communication, environment configuration, and complete build/deployment pipeline",
+            "status": "pending",
+            "dependencies": [
+              3
+            ],
+            "details": "Install Axios with `npm install axios` and create src/services/api directory. Define TypeScript interfaces for all ComfyUI API endpoints: IPromptRequest, IPromptResponse, IHistoryResponse, IQueueResponse, ISystemStatsResponse. Create axios instance with base configuration: timeout (30s), retry logic with exponential backoff, request/response interceptors for error handling and auth headers. Set up .env.development and .env.production files with VITE_API_URL and feature flags. Configure Vite build options in vite.config.ts: enable code splitting, configure chunk size warnings, set up asset optimization. Create GitHub Actions workflow (.github/workflows/ci.yml) with jobs for: dependency installation, linting, type checking, unit tests, build verification, and optional deployment. Leverage the existing npm scripts from completed tooling setup.",
+            "testStrategy": "Test Axios configuration by making sample API calls with network errors and verifying retry logic works. Validate TypeScript interfaces by attempting invalid API responses and confirming type errors. Test environment variable loading in both development and production builds. Run full CI pipeline locally and ensure all steps pass. Verify production build outputs optimized chunks and assets. Test build analysis to check bundle sizes. Confirm all existing npm scripts (lint, format, test, type-check) work in CI environment."
+          },
           {
             "id": 1,
             "title": "Initialize Vite React TypeScript Project",
             "description": "Create a new React project using Vite with TypeScript template and configure the base project structure",
             "dependencies": [],
             "details": "Execute `npm create vite@latest comfyui-react -- --template react-ts` to initialize the project. Set up the initial directory structure with src/, public/, and config folders. Configure TypeScript with strict mode enabled in tsconfig.json. Set up path aliases for clean imports: @/components, @/hooks, @/services, @/store, @/types, @/utils. Configure baseUrl as './src' and update Vite config to resolve these aliases. Remove default Vite boilerplate and create a basic App.tsx with 'ComfyUI React' placeholder.",
-            "status": "pending",
+            "status": "done",
             "testStrategy": "Verify project initializes successfully with `npm install` completing without errors. Run `npm run dev` and confirm Vite dev server starts on port 5173. Test HMR by modifying App.tsx and observing instant updates. Validate TypeScript strict mode by intentionally introducing type errors and confirming compiler catches them. Test path aliases by creating a test component and importing it using @/components syntax."
           },
           {
@@ -665,44 +755,9 @@
             "dependencies": [
               1
             ],
-            "details": "Install ESLint with React and TypeScript plugins: `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-react`, `eslint-plugin-react-hooks`. Configure .eslintrc.cjs with recommended rules and React 18 settings. Install Prettier with `prettier-plugin-tailwindcss` and create .prettierrc with consistent formatting rules. Set up Husky and lint-staged for pre-commit hooks that run ESLint and Prettier. Install Vitest, @testing-library/react, @testing-library/jest-dom, and jsdom for testing. Configure vitest.config.ts with proper test environment settings. Install MSW (Mock Service Worker) for API mocking during development and tests.",
-            "status": "pending",
+            "details": "Install ESLint with React and TypeScript plugins: `@typescript-eslint/parser`, `@typescript-eslint/eslint-plugin`, `eslint-plugin-react`, `eslint-plugin-react-hooks`. Configure .eslintrc.cjs with recommended rules and React 18 settings. Install Prettier with `prettier-plugin-tailwindcss` and create .prettierrc with consistent formatting rules. Set up Husky and lint-staged for pre-commit hooks that run ESLint and Prettier. Install Vitest, @testing-library/react, @testing-library/jest-dom, and jsdom for testing. Configure vitest.config.ts with proper test environment settings. Install MSW (Mock Service Worker) for API mocking during development and tests.\n<info added on 2025-07-23T01:59:46.991Z>\nTask 27.2 completed successfully! Full development tooling environment established.\n\n✅ ESLint configured with TypeScript & React plugins\n✅ Prettier set up with Tailwind integration  \n✅ Husky & lint-staged configured for pre-commit hooks\n✅ Vitest with React Testing Library ready for testing\n✅ MSW configured for API mocking\n✅ All npm scripts working (lint, format, test, build)\n✅ Build pipeline tested and working perfectly\n\nDevelopment environment is now fully professional and ready for Task 27.3 (Tailwind CSS setup).\n</info added on 2025-07-23T01:59:46.991Z>",
+            "status": "done",
             "testStrategy": "Run `npm run lint` and verify ESLint analyzes all TypeScript/React files without configuration errors. Test Prettier with `npm run format` and confirm consistent code formatting. Create a test commit to verify Husky pre-commit hooks execute lint-staged tasks. Write a sample component test using Vitest and React Testing Library to confirm test setup works. Set up a basic MSW handler and verify it intercepts API calls in development."
-          },
-          {
-            "id": 3,
-            "title": "Configure Tailwind CSS with Dark Theme Design System",
-            "description": "Install Tailwind CSS and create a custom configuration matching the existing ComfyUI dark theme",
-            "dependencies": [
-              1
-            ],
-            "details": "Install Tailwind CSS with PostCSS and Autoprefixer: `npm install -D tailwindcss postcss autoprefixer`. Initialize Tailwind config with `npx tailwindcss init -p`. Configure tailwind.config.js with custom color palette matching the existing design: bg-primary (#0b0f19), bg-secondary (#181825), bg-tertiary (#1f2937), accent-orange (#ff7c00), accent-blue (#1f77b4), text-primary (#ffffff), text-secondary (#9ca3af), border (#374151), error (#ef4444), success (#10b981). Set up custom spacing, typography with Helvetica Neue font family, and shadow utilities. Create src/index.css with Tailwind directives and custom CSS variables for the theme. Configure responsive breakpoints matching the original design (480px, 768px, 1024px).",
-            "status": "pending",
-            "testStrategy": "Create a test component using all custom color classes and verify they render with correct hex values. Test responsive utilities by creating a component with different breakpoint styles and resizing the viewport. Verify Tailwind purging works in production build by checking final CSS file size. Test custom font family application and confirm Helvetica Neue loads correctly. Validate CSS variables are accessible throughout the application."
-          },
-          {
-            "id": 4,
-            "title": "Set Up State Management and Routing",
-            "description": "Install and configure Zustand for state management and React Router for navigation with TypeScript support",
-            "dependencies": [
-              1,
-              2
-            ],
-            "details": "Install Zustand with `npm install zustand` and create src/store directory structure. Define TypeScript interfaces for application state: IAppState (isGenerating, currentWorkflow, workflowMetadata, generationHistory), IAPIConfig (endpoint, isConnected, connectionStatus), IPresetState (presets, activePreset). Create individual store slices: useAppStore, useAPIStore, usePresetStore with proper TypeScript typing and actions. Install React Router v6 with `npm install react-router-dom @types/react-router-dom`. Set up router configuration with type-safe routes: / (Generate), /history, /models, /settings, /queue. Create route constants file for centralized route management. Implement layout component with navigation matching the original tab structure.",
-            "status": "pending",
-            "testStrategy": "Write unit tests for each Zustand store verifying state updates and actions work correctly. Test TypeScript interfaces catch type mismatches in store usage. Verify React Router navigation works between all defined routes. Test browser back/forward navigation maintains proper state. Confirm route parameters and query strings are properly typed and accessible."
-          },
-          {
-            "id": 5,
-            "title": "Configure API Client and Build Pipeline",
-            "description": "Set up Axios for API communication, environment configuration, and complete build/deployment pipeline",
-            "dependencies": [
-              1,
-              2
-            ],
-            "details": "Install Axios with `npm install axios` and create src/services/api directory. Define TypeScript interfaces for all ComfyUI API endpoints: IPromptRequest, IPromptResponse, IHistoryResponse, IQueueResponse, ISystemStatsResponse. Create axios instance with base configuration: timeout (30s), retry logic with exponential backoff, request/response interceptors for error handling and auth headers. Set up .env.development and .env.production files with VITE_API_URL and feature flags. Configure Vite build options in vite.config.ts: enable code splitting, configure chunk size warnings, set up asset optimization. Create GitHub Actions workflow (.github/workflows/ci.yml) with jobs for: dependency installation, linting, type checking, unit tests, build verification, and optional deployment. Add comprehensive npm scripts: dev, build, preview, test, test:ui, lint, format, type-check, analyze.",
-            "status": "pending",
-            "testStrategy": "Test Axios configuration by making sample API calls with network errors and verifying retry logic works. Validate TypeScript interfaces by attempting invalid API responses and confirming type errors. Test environment variable loading in both development and production builds. Run full CI pipeline locally and ensure all steps pass. Verify production build outputs optimized chunks and assets. Test build analysis with `npm run analyze` to check bundle sizes."
           }
         ]
       },
@@ -1403,11 +1458,86 @@
             "testStrategy": "Verify error tracking captures and correlates issues with source maps, confirm APM metrics track ComfyUI generation performance, test uptime monitoring triggers alerts correctly, validate Terraform provisions infrastructure consistently, test security scanning detects vulnerabilities in dependencies"
           }
         ]
+      },
+      {
+        "id": 38,
+        "title": "TypeScript Migration Phase: Convert ComfyUI Web Interface to TypeScript with Build System and Type Safety",
+        "description": "Migrate the entire ComfyUI Web Interface from vanilla JavaScript to TypeScript, including build system setup, type definitions creation, module conversion, and ensuring type safety for all DOM operations and API calls while preserving existing functionality",
+        "details": "Implement a comprehensive TypeScript migration strategy with the following components:\n\n1. **TypeScript Build System Setup**:\n   - Initialize TypeScript configuration with `tsconfig.json` targeting ES2020+ with strict mode enabled\n   - Configure module resolution for path aliases (@components, @services, @types, @utils)\n   - Set up webpack/vite build pipeline with ts-loader or esbuild for optimal bundle sizes\n   - Configure source maps for development and production debugging\n   - Implement hot module replacement (HMR) for development workflow\n   - Set up incremental compilation for faster rebuilds\n\n2. **Type Definition Architecture**:\n   - Create `types/` directory structure with domain-specific type definitions\n   - Define core interfaces: `IComfyUIWorkflow`, `IGenerationParams`, `IWebSocketMessage`, `IAPIResponse`\n   - Create type definitions for ComfyUI API responses and WebSocket event payloads\n   - Implement utility types for strict null checking and exhaustive switch statements\n   - Define DOM element types using TypeScript's built-in HTMLElement interfaces\n   - Create ambient type declarations for any external libraries without types\n\n3. **Core Service Migration**:\n   - Convert `AppState` class to TypeScript with proper property typing and method signatures\n   - Migrate `WebSocketService` with typed event emitters and connection state management\n   - Convert `InterruptService` with proper error handling types and async/await patterns\n   - Transform `MetadataParser` with strict typing for workflow analysis and parameter extraction\n   - Migrate API communication layer with typed request/response interfaces\n\n4. **DOM Operations Type Safety**:\n   - Replace all `querySelector` calls with typed versions using generic constraints\n   - Implement type guards for DOM element assertions (e.g., `isHTMLInputElement`)\n   - Create typed event handlers with proper Event interface extensions\n   - Implement strict null checking for all DOM references with optional chaining\n   - Define custom DOM utility functions with proper type inference\n\n5. **Module System Conversion**:\n   - Convert all JavaScript files to TypeScript modules with explicit imports/exports\n   - Implement barrel exports for cleaner import statements\n   - Create index.ts files for each major directory to manage exports\n   - Migrate from global scope to proper module encapsulation\n   - Implement dependency injection patterns where appropriate\n\n6. **API Integration Type Safety**:\n   - Define comprehensive types for all ComfyUI API endpoints\n   - Create typed fetch wrappers with generic response handling\n   - Implement type-safe error handling with discriminated unions\n   - Add request/response interceptors with proper typing\n   - Create typed API client classes with method-specific return types\n\n7. **Build Configuration**:\n   - Set up npm scripts for development, production, and type checking\n   - Configure ESLint with TypeScript parser and strict ruleset\n   - Implement pre-commit hooks for type checking and linting\n   - Set up Jest with ts-jest for TypeScript testing support\n   - Configure code splitting and lazy loading with dynamic imports",
+        "testStrategy": "1. **Type Safety Verification**:\n   - Run `tsc --noEmit` to ensure zero type errors across entire codebase\n   - Verify all implicit any types are eliminated with strict mode\n   - Test type inference works correctly for complex generic functions\n   - Validate discriminated unions handle all possible cases\n\n2. **Build System Testing**:\n   - Verify development build completes successfully with HMR working\n   - Test production build generates optimized bundles under 500KB\n   - Confirm source maps generate correctly for debugging\n   - Validate tree shaking removes unused code\n\n3. **Runtime Compatibility**:\n   - Test all existing functionality works identically after migration\n   - Verify no runtime errors from type assertions or casts\n   - Confirm API calls maintain same request/response format\n   - Test WebSocket connections handle all event types correctly\n\n4. **Integration Testing**:\n   - Run full end-to-end tests for workflow submission and generation\n   - Test error scenarios with proper type-safe error handling\n   - Verify preset management maintains data integrity\n   - Confirm all UI interactions work with typed event handlers\n\n5. **Performance Validation**:\n   - Measure bundle size increase stays under 10% after TypeScript\n   - Verify no performance regression in critical paths\n   - Test memory usage remains stable with no leaks\n   - Confirm build times are acceptable (under 30 seconds for full rebuild)",
+        "status": "pending",
+        "dependencies": [
+          27,
+          28,
+          29,
+          33,
+          34,
+          35,
+          36
+        ],
+        "priority": "medium",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Initialize TypeScript Build System and Development Environment",
+            "description": "Set up the complete TypeScript build infrastructure including package.json dependencies, tsconfig.json with strict mode, webpack/vite configuration, and development scripts",
+            "dependencies": [],
+            "details": "Install TypeScript and build tool dependencies (typescript, webpack/vite, ts-loader/esbuild, webpack-dev-server). Create tsconfig.json with target ES2020+, strict mode enabled, module resolution for path aliases (@components, @services, @types, @utils), and proper lib references for DOM APIs. Configure webpack.config.js or vite.config.js with TypeScript loader, source maps, hot module replacement (HMR), and development/production build modes. Set up npm scripts in package.json for 'dev' (with HMR), 'build' (production), 'type-check' (tsc --noEmit), and 'lint' commands. Configure .gitignore for node_modules, dist, and build artifacts.",
+            "status": "pending",
+            "testStrategy": "Verify TypeScript compiler runs without errors on a sample .ts file. Test that webpack/vite dev server starts successfully with HMR working. Ensure production build generates optimized bundles with source maps. Validate that path aliases resolve correctly in imports. Test incremental compilation performance with file changes."
+          },
+          {
+            "id": 2,
+            "title": "Create Type Definition Architecture and Core Interfaces",
+            "description": "Establish the complete type system with dedicated types directory, core interfaces for ComfyUI data structures, API responses, and utility types",
+            "dependencies": [
+              1
+            ],
+            "details": "Create types/ directory with subdirectories: api/, dom/, models/, utils/. Define core interfaces in types/models/: IComfyUIWorkflow (with node structure types), IGenerationParams (steps, cfg, dimensions, prompts), IWorkflowNode with discriminated unions for different node types. Create types/api/: IAPIResponse<T> generic, IWebSocketMessage with event type unions, IHistoryResponse, IQueueResponse, IInterruptResponse. Implement types/dom/: typed querySelector utilities, DOM element type guards (isHTMLInputElement, isHTMLTextAreaElement), event handler types. Add types/utils/: Nullable<T>, DeepPartial<T>, exhaustive switch helpers, Result<T, E> for error handling. Create ambient declarations in types/ambient.d.ts for any external resources.",
+            "status": "pending",
+            "testStrategy": "Compile empty TypeScript files importing each interface to verify no circular dependencies. Test discriminated unions with exhaustive switch statements. Validate utility types work correctly with complex nested objects. Ensure all ComfyUI API response shapes are accurately typed by testing against real API responses."
+          },
+          {
+            "id": 3,
+            "title": "Migrate Core Services to TypeScript with Proper Typing",
+            "description": "Convert all JavaScript service classes to TypeScript, starting with AppState, WebSocketService, InterruptService, and MetadataParser",
+            "dependencies": [
+              2
+            ],
+            "details": "Convert script.js AppState class to services/AppState.ts with typed properties (isGenerating: boolean, currentWorkflow: IComfyUIWorkflow | null, etc.) and method signatures. Migrate WebSocketService to services/WebSocketService.ts with typed event emitters, connection states enum, and proper WebSocket event typing. Transform InterruptService to services/InterruptService.ts with async/await patterns and Result<T, E> error handling. Convert MetadataParser to services/MetadataParser.ts with strict typing for workflow analysis methods and return types. Create services/index.ts barrel export. Implement dependency injection pattern for service initialization.",
+            "status": "pending",
+            "testStrategy": "Unit test each service with mocked dependencies using Jest and ts-jest. Verify type inference works correctly for all public methods. Test error handling paths return correct Result types. Validate WebSocket event typing prevents invalid event emissions. Ensure services maintain backward compatibility with existing functionality."
+          },
+          {
+            "id": 4,
+            "title": "Implement Type-Safe DOM Operations and Event Handling",
+            "description": "Create a comprehensive DOM manipulation layer with full type safety, replacing all querySelector calls and event handlers with typed versions",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Create utils/dom.ts with typed querySelector functions: querySelector<T extends Element>(selector: string): T | null with proper type narrowing. Implement querySelectorStrict<T> that throws if element not found. Create type guards in utils/typeGuards.ts for all HTML element types used. Convert all document.querySelector calls to use typed versions with explicit type parameters. Implement typed event handler system in utils/events.ts with createEventHandler<T extends Event>() factory. Replace all addEventListener calls with typed versions ensuring correct Event subtype. Add null checking with optional chaining for all DOM references. Create utils/domHelpers.ts with common patterns like getInputValue(), setElementText() with proper typing.",
+            "status": "pending",
+            "testStrategy": "Test type guards correctly narrow element types in TypeScript compiler. Verify querySelector functions catch type mismatches at compile time. Test event handlers receive correctly typed event objects. Validate null checking prevents runtime errors with missing elements. Ensure all DOM operations maintain existing functionality."
+          },
+          {
+            "id": 5,
+            "title": "Complete Module System Conversion and Build Pipeline Integration",
+            "description": "Convert all remaining JavaScript to TypeScript modules, implement barrel exports, configure the final build pipeline with code splitting and testing",
+            "dependencies": [
+              3,
+              4
+            ],
+            "details": "Convert presetManager.js to modules/PresetManager.ts with proper import/export syntax and typed storage interfaces. Create index.ts files in each directory (components/, services/, utils/, types/) for clean barrel exports. Migrate any remaining global scope code to proper modules with explicit dependencies. Configure dynamic imports for code splitting (e.g., lazy load preset manager). Set up ESLint with @typescript-eslint/parser and strict ruleset including no-explicit-any rule. Configure Jest with ts-jest preset and write initial type safety tests. Set up husky pre-commit hooks running 'npm run type-check' and 'npm run lint'. Configure production build with minification, tree shaking, and optimal chunk splitting. Create API client classes in api/ directory with method-specific typed returns.",
+            "status": "pending",
+            "testStrategy": "Run full TypeScript compilation with --noEmit to ensure zero errors. Test ESLint catches any type safety violations. Verify Jest runs TypeScript tests successfully. Test production build generates optimal bundles under 250KB. Validate lazy loading works correctly for code-split modules. Ensure all functionality from original JavaScript version is preserved."
+          }
+        ]
       }
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-18T05:48:07.370Z",
+      "updated": "2025-07-23T02:10:32.523Z",
       "description": "Tasks for master context"
     }
   }
