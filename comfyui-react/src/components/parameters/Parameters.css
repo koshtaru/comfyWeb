@@ -9,6 +9,9 @@
   position: relative;
   width: 100%;
   max-width: 300px;
+  z-index: 1; /* Establish stacking context */
+  /* Ensure dropdown stays within its container */
+  contain: layout;
 }
 
 .preset-dropdown-trigger {
@@ -66,10 +69,11 @@
   border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
-  max-height: 400px;
+  z-index: 99999; /* Very high z-index to ensure it appears above everything */
+  max-height: 70vh; /* Use viewport height to ensure it fits on screen */
   overflow-y: auto;
   margin-top: 0.25rem;
+  min-height: 200px; /* Ensure minimum visibility */
 }
 
 .preset-error {
@@ -1085,8 +1089,8 @@
   margin-top: 1rem;
 }
 
-/* Responsive Design */
-@media (max-width: 768px) {
+/* Responsive Design - Only apply to very small screens (actual mobile) */
+@media (max-width: 480px) {
   .preset-dropdown-menu {
     position: fixed;
     top: 50%;
@@ -1094,8 +1098,23 @@
     right: 1rem;
     transform: translateY(-50%);
     max-height: 70vh;
+    z-index: 10000; /* Even higher z-index for mobile */
   }
-  
+}
+
+/* For tablet/small desktop screens (481px - 768px), keep normal dropdown */
+@media (min-width: 481px) and (max-width: 768px) {
+  .preset-dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-width: 400px; /* Limit width on medium screens */
+  }
+}
+
+/* Continue mobile-specific responsive styles */
+@media (max-width: 768px) {
   .preset-category-filter {
     flex-direction: column;
     gap: 0.5rem;
@@ -1130,10 +1149,12 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  overflow: visible; /* Ensure dropdown can overflow container */
 }
 
 .preset-dropdown-container {
   width: 100%;
+  overflow: visible; /* Ensure dropdown can overflow container */
 }
 
 .parameter-preset-dropdown {
@@ -1204,6 +1225,21 @@
 /* Parameter section styling for preset components */
 .parameter-section .preset-dropdown-menu {
   margin-top: 0.5rem;
+  z-index: 99999; /* Ensure dropdown appears above other parameter sections */
+}
+
+/* Fix dropdown z-index in parameter display context */
+.parameter-display .preset-dropdown-menu {
+  z-index: 99999;
+}
+
+/* Ensure all parameter sections allow dropdown overflow */
+.parameter-section {
+  overflow: visible !important;
+}
+
+.parameter-section .section-content {
+  overflow: visible !important;
 }
 
 /* Ensure preset components work well in parameter grid */
@@ -1217,6 +1253,18 @@
   border: 1px solid var(--color-border);
   border-radius: 6px;
   padding: 1rem;
+  overflow: visible; /* Critical: ensure dropdown can overflow */
+  position: relative; /* Establish stacking context */
+}
+
+/* Debug: ensure section content is properly hidden when collapsed */
+.parameter-section .section-content {
+  overflow: visible; /* Allow dropdown to overflow */
+}
+
+/* Ensure preset dropdown is properly contained within section */
+.parameter-section .preset-section-content {
+  display: block; /* Override any flex issues */
 }
 
 /* Mobile integration adjustments */
@@ -1276,6 +1324,51 @@
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-left: 0.5rem;
+}
+
+/* Ensure dropdown container has proper stacking context */
+.preset-dropdown {
+  position: relative;
+  z-index: 1;
+}
+
+.preset-dropdown.open {
+  z-index: 9999;
+}
+
+/* Override any conflicting z-index from parent containers */
+.parameter-display .preset-dropdown {
+  position: relative;
+  z-index: auto;
+}
+
+.parameter-display .preset-dropdown.open {
+  z-index: 9999;
+}
+
+/* Ensure proper stacking in different contexts */
+.comfy-panel .preset-dropdown-menu,
+.parameter-section .preset-dropdown-menu {
+  z-index: 99999;
+}
+
+/* Ensure comfy-panel allows dropdown overflow */
+.comfy-panel {
+  overflow: visible !important;
+}
+
+/* Ensure parameter-display container allows dropdown overflow */
+.parameter-display {
+  overflow: visible !important;
+}
+
+/* Ensure dropdown appears above all other parameter sections */
+.preset-dropdown.open {
+  z-index: 100000; /* Even higher to override any section stacking */
+}
+
+.preset-dropdown.open .preset-dropdown-menu {
+  z-index: 100000;
 }
 
 /* Generate Page Preset Manager Integration */

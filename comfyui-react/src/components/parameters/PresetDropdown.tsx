@@ -19,6 +19,7 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
   const [isOpen, setIsOpen] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'quality' | 'speed' | 'dimension' | 'custom'>('all')
   const dropdownRef = useRef<HTMLDivElement>(null)
+
   
   const {
     presets,
@@ -77,7 +78,8 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
     ) || null
   }
 
-  const handleApplyPreset = (preset: ParameterPreset) => {
+  const handleApplyPreset = (preset: ParameterPreset, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation()
     onApplyPreset(preset.parameters)
     setIsOpen(false)
   }
@@ -91,7 +93,8 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
     }
   }
 
-  const handleCreatePreset = () => {
+  const handleCreatePreset = (e: React.MouseEvent) => {
+    e.stopPropagation()
     if (onCreatePreset) {
       onCreatePreset(currentParameters)
     }
@@ -112,10 +115,13 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
   }
 
   return (
-    <div className={`preset-dropdown ${className}`} ref={dropdownRef}>
+    <div className={`preset-dropdown ${isOpen ? 'open' : ''} ${className}`} ref={dropdownRef}>
       <button
         className={`preset-dropdown-trigger ${isOpen ? 'open' : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setIsOpen(!isOpen)
+        }}
         disabled={disabled}
         aria-haspopup="true"
         aria-expanded={isOpen}
@@ -138,7 +144,15 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
           {error && (
             <div className="preset-error">
               <span>{error}</span>
-              <button onClick={clearError} className="error-close">×</button>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation()
+                  clearError()
+                }} 
+                className="error-close"
+              >
+                ×
+              </button>
             </div>
           )}
 
@@ -146,31 +160,46 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
           <div className="preset-category-filter">
             <button
               className={selectedCategory === 'all' ? 'active' : ''}
-              onClick={() => setSelectedCategory('all')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedCategory('all')
+              }}
             >
               All ({presets.length})
             </button>
             <button
               className={selectedCategory === 'quality' ? 'active' : ''}
-              onClick={() => setSelectedCategory('quality')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedCategory('quality')
+              }}
             >
               Quality ({qualityPresets.length})
             </button>
             <button
               className={selectedCategory === 'speed' ? 'active' : ''}
-              onClick={() => setSelectedCategory('speed')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedCategory('speed')
+              }}
             >
               Speed ({speedPresets.length})
             </button>
             <button
               className={selectedCategory === 'dimension' ? 'active' : ''}
-              onClick={() => setSelectedCategory('dimension')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedCategory('dimension')
+              }}
             >
               Sizes ({dimensionPresets.length})
             </button>
             <button
               className={selectedCategory === 'custom' ? 'active' : ''}
-              onClick={() => setSelectedCategory('custom')}
+              onClick={(e) => {
+                e.stopPropagation()
+                setSelectedCategory('custom')
+              }}
             >
               Custom ({customPresets.length})
             </button>
@@ -190,7 +219,7 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
                 <div
                   key={preset.id}
                   className={`preset-item ${currentPreset?.id === preset.id ? 'active' : ''}`}
-                  onClick={() => handleApplyPreset(preset)}
+                  onClick={(e) => handleApplyPreset(preset, e)}
                 >
                   <div className="preset-main">
                     <div className="preset-header">
@@ -244,10 +273,16 @@ export const PresetDropdown: React.FC<PresetDropdownProps> = ({
             )}
             
             <div className="preset-action-group">
-              <button className="preset-action-button secondary">
+              <button 
+                className="preset-action-button secondary"
+                onClick={(e) => e.stopPropagation()}
+              >
                 📤 Export
               </button>
-              <button className="preset-action-button secondary">
+              <button 
+                className="preset-action-button secondary"
+                onClick={(e) => e.stopPropagation()}
+              >
                 📥 Import
               </button>
             </div>

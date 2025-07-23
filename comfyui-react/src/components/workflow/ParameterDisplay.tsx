@@ -6,9 +6,8 @@ import {
   DimensionsControl, 
   SeedControl, 
   BatchControl,
-  PresetDropdown,
-  PresetCreationDialog,
-  DimensionPresets
+  DimensionPresets,
+  PresetManager
 } from '@/components/parameters'
 import { 
   extractedParametersToParameterSet, 
@@ -27,8 +26,7 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
   onParameterChange,
   readOnly = false
 }) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['presets', 'generation']))
-  const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false)
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['preset-management', 'generation']))
   
   // Log parameter changes
   useEffect(() => {
@@ -73,10 +71,6 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
     applyParameterSet(parameterSet, parameters, onParameterChange)
   }
 
-  const handleCreatePreset = (_parameterSet: any) => {
-    if (readOnly) return
-    setIsPresetDialogOpen(true)
-  }
 
   const getCurrentParameterSet = () => {
     return extractedParametersToParameterSet(parameters)
@@ -88,32 +82,15 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
       {!readOnly && (
         <ParameterSection
           title="Presets"
-          icon="📋"
-          isExpanded={expandedSections.has('presets')}
-          onToggle={() => toggleSection('presets')}
+          icon="🎛️"
+          isExpanded={expandedSections.has('preset-management')}
+          onToggle={() => toggleSection('preset-management')}
         >
-          <div className="preset-section-content">
-            <div className="preset-dropdown-container">
-              <PresetDropdown
-                currentParameters={getCurrentParameterSet()}
-                onApplyPreset={handleApplyPreset}
-                onCreatePreset={handleCreatePreset}
-                disabled={readOnly}
-                className="parameter-preset-dropdown"
-              />
-            </div>
-            
-            <div className="preset-quick-actions">
-              <button
-                className="preset-save-button"
-                onClick={() => setIsPresetDialogOpen(true)}
-                disabled={readOnly}
-                title="Save current parameters as a new preset"
-              >
-                💾 Save Current as Preset
-              </button>
-            </div>
-          </div>
+          <PresetManager
+            currentParameters={getCurrentParameterSet()}
+            onApplyPreset={handleApplyPreset}
+            className="preset-manager-integrated"
+          />
         </ParameterSection>
       )}
 
@@ -380,16 +357,6 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
         </div>
       </ParameterSection>
 
-      {/* Preset Creation Dialog */}
-      <PresetCreationDialog
-        isOpen={isPresetDialogOpen}
-        onClose={() => setIsPresetDialogOpen(false)}
-        parameters={getCurrentParameterSet()}
-        onPresetCreated={() => {
-          setIsPresetDialogOpen(false)
-          console.log('🎉 [ParameterDisplay] Preset created successfully')
-        }}
-      />
     </div>
   )
 }
