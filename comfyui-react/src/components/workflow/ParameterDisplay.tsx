@@ -5,8 +5,15 @@ import {
   CFGScaleControl, 
   DimensionsControl, 
   SeedControl, 
-  BatchControl 
+  BatchControl,
+  PresetDropdown,
+  PresetCreationDialog,
+  DimensionPresets
 } from '@/components/parameters'
+import { 
+  extractedParametersToParameterSet, 
+  applyParameterSet 
+} from '@/utils/parameterConversion'
 import '@/components/parameters/Parameters.css'
 
 interface ParameterDisplayProps {
@@ -20,7 +27,8 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
   onParameterChange,
   readOnly = false
 }) => {
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['generation']))
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['presets', 'generation']))
+  const [isPresetDialogOpen, setIsPresetDialogOpen] = useState(false)
   
   // Log parameter changes
   useEffect(() => {
@@ -57,8 +65,58 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
     }
   }
 
+  // Preset handling
+  const handleApplyPreset = (parameterSet: any) => {
+    if (!onParameterChange || readOnly) return
+    
+    console.log('🎯 [ParameterDisplay] Applying preset:', parameterSet)
+    applyParameterSet(parameterSet, parameters, onParameterChange)
+  }
+
+  const handleCreatePreset = (_parameterSet: any) => {
+    if (readOnly) return
+    setIsPresetDialogOpen(true)
+  }
+
+  const getCurrentParameterSet = () => {
+    return extractedParametersToParameterSet(parameters)
+  }
+
   return (
     <div className="parameter-display">
+      {/* Preset Management - Only show if not read-only */}
+      {!readOnly && (
+        <ParameterSection
+          title="Presets"
+          icon="📋"
+          isExpanded={expandedSections.has('presets')}
+          onToggle={() => toggleSection('presets')}
+        >
+          <div className="preset-section-content">
+            <div className="preset-dropdown-container">
+              <PresetDropdown
+                currentParameters={getCurrentParameterSet()}
+                onApplyPreset={handleApplyPreset}
+                onCreatePreset={handleCreatePreset}
+                disabled={readOnly}
+                className="parameter-preset-dropdown"
+              />
+            </div>
+            
+            <div className="preset-quick-actions">
+              <button
+                className="preset-save-button"
+                onClick={() => setIsPresetDialogOpen(true)}
+                disabled={readOnly}
+                title="Save current parameters as a new preset"
+              >
+                💾 Save Current as Preset
+              </button>
+            </div>
+          </div>
+        </ParameterSection>
+      )}
+
       {/* Generation Parameters */}
       <ParameterSection
         title="Generation Settings"
@@ -233,6 +291,23 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
             />
           )}
         </div>
+
+        {/* Quick Dimension Presets - Only show if not read-only and we have width/height */}
+        {!readOnly && parameters.image.width && parameters.image.height && (
+          <div className="dimension-presets-section">
+            <DimensionPresets
+              currentWidth={parameters.image.width}
+              currentHeight={parameters.image.height}
+              onDimensionChange={(width, height) => {
+                handleChange(parameters.image.nodeId || '', 'width', width)
+                handleChange(parameters.image.nodeId || '', 'height', height)
+              }}
+              disabled={readOnly}
+              compact={true}
+              showLabels={false}
+            />
+          </div>
+        )}
       </ParameterSection>
 
       {/* Prompts */}
@@ -304,6 +379,17 @@ export const ParameterDisplay: React.FC<ParameterDisplayProps> = ({
           {parameters.metadata.hasUpscaling && <span className="feature-tag">UPSCALING</span>}
         </div>
       </ParameterSection>
+
+      {/* Preset Creation Dialog */}
+      <PresetCreationDialog
+        isOpen={isPresetDialogOpen}
+        onClose={() => setIsPresetDialogOpen(false)}
+        parameters={getCurrentParameterSet()}
+        onPresetCreated={() => {
+          setIsPresetDialogOpen(false)
+          console.log('🎉 [ParameterDisplay] Preset created successfully')
+        }}
+      />
     </div>
   )
 }

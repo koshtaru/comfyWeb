@@ -7,8 +7,10 @@ import { useAppStore } from '@/store'
 import { FileUpload, UploadProgress, ValidationResults, ParameterDisplay } from '@/components/workflow'
 import { UploadErrorBoundary } from '@/components/common/ErrorBoundary'
 import { ToastContainer } from '@/components/ui/Toast'
+import { PresetManager } from '@/components/parameters'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { useUploadSelectors } from '@/store/uploadStore'
+import { extractedParametersToParameterSet, applyParameterSet } from '@/utils/parameterConversion'
 
 export default function GeneratePage() {
   const { isGenerating, setIsGenerating } = useAppStore()
@@ -45,6 +47,13 @@ export default function GeneratePage() {
 
   const handleParameterChange = (nodeId: string, parameter: string, value: any) => {
     updateParameter(nodeId, parameter, value)
+  }
+
+  const handleApplyPreset = (parameterSet: any) => {
+    if (!extractedParameters || isProcessing || isGenerating) return
+    
+    console.log('🎯 [GeneratePage] Applying preset from preset manager:', parameterSet)
+    applyParameterSet(parameterSet, extractedParameters, updateParameter)
   }
 
   const handlePaste = async (event: React.ClipboardEvent) => {
@@ -178,6 +187,27 @@ export default function GeneratePage() {
                         parameters={extractedParameters}
                         onParameterChange={handleParameterChange}
                         readOnly={isGenerating || isProcessing}
+                      />
+                    </div>
+                  </div>
+                </UploadErrorBoundary>
+              )}
+
+              {/* Preset Manager - Show when parameters are available */}
+              {extractedParameters && (
+                <UploadErrorBoundary>
+                  <div>
+                    <div className="mb-2 flex items-center justify-between">
+                      <label className="block text-sm font-medium text-comfy-text-primary">
+                        Preset Management
+                      </label>
+                    </div>
+                    
+                    <div className="comfy-panel p-4">
+                      <PresetManager
+                        currentParameters={extractedParametersToParameterSet(extractedParameters)}
+                        onApplyPreset={handleApplyPreset}
+                        className="preset-manager-integrated"
                       />
                     </div>
                   </div>
