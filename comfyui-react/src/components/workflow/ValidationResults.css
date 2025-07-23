@@ -1,0 +1,240 @@
+/* Validation Results Component Styles */
+.validation-results {
+  background-color: var(--color-bg-secondary);
+  border-radius: 8px;
+  margin-top: 1rem;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.validation-results.success {
+  border: 1px solid var(--color-success);
+  background-color: rgba(16, 185, 129, 0.05);
+}
+
+.validation-results.warning {
+  border: 1px solid var(--color-accent-orange);
+  background-color: rgba(255, 124, 0, 0.05);
+}
+
+.validation-results.error {
+  border: 1px solid var(--color-error);
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.validation-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.validation-icon {
+  flex-shrink: 0;
+}
+
+.validation-results.success .validation-icon {
+  color: var(--color-success);
+}
+
+.validation-results.warning .validation-icon {
+  color: var(--color-accent-orange);
+}
+
+.validation-results.error .validation-icon {
+  color: var(--color-error);
+}
+
+.validation-title-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.validation-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+}
+
+.validation-stats {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.error-count {
+  color: var(--color-error);
+}
+
+.warning-count {
+  color: var(--color-accent-orange);
+}
+
+.node-count {
+  color: var(--color-text-secondary);
+}
+
+.validation-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.collapse-button,
+.dismiss-button {
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.collapse-button:hover {
+  color: var(--color-text-primary);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.dismiss-button:hover {
+  color: var(--color-error);
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.collapse-button svg {
+  transition: transform 0.2s ease;
+}
+
+.validation-details {
+  border-top: 1px solid var(--color-border);
+  padding: 0;
+}
+
+.validation-section {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.validation-section:last-child {
+  border-bottom: none;
+}
+
+.section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin-bottom: 0.75rem;
+}
+
+.validation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.validation-item {
+  padding: 0.75rem;
+  background-color: var(--color-bg-tertiary);
+  border-radius: 4px;
+  border-left: 3px solid transparent;
+}
+
+.validation-item.error {
+  border-left-color: var(--color-error);
+}
+
+.validation-item.warning {
+  border-left-color: var(--color-accent-orange);
+}
+
+.validation-item-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.validation-item-icon {
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.validation-item.error .validation-item-icon {
+  color: var(--color-error);
+}
+
+.validation-item.warning .validation-item-icon {
+  color: var(--color-accent-orange);
+}
+
+.validation-item-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.validation-item-message {
+  font-size: 0.875rem;
+  color: var(--color-text-primary);
+  line-height: 1.4;
+}
+
+.validation-item-node {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+.validation-item-type {
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.node-types-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.node-type-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background-color: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 640px) {
+  .validation-stats {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .validation-item-header {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .validation-item-type {
+    align-self: flex-start;
+  }
+  
+  .node-types-list {
+    gap: 0.25rem;
+  }
+}
