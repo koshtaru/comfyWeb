@@ -4822,7 +4822,10 @@ class MetadataParser {
             textEncoders: ['CLIPTextEncode', 'CLIPTextEncodeSDXL', 'FluxTextEncode', 'NunchakuTextEncoderLoaderV2'],
             imageGenerators: ['EmptyLatentImage', 'EmptySD3LatentImage', 'FluxLatent', 'FluxGGUFLatent'],
             models: ['CheckpointLoaderSimple', 'CheckpointLoader', 'FluxCheckpointLoader', 'UNETLoader', 'NunchakuFluxDiTLoader'],
-            vae: ['VAELoader', 'VAEEncode', 'VAEDecode']
+            vae: ['VAELoader', 'VAEEncode', 'VAEDecode'],
+            lora: ['LoraLoader', 'LoRALoader', 'LoraLoaderModelOnly', 'FluxLoRALoader'],
+            controlnet: ['ControlNetLoader', 'ControlNetApply', 'ControlNetApplyAdvanced'],
+            upscaler: ['UpscaleModelLoader', 'ImageUpscaleWithModel', 'ESRGAN_Upscale']
         };
         
         this.defaultMetadata = this.createDefaultMetadata();
@@ -4851,7 +4854,19 @@ class MetadataParser {
                 name: null,
                 hash: null,
                 type: null,
-                architecture: null // 'SD1.5', 'SDXL', 'Flux', 'SD3'
+                architecture: null, // 'SD1.5', 'SDXL', 'Flux', 'SD3'
+                baseModel: null,
+                trainingData: null,
+                compatibilityScore: null,
+                loras: [], // Array of LoRA information
+                vae: {
+                    name: null,
+                    type: null,
+                    encoder: null,
+                    decoder: null
+                },
+                controlnets: [], // Array of ControlNet information
+                upscalers: [] // Array of upscaler information
             },
             timing: {
                 startTime: null,
@@ -4880,6 +4895,17 @@ class MetadataParser {
                 nodeTypes: [],
                 workflowVersion: null,
                 nodeCount: 0
+            },
+            compatibility: {
+                warnings: [],
+                recommendations: [],
+                score: null,
+                issues: {
+                    resolution: [],
+                    sampler: [],
+                    modelMismatch: [],
+                    clipSkip: []
+                }
             },
             raw: {
                 workflow: null,
@@ -4933,6 +4959,9 @@ class MetadataParser {
             
             // Determine model architecture based on node types
             metadata.model.architecture = this.detectModelArchitecture(nodeTypes);
+            
+            // Run compatibility analysis
+            this.analyzeCompatibility(metadata);
             
             console.log('✅ Workflow metadata parsed successfully');
             console.log('🔍 DEBUG: Final metadata:', JSON.stringify(metadata, null, 2));
@@ -5040,8 +5069,54 @@ class MetadataParser {
             console.log('🔍 DEBUG: Processing VAE node');
             if (inputs.vae_name !== undefined) {
                 metadata.technical.vae = inputs.vae_name;
+                // Enhanced VAE information for model section
+                metadata.model.vae.name = inputs.vae_name;
+                metadata.model.vae.type = this.extractVAEType(inputs.vae_name);
                 console.log('🔍 DEBUG: Set VAE to:', inputs.vae_name);
             }
+        }
+        
+        // Extract LoRA information
+        else if (this.supportedNodeTypes.lora.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing LoRA node');
+            const loraInfo = {
+                name: inputs.lora_name || 'Unknown LoRA',
+                modelStrength: parseFloat(inputs.strength_model) || 1.0,
+                clipStrength: parseFloat(inputs.strength_clip) || 1.0,
+                nodeId: node._meta?.node_id || Math.random().toString(36).substr(2, 9),
+                type: this.extractLoRAType(inputs.lora_name),
+                hash: null // Could be extracted from filename if available
+            };
+            metadata.model.loras.push(loraInfo);
+            console.log('🔍 DEBUG: Added LoRA:', loraInfo);
+        }
+        
+        // Extract ControlNet information
+        else if (this.supportedNodeTypes.controlnet.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing ControlNet node');
+            const controlnetInfo = {
+                name: inputs.control_net_name || inputs.controlnet_name || 'Unknown ControlNet',
+                strength: parseFloat(inputs.strength) || 1.0,
+                startPercent: parseFloat(inputs.start_percent) || 0.0,
+                endPercent: parseFloat(inputs.end_percent) || 1.0,
+                nodeId: node._meta?.node_id || Math.random().toString(36).substr(2, 9),
+                type: nodeType
+            };
+            metadata.model.controlnets.push(controlnetInfo);
+            console.log('🔍 DEBUG: Added ControlNet:', controlnetInfo);
+        }
+        
+        // Extract Upscaler information
+        else if (this.supportedNodeTypes.upscaler.includes(nodeType)) {
+            console.log('🔍 DEBUG: Processing Upscaler node');
+            const upscalerInfo = {
+                name: inputs.model_name || inputs.upscale_model || 'Unknown Upscaler',
+                scale: parseFloat(inputs.scale) || 2.0,
+                nodeId: node._meta?.node_id || Math.random().toString(36).substr(2, 9),
+                type: nodeType
+            };
+            metadata.model.upscalers.push(upscalerInfo);
+            console.log('🔍 DEBUG: Added Upscaler:', upscalerInfo);
         }
         
         else {
@@ -5206,6 +5281,47 @@ class MetadataParser {
     }
 
     /**
+     * Extract VAE type from VAE name
+     * @param {string} vaeName - VAE filename
+     * @returns {string} VAE type
+     */
+    extractVAEType(vaeName) {
+        if (!vaeName) return null;
+        
+        const name = vaeName.toLowerCase();
+        
+        if (name.includes('sdxl') || name.includes('xl')) return 'SDXL';
+        if (name.includes('sd15') || name.includes('sd-1.5') || name.includes('anime')) return 'SD1.5';
+        if (name.includes('flux')) return 'Flux';
+        if (name.includes('sd3')) return 'SD3';
+        if (name.includes('mse') || name.includes('ema')) return 'MSE/EMA';
+        
+        return 'Standard';
+    }
+
+    /**
+     * Extract LoRA type from LoRA name
+     * @param {string} loraName - LoRA filename
+     * @returns {string} LoRA type
+     */
+    extractLoRAType(loraName) {
+        if (!loraName) return null;
+        
+        const name = loraName.toLowerCase();
+        
+        if (name.includes('character') || name.includes('char')) return 'Character';
+        if (name.includes('style') || name.includes('art')) return 'Style';
+        if (name.includes('concept') || name.includes('pose')) return 'Concept';
+        if (name.includes('clothing') || name.includes('outfit')) return 'Clothing';
+        if (name.includes('background') || name.includes('scene')) return 'Background';
+        if (name.includes('effect') || name.includes('fx')) return 'Effect';
+        if (name.includes('flux')) return 'Flux LoRA';
+        if (name.includes('sdxl')) return 'SDXL LoRA';
+        
+        return 'General';
+    }
+
+    /**
      * Determine if text is likely a negative prompt
      * @param {string} text - Prompt text
      * @returns {boolean} True if likely negative prompt
@@ -5220,6 +5336,151 @@ class MetadataParser {
         ];
         
         return negativeKeywords.some(keyword => text.toLowerCase().includes(keyword));
+    }
+
+    /**
+     * Analyze metadata for compatibility issues and generate warnings/recommendations
+     * @param {Object} metadata - Metadata object to analyze
+     */
+    analyzeCompatibility(metadata) {
+        console.log('🔍 Analyzing compatibility...');
+        
+        const compatibility = metadata.compatibility;
+        let score = 100; // Start with perfect score
+        
+        // Check resolution compatibility with model architecture
+        const { width, height } = metadata.generation.dimensions;
+        const architecture = metadata.model.architecture;
+        
+        if (width && height && architecture) {
+            const resolution = width * height;
+            
+            // SDXL optimal resolutions
+            if (architecture === 'SDXL') {
+                if (resolution < 1024 * 1024) {
+                    compatibility.warnings.push('Resolution below 1024x1024 may produce suboptimal results with SDXL models');
+                    compatibility.issues.resolution.push('Low resolution for SDXL');
+                    score -= 15;
+                } else if (width < 768 || height < 768) {
+                    compatibility.warnings.push('Very narrow aspect ratios may cause issues with SDXL models');
+                    compatibility.issues.resolution.push('Extreme aspect ratio');
+                    score -= 10;
+                }
+            }
+            
+            // SD1.5 optimal resolutions
+            if (architecture === 'SD1.5') {
+                if (resolution > 768 * 768) {
+                    compatibility.recommendations.push('Consider using 512x512 or 768x768 for better SD1.5 performance');
+                    score -= 5;
+                }
+            }
+            
+            // Flux optimal resolutions
+            if (architecture === 'Flux') {
+                if (resolution < 1024 * 1024) {
+                    compatibility.warnings.push('Resolution below 1024x1024 may not work well with Flux models');
+                    compatibility.issues.resolution.push('Low resolution for Flux');
+                    score -= 20;
+                }
+            }
+        }
+        
+        // Check LoRA compatibility with model architecture
+        metadata.model.loras.forEach(lora => {
+            if (lora.type && architecture) {
+                if (lora.type.includes('SDXL') && architecture !== 'SDXL') {
+                    compatibility.warnings.push(`LoRA "${lora.name}" is designed for SDXL but used with ${architecture} model`);
+                    compatibility.issues.modelMismatch.push(`LoRA-Model mismatch: ${lora.name}`);
+                    score -= 25;
+                }
+                
+                if (lora.type.includes('Flux') && architecture !== 'Flux') {
+                    compatibility.warnings.push(`LoRA "${lora.name}" is designed for Flux but used with ${architecture} model`);
+                    compatibility.issues.modelMismatch.push(`LoRA-Model mismatch: ${lora.name}`);
+                    score -= 25;
+                }
+            }
+            
+            // Check LoRA strength values
+            if (lora.modelStrength > 1.5 || lora.clipStrength > 1.5) {
+                compatibility.warnings.push(`High LoRA strength (${lora.modelStrength}/${lora.clipStrength}) for "${lora.name}" may cause artifacts`);
+                score -= 10;
+            }
+        });
+        
+        // Check VAE compatibility
+        if (metadata.model.vae.name && metadata.model.vae.type && architecture) {
+            const vaeType = metadata.model.vae.type;
+            if (vaeType.includes('SDXL') && architecture !== 'SDXL') {
+                compatibility.warnings.push(`VAE "${metadata.model.vae.name}" is designed for SDXL but used with ${architecture} model`);
+                compatibility.issues.modelMismatch.push(`VAE-Model mismatch`);
+                score -= 15;
+            }
+        }
+        
+        // Check sampling parameters
+        const { sampler, scheduler, cfg, steps } = metadata.generation;
+        
+        if (cfg !== null) {
+            if (architecture === 'Flux' && cfg > 1.5) {
+                compatibility.warnings.push(`High CFG (${cfg}) may not work well with Flux models - try 1.0-1.5`);
+                compatibility.issues.sampler.push('High CFG for Flux');
+                score -= 15;
+            }
+            
+            if (cfg > 20) {
+                compatibility.warnings.push(`Very high CFG (${cfg}) may cause over-saturation or artifacts`);
+                compatibility.issues.sampler.push('Extremely high CFG');
+                score -= 10;
+            }
+        }
+        
+        if (steps !== null) {
+            if (architecture === 'Flux' && steps > 50) {
+                compatibility.recommendations.push(`Flux models typically work well with 20-30 steps - ${steps} may be excessive`);
+                score -= 5;
+            }
+            
+            if (steps < 10) {
+                compatibility.warnings.push(`Very low step count (${steps}) may produce poor quality results`);
+                compatibility.issues.sampler.push('Too few steps');
+                score -= 15;
+            }
+        }
+        
+        // Check CLIP skip compatibility
+        const clipSkip = metadata.technical.clipSkip;
+        if (clipSkip !== null && clipSkip > 1) {
+            if (architecture === 'SDXL') {
+                compatibility.warnings.push(`CLIP skip ${clipSkip} may not work optimally with SDXL models`);
+                compatibility.issues.clipSkip.push('CLIP skip with SDXL');
+                score -= 10;
+            }
+            
+            if (clipSkip > 3) {
+                compatibility.warnings.push(`Very high CLIP skip (${clipSkip}) may cause unpredictable results`);
+                compatibility.issues.clipSkip.push('Extremely high CLIP skip');
+                score -= 15;
+            }
+        }
+        
+        // Generate recommendations based on detected issues
+        if (compatibility.warnings.length === 0 && compatibility.issues.resolution.length === 0) {
+            compatibility.recommendations.push('Configuration appears well-optimized for the selected model architecture');
+        }
+        
+        if (metadata.model.loras.length > 3) {
+            compatibility.recommendations.push('Using many LoRAs may cause conflicts - consider reducing the number or strengths');
+            score -= 5;
+        }
+        
+        // Ensure score doesn't go below 0
+        compatibility.score = Math.max(0, score);
+        metadata.model.compatibilityScore = compatibility.score;
+        
+        console.log(`🔍 Compatibility analysis complete. Score: ${compatibility.score}%`);
+        console.log(`🔍 Warnings: ${compatibility.warnings.length}, Recommendations: ${compatibility.recommendations.length}`);
     }
 
     /**
@@ -5787,7 +6048,11 @@ class MetadataPanel {
             generationSettings: true,    // Expanded by default
             promptInfo: false,           // Collapsed by default
             imageProperties: true,       // Expanded by default
-            timingData: true             // Expanded by default
+            timingData: true,            // Expanded by default
+            modelInfo: true,             // Expanded by default
+            loraInfo: false,             // Collapsed by default  
+            vaeInfo: false,              // Collapsed by default
+            compatibilityInfo: true     // Expanded by default
         };
         
         this.maxPromptLength = 100;      // Characters before truncation
@@ -5823,6 +6088,10 @@ class MetadataPanel {
                 ${this.generateGenerationSettings(metadata)}
                 ${this.generateImageProperties(metadata)}
                 ${this.generateTimingData(metadata)}
+                ${this.generateModelInfo(metadata)}
+                ${this.generateLoRAInfo(metadata)}
+                ${this.generateVAEInfo(metadata)}
+                ${this.generateCompatibilityInfo(metadata)}
                 
                 <div class="metadata-prompt-section">
                     ${this.generatePromptInfo(metadata)}
@@ -6420,6 +6689,273 @@ class MetadataPanel {
         });
         
         return text;
+    }
+
+    /**
+     * Generate model information section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateModelInfo(metadata) {
+        const isExpanded = this.sectionStates.modelInfo;
+        const sectionId = 'model-info';
+        
+        const modelData = this.extractModelData(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Model Information</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    <div class="metadata-grid">
+                        ${this.generateParameterRows(modelData)}
+                    </div>
+                    ${metadata.model.compatibilityScore !== null ? this.generateCompatibilityScore(metadata.model.compatibilityScore) : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate LoRA information section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateLoRAInfo(metadata) {
+        const isExpanded = this.sectionStates.loraInfo;
+        const sectionId = 'lora-info';
+        
+        if (!metadata.model.loras || metadata.model.loras.length === 0) {
+            return ''; // Don't show section if no LoRAs
+        }
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>LoRA Information (${metadata.model.loras.length})</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    ${this.generateLoRAList(metadata.model.loras)}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate VAE information section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateVAEInfo(metadata) {
+        const isExpanded = this.sectionStates.vaeInfo;
+        const sectionId = 'vae-info';
+        
+        if (!metadata.model.vae.name && !metadata.technical.vae) {
+            return ''; // Don't show section if no VAE info
+        }
+        
+        const vaeData = this.extractVAEData(metadata);
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>VAE Information</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    <div class="metadata-grid">
+                        ${this.generateParameterRows(vaeData)}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate compatibility information section
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {string} HTML string
+     */
+    generateCompatibilityInfo(metadata) {
+        const isExpanded = this.sectionStates.compatibilityInfo;
+        const sectionId = 'compatibility-info';
+        
+        const compatibility = metadata.compatibility;
+        const hasWarnings = compatibility.warnings.length > 0;
+        const hasRecommendations = compatibility.recommendations.length > 0;
+        
+        if (!hasWarnings && !hasRecommendations && compatibility.score === null) {
+            return ''; // Don't show section if no compatibility data
+        }
+        
+        return `
+            <div class="metadata-section" data-section="${sectionId}">
+                <div class="metadata-section-header" onclick="metadataPanel.toggleSection('${sectionId}')">
+                    <h5>Compatibility Analysis</h5>
+                    <svg class="expand-icon ${isExpanded ? 'expanded' : ''}" viewBox="0 0 24 24" width="16" height="16">
+                        <path fill="currentColor" d="M7.41,8.58L12,13.17L16.59,8.58L18,10L12,16L6,10L7.41,8.58Z" />
+                    </svg>
+                </div>
+                
+                <div class="metadata-section-content ${isExpanded ? 'expanded' : ''}" id="${sectionId}-content">
+                    ${this.generateCompatibilityContent(compatibility)}
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Extract model data for display
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Array} Parameter data array
+     */
+    extractModelData(metadata) {
+        const modelData = [];
+        
+        if (metadata.model.name) {
+            modelData.push({ label: 'Model Name', value: metadata.model.name });
+        }
+        
+        if (metadata.model.architecture) {
+            modelData.push({ label: 'Architecture', value: metadata.model.architecture });
+        }
+        
+        if (metadata.model.type) {
+            modelData.push({ label: 'Model Type', value: metadata.model.type });
+        }
+        
+        if (metadata.model.hash) {
+            modelData.push({ label: 'Model Hash', value: metadata.model.hash });
+        }
+        
+        if (metadata.model.baseModel) {
+            modelData.push({ label: 'Base Model', value: metadata.model.baseModel });
+        }
+        
+        return modelData;
+    }
+
+    /**
+     * Extract VAE data for display
+     * @param {Object} metadata - Parsed metadata object
+     * @returns {Array} Parameter data array
+     */
+    extractVAEData(metadata) {
+        const vaeData = [];
+        
+        const vaeName = metadata.model.vae.name || metadata.technical.vae;
+        if (vaeName) {
+            vaeData.push({ label: 'VAE Name', value: vaeName });
+        }
+        
+        if (metadata.model.vae.type) {
+            vaeData.push({ label: 'VAE Type', value: metadata.model.vae.type });
+        }
+        
+        if (metadata.model.vae.encoder) {
+            vaeData.push({ label: 'Encoder', value: metadata.model.vae.encoder });
+        }
+        
+        if (metadata.model.vae.decoder) {
+            vaeData.push({ label: 'Decoder', value: metadata.model.vae.decoder });
+        }
+        
+        return vaeData;
+    }
+
+    /**
+     * Generate LoRA list HTML
+     * @param {Array} loras - Array of LoRA objects
+     * @returns {string} HTML string
+     */
+    generateLoRAList(loras) {
+        if (!loras || loras.length === 0) {
+            return '<p class="no-data">No LoRAs detected</p>';
+        }
+        
+        return loras.map(lora => `
+            <div class="lora-item">
+                <div class="lora-header">
+                    <span class="lora-name" title="${lora.name}">${this.truncateValue(lora.name, 40)}</span>
+                    ${lora.type ? `<span class="lora-type">${lora.type}</span>` : ''}
+                </div>
+                <div class="lora-details">
+                    <span class="lora-strength">Model: ${lora.modelStrength}</span>
+                    <span class="lora-strength">CLIP: ${lora.clipStrength}</span>
+                    ${lora.hash ? `<span class="lora-hash">${lora.hash.substring(0, 8)}...</span>` : ''}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Generate compatibility score visual indicator
+     * @param {number} score - Compatibility score (0-100)
+     * @returns {string} HTML string
+     */
+    generateCompatibilityScore(score) {
+        const scoreClass = score >= 80 ? 'good' : score >= 60 ? 'warning' : 'poor';
+        const scoreText = score >= 80 ? 'Good' : score >= 60 ? 'Fair' : 'Poor';
+        
+        return `
+            <div class="compatibility-score">
+                <div class="score-indicator ${scoreClass}">
+                    <div class="score-bar">
+                        <div class="score-fill" style="width: ${score}%"></div>
+                    </div>
+                    <span class="score-text">${score}% - ${scoreText}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * Generate compatibility content
+     * @param {Object} compatibility - Compatibility object
+     * @returns {string} HTML string
+     */
+    generateCompatibilityContent(compatibility) {
+        let content = '';
+        
+        if (compatibility.score !== null) {
+            content += this.generateCompatibilityScore(compatibility.score);
+        }
+        
+        if (compatibility.warnings.length > 0) {
+            content += `
+                <div class="compatibility-warnings">
+                    <h6>⚠️ Warnings</h6>
+                    ${compatibility.warnings.map(warning => `
+                        <div class="compatibility-item warning">${warning}</div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        if (compatibility.recommendations.length > 0) {
+            content += `
+                <div class="compatibility-recommendations">
+                    <h6>💡 Recommendations</h6>
+                    ${compatibility.recommendations.map(rec => `
+                        <div class="compatibility-item recommendation">${rec}</div>
+                    `).join('')}
+                </div>
+            `;
+        }
+        
+        return content || '<p class="no-data">No compatibility issues detected</p>';
     }
 }
 
