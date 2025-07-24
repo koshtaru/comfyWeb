@@ -8,6 +8,7 @@ import { CollapsibleSection } from './CollapsibleSection'
 import { CopyButton } from './CopyButton'
 import { MetadataSearch } from './MetadataSearch'
 import { EnhancedPerformancePanel } from './EnhancedPerformancePanel'
+import { LoRADisplay, VAEInfo, CompatibilityChecker } from '../models'
 import './MetadataDisplay.css'
 
 export interface MetadataDisplayProps {
@@ -21,7 +22,7 @@ export interface MetadataDisplayProps {
   webSocketService?: ComfyUIWebSocketService
 }
 
-export type MetadataTab = 'generation' | 'models' | 'workflow' | 'performance' | 'nodes'
+export type MetadataTab = 'generation' | 'models' | 'workflow' | 'performance' | 'nodes' | 'compatibility'
 
 interface TabConfig {
   id: MetadataTab
@@ -60,6 +61,12 @@ const TABS: TabConfig[] = [
     label: 'Node Details',
     icon: '🔧',
     description: 'Individual node parameters and metadata'
+  },
+  {
+    id: 'compatibility',
+    label: 'Compatibility',
+    icon: '🔍',
+    description: 'Model compatibility analysis and optimization recommendations'
   }
 ]
 
@@ -382,6 +389,25 @@ export const MetadataDisplay: React.FC<MetadataDisplayProps> = ({
             />
           </div>
         )}
+
+        {/* Compatibility Tab */}
+        {activeTab === 'compatibility' && (
+          <div
+            id="tab-panel-compatibility"
+            className="tab-panel"
+            role="tabpanel"
+            aria-labelledby="tab-compatibility"
+            tabIndex={0}
+          >
+            {metadata && <CompatibilityChecker
+              metadata={metadata}
+              showDetailedAnalysis={true}
+              showRecommendations={true}
+              showPerformanceImpact={true}
+              autoExpand={false}
+            />}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -556,71 +582,40 @@ const ModelDetailsPanel: React.FC<PanelProps> = ({
         </div>
       </CollapsibleSection>
 
-      {/* LoRA Stack */}
+      {/* Enhanced LoRA Display */}
       {models.loras && models.loras.length > 0 && (
         <CollapsibleSection
           id="loras"
-          title={`LoRA Stack (${models.loras.length})`}
+          title="LoRA Stack Analysis"
           isExpanded={expandedSections.has('loras')}
           onToggle={() => onToggleSection('loras')}
           icon="🎯"
         >
-          <div className="lora-stack">
-            {models.loras.map((lora, _index) => (
-              <div key={lora.nodeId} className="lora-item">
-                <div className="lora-header">
-                  <span className="lora-name">{lora.name}</span>
-                  <CopyButton data={lora} format="json" size="small" />
-                </div>
-                <div className="lora-strengths">
-                  <span className="strength-item">
-                    Model: <strong>{lora.modelStrength}</strong>
-                  </span>
-                  <span className="strength-item">
-                    CLIP: <strong>{lora.clipStrength}</strong>
-                  </span>
-                </div>
-                {lora.triggerWords && lora.triggerWords.length > 0 && (
-                  <div className="trigger-words">
-                    <label>Trigger Words:</label>
-                    <div className="trigger-tags">
-                      {lora.triggerWords.map((word, idx) => (
-                        <span key={idx} className="trigger-tag">{word}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+          <LoRADisplay
+            metadata={metadata}
+            showCompatibility={true}
+            showOptimalSettings={true}
+            showTriggerWords={true}
+            compact={false}
+          />
         </CollapsibleSection>
       )}
 
-      {/* VAE Info */}
-      {models.vae && (
-        <CollapsibleSection
-          id="vae"
-          title="VAE"
-          isExpanded={expandedSections.has('vae')}
-          onToggle={() => onToggleSection('vae')}
-          icon="🔄"
-        >
-          <div className="vae-info">
-            <div className="model-item">
-              <label>Name:</label>
-              <span>{models.vae.name}</span>
-              <CopyButton data={models.vae.name} format="text" size="small" />
-            </div>
-            {models.vae.hash && (
-              <div className="model-item">
-                <label>Hash:</label>
-                <span className="model-hash">{models.vae.hash}</span>
-                <CopyButton data={models.vae.hash} format="text" size="small" />
-              </div>
-            )}
-          </div>
-        </CollapsibleSection>
-      )}
+      {/* Enhanced VAE Information */}
+      <CollapsibleSection
+        id="vae"
+        title="VAE Analysis"
+        isExpanded={expandedSections.has('vae')}
+        onToggle={() => onToggleSection('vae')}
+        icon="🔄"
+      >
+        <VAEInfo
+          metadata={metadata}
+          showTechnicalDetails={true}
+          showCompatibility={true}
+          compact={false}
+        />
+      </CollapsibleSection>
 
       {/* ControlNet */}
       {models.controlnets && models.controlnets.length > 0 && (
