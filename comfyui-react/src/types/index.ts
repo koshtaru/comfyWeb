@@ -189,3 +189,27 @@ export type {
   TimingAnalyzerConfig,
   TimingVisualizationConfig
 } from './timing'
+
+// Re-export component types for better integration
+export type {
+  BaseComponentProps,
+  FormControlProps,
+  ColorVariant,
+  SizeVariant,
+  ButtonVariant,
+  InputVariant,
+  ModalProps,
+  ToastData,
+  TooltipProps,
+  ProgressProps,
+  SpinnerProps,
+  BadgeProps,
+  CardProps,
+  PanelProps,
+  SelectOption,
+  SelectProps,
+  SliderProps,
+  TabItem,
+  TabsProps,
+  FileUploadProps
+} from './component'
