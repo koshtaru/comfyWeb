@@ -1,5 +1,8 @@
 import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { useParameterValidation } from './hooks/useParameterValidation'
+import { useEnhancedValidation } from './hooks/useEnhancedValidation'
+import { ValidationMessage } from './ValidationMessage'
+import { Tooltip } from '@/components/ui/Tooltip'
 
 // Simple debounce utility
 function debounce<T extends (...args: any[]) => any>(
@@ -25,6 +28,16 @@ export interface ParameterInputProps {
   showInput?: boolean
   debounceMs?: number
   'aria-label'?: string
+  /** Optional tooltip content */
+  tooltip?: React.ReactNode
+  /** Tooltip placement */
+  tooltipPlacement?: 'top' | 'bottom' | 'left' | 'right'
+  /** Parameter type for enhanced validation */
+  parameterType?: 'steps' | 'cfg' | 'width' | 'height' | 'seed' | 'batchSize' | 'batchCount'
+  /** Show validation feedback */
+  showValidation?: boolean
+  /** Compact validation messages */
+  compactValidation?: boolean
 }
 
 export const ParameterInput: React.FC<ParameterInputProps> = ({
@@ -38,7 +51,12 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
   className = '',
   showInput = true,
   debounceMs = 50,
-  'aria-label': ariaLabel
+  'aria-label': ariaLabel,
+  tooltip,
+  tooltipPlacement = 'top',
+  parameterType,
+  showValidation = true,
+  compactValidation = false
 }) => {
   const [localValue, setLocalValue] = useState(value)
   const [inputValue, setInputValue] = useState(value.toString())
@@ -55,6 +73,9 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
     max,
     step
   )
+  
+  // Enhanced validation for visual feedback
+  const enhancedValidation = useEnhancedValidation(min, max, step, parameterType)
 
   // Global mouse/touch event listeners to properly track dragging
   useEffect(() => {
@@ -234,14 +255,46 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
     onChange(newValue)
   }, [step, min, max, localValue, clampValue, formatValue, onChange])
 
+  const labelContent = (
+    <label 
+      className="parameter-label"
+      htmlFor={`${label.toLowerCase().replace(/\s+/g, '-')}-slider`}
+    >
+      {label}
+      {tooltip && (
+        <span className="parameter-label-tooltip-indicator">
+          <svg 
+            width="14" 
+            height="14" 
+            viewBox="0 0 24 24" 
+            fill="currentColor"
+            style={{ marginLeft: '0.25rem', opacity: 0.6 }}
+          >
+            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A1.5,1.5 0 0,1 10.5,15.5A1.5,1.5 0 0,1 12,14A1.5,1.5 0 0,1 13.5,15.5A1.5,1.5 0 0,1 12,17M12,10.5C10.8,10.5 10.5,9.3 10.5,9C10.5,7.8 11.2,7 12,7S13.5,7.8 13.5,9C13.5,9.3 13.2,10.5 12,10.5Z" />
+          </svg>
+        </span>
+      )}
+    </label>
+  )
+
+  // Get validation state for current value
+  const validationClasses = showValidation ? enhancedValidation.getValidationClasses(localValue) : ''
+  const validationMessage = showValidation ? enhancedValidation.getPrimaryMessage(localValue) : null
+  const validationResult = showValidation ? enhancedValidation.validateValue(localValue) : null
+
   return (
-    <div className={`parameter-input-wrapper ${className}`}>
-      <label 
-        className="parameter-label"
-        htmlFor={`${label.toLowerCase().replace(/\s+/g, '-')}-slider`}
-      >
-        {label}
-      </label>
+    <div className={`parameter-input-wrapper ${showValidation ? 'has-validation' : ''} ${className}`}>
+      {tooltip ? (
+        <Tooltip 
+          content={tooltip} 
+          placement={tooltipPlacement}
+          delay={200}
+        >
+          {labelContent}
+        </Tooltip>
+      ) : (
+        labelContent
+      )}
       
       <div className="parameter-control-container">
         <div className="parameter-dual-input">
@@ -278,7 +331,7 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
             }}
             onKeyDown={handleSliderKeyDown}
             disabled={disabled}
-            className="parameter-slider"
+            className={`parameter-slider ${validationClasses}`}
             aria-label={ariaLabel || `${label} slider`}
             aria-valuemin={min}
             aria-valuemax={max}
@@ -298,12 +351,22 @@ export const ParameterInput: React.FC<ParameterInputProps> = ({
               onFocus={() => setIsInputFocused(true)}
               onBlur={handleInputBlur}
               disabled={disabled}
-              className="parameter-number-input"
+              className={`parameter-number-input ${validationClasses}`}
               aria-label={ariaLabel || `${label} input`}
             />
           )}
         </div>
       </div>
+      
+      {/* Validation Message */}
+      {showValidation && validationMessage && validationResult && (
+        <ValidationMessage
+          message={validationMessage}
+          severity={validationResult.severity}
+          compact={compactValidation}
+          show={true}
+        />
+      )}
     </div>
   )
 }

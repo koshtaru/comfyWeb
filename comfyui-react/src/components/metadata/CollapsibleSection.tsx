@@ -41,7 +41,21 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     if (!contentRef.current) return
 
     const measureHeight = () => {
-      const scrollHeight = contentRef.current!.scrollHeight
+      const element = contentRef.current!
+      
+      // Temporarily make content visible to measure its natural height
+      const originalHeight = element.style.height
+      const originalOverflow = element.style.overflow
+      
+      element.style.height = 'auto'
+      element.style.overflow = 'visible'
+      
+      const scrollHeight = element.scrollHeight
+      
+      // Restore original styles
+      element.style.height = originalHeight
+      element.style.overflow = originalOverflow
+      
       setContentHeight(scrollHeight)
     }
 
@@ -54,8 +68,22 @@ export const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
       setIsAnimating(false)
     }, animationDuration)
 
+    // Add ResizeObserver to handle dynamic content changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (isExpanded) {
+        measureHeight()
+      }
+    })
+
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current)
+    }
+
     // Cleanup
-    return () => clearTimeout(animationTimer)
+    return () => {
+      clearTimeout(animationTimer)
+      resizeObserver.disconnect()
+    }
   }, [isExpanded, children, animationDuration])
 
   // Handle keyboard navigation

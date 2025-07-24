@@ -419,7 +419,7 @@ const ParameterField: React.FC<ParameterFieldProps> = ({
   readOnly = false
 }) => (
   <div className="parameter-field">
-    <label className="parameter-label">{label}</label>
+    <label className="workflow-parameter-label">{label}</label>
     <input
       type={type}
       value={value || ''}
@@ -433,7 +433,7 @@ const ParameterField: React.FC<ParameterFieldProps> = ({
         }
       }}
       readOnly={readOnly}
-      className={`parameter-input ${readOnly ? 'readonly' : ''}`}
+      className={`workflow-parameter-input ${readOnly ? 'readonly' : ''}`}
     />
   </div>
 )

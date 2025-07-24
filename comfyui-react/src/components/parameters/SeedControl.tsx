@@ -1,4 +1,8 @@
 import React, { useState, useCallback, useRef } from 'react'
+import { Tooltip } from '@/components/ui/Tooltip'
+import { useParameterTooltips } from '@/hooks/useParameterTooltips'
+import { useEnhancedValidation } from './hooks/useEnhancedValidation'
+import { ValidationMessage } from './ValidationMessage'
 
 interface SeedControlProps {
   value: number
@@ -19,6 +23,9 @@ export const SeedControl: React.FC<SeedControlProps> = ({
   const [isGenerating, setIsGenerating] = useState(false)
   const [showCopyFeedback, setShowCopyFeedback] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  
+  const { getTooltipContent } = useParameterTooltips()
+  const enhancedValidation = useEnhancedValidation(-1, 2147483647, 1, 'seed')
 
   // Handle input changes
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,11 +105,33 @@ export const SeedControl: React.FC<SeedControlProps> = ({
     }
   }, [handleInputBlur, generateRandomSeed, showCopy])
 
+  // Get validation state
+  const validationClasses = enhancedValidation.getValidationClasses(value)
+  const validationMessage = enhancedValidation.getPrimaryMessage(value)
+  const validationResult = enhancedValidation.validateValue(value)
+
   return (
     <div className={`seed-control ${className}`}>
-      <label className="parameter-label" htmlFor="seed-input">
-        Seed
-      </label>
+      <Tooltip 
+        content={getTooltipContent('seed')} 
+        placement="top"
+        delay={200}
+      >
+        <label className="parameter-label" htmlFor="seed-input">
+          Seed
+          <span className="parameter-label-tooltip-indicator">
+            <svg 
+              width="14" 
+              height="14" 
+              viewBox="0 0 24 24" 
+              fill="currentColor"
+              style={{ marginLeft: '0.25rem', opacity: 0.6 }}
+            >
+              <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M12,17A1.5,1.5 0 0,1 10.5,15.5A1.5,1.5 0 0,1 12,14A1.5,1.5 0 0,1 13.5,15.5A1.5,1.5 0 0,1 12,17M12,10.5C10.8,10.5 10.5,9.3 10.5,9C10.5,7.8 11.2,7 12,7S13.5,7.8 13.5,9C13.5,9.3 13.2,10.5 12,10.5Z" />
+            </svg>
+          </span>
+        </label>
+      </Tooltip>
       
       <div className="seed-input-container">
         <input
@@ -114,7 +143,7 @@ export const SeedControl: React.FC<SeedControlProps> = ({
           onBlur={handleInputBlur}
           onKeyDown={handleKeyDown}
           disabled={disabled}
-          className="seed-input"
+          className={`seed-input ${validationClasses}`}
           placeholder="Random seed value"
           aria-label="Seed value for reproducible generation"
           title="Enter a seed value or use the dice button to generate a random one"
@@ -181,6 +210,16 @@ export const SeedControl: React.FC<SeedControlProps> = ({
           💡 Use the same seed with identical settings to reproduce exact results
         </div>
       </div>
+      
+      {/* Validation Message */}
+      {validationMessage && validationResult && (
+        <ValidationMessage
+          message={validationMessage}
+          severity={validationResult.severity}
+          compact={false}
+          show={true}
+        />
+      )}
     </div>
   )
 }

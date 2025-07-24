@@ -3,6 +3,7 @@ import { ParameterInput } from './ParameterInput'
 import type { ParameterInputProps } from './ParameterInput'
 import { useParameterPresets } from './hooks/useParameterPresets'
 import type { PresetOption } from './hooks/useParameterPresets'
+import { useParameterTooltips } from '@/hooks/useParameterTooltips'
 
 interface StepsControlProps extends Omit<ParameterInputProps, 'label' | 'min' | 'max' | 'step'> {
   label?: string
@@ -33,6 +34,8 @@ export const StepsControl: React.FC<StepsControlProps> = ({
     availablePresets
   } = useParameterPresets(STEPS_PRESETS, onChange)
 
+  const { getTooltipContent } = useParameterTooltips()
+
   return (
     <div className={`steps-control ${className}`}>
       <ParameterInput
@@ -45,6 +48,10 @@ export const StepsControl: React.FC<StepsControlProps> = ({
         disabled={disabled}
         className="steps-parameter-input"
         aria-label="Number of sampling steps for generation"
+        tooltip={getTooltipContent('steps')}
+        tooltipPlacement="top"
+        parameterType="steps"
+        showValidation={true}
         {...props}
       />
       

@@ -3,6 +3,7 @@ import { ParameterInput } from './ParameterInput'
 import type { ParameterInputProps } from './ParameterInput'
 import { useParameterPresets } from './hooks/useParameterPresets'
 import type { PresetOption } from './hooks/useParameterPresets'
+import { useParameterTooltips } from '@/hooks/useParameterTooltips'
 
 interface CFGScaleControlProps extends Omit<ParameterInputProps, 'label' | 'min' | 'max' | 'step'> {
   label?: string
@@ -32,6 +33,8 @@ export const CFGScaleControl: React.FC<CFGScaleControlProps> = ({
     availablePresets
   } = useParameterPresets(CFG_PRESETS, onChange)
 
+  const { getTooltipContent } = useParameterTooltips()
+
   return (
     <div className={`cfg-scale-control ${className}`}>
       <ParameterInput
@@ -45,6 +48,10 @@ export const CFGScaleControl: React.FC<CFGScaleControlProps> = ({
         className="cfg-parameter-input"
         debounceMs={50} // Fast debounce for responsive decimal precision
         aria-label="Classifier-free guidance scale for prompt adherence"
+        tooltip={getTooltipContent('cfg')}
+        tooltipPlacement="top"
+        parameterType="cfg"
+        showValidation={true}
         {...props}
       />
       

@@ -177,3 +177,15 @@ export interface RouteConfig {
   icon?: string
   component: React.ComponentType
 }
+
+// Re-export timing analysis types for better integration
+export type {
+  ExecutionTiming,
+  NodeTiming,
+  PerformanceMetrics as TimingPerformanceMetrics,
+  NodePerformanceData,
+  TimingTrend,
+  BottleneckAnalysis,
+  TimingAnalyzerConfig,
+  TimingVisualizationConfig
+} from './timing'

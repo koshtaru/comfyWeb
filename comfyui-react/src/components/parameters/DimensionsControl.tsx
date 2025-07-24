@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react'
 import { ParameterInput } from './ParameterInput'
 import type { PresetOption } from './hooks/useParameterPresets'
+import { useParameterTooltips } from '@/hooks/useParameterTooltips'
 
 interface DimensionsControlProps {
   width: number
@@ -39,6 +40,8 @@ export const DimensionsControl: React.FC<DimensionsControlProps> = ({
 }) => {
   const [aspectRatioLocked, setAspectRatioLocked] = useState(false)
   const [aspectRatio, setAspectRatio] = useState(width / height)
+  
+  const { getTooltipContent } = useParameterTooltips()
 
   // Update aspect ratio when dimensions change externally
   useEffect(() => {
@@ -108,6 +111,10 @@ export const DimensionsControl: React.FC<DimensionsControlProps> = ({
           disabled={disabled}
           className="width-input"
           aria-label="Image width in pixels"
+          tooltip={getTooltipContent('width')}
+          tooltipPlacement="top"
+          parameterType="width"
+          showValidation={true}
         />
         
         <ParameterInput
@@ -120,6 +127,10 @@ export const DimensionsControl: React.FC<DimensionsControlProps> = ({
           disabled={disabled}
           className="height-input"
           aria-label="Image height in pixels"
+          tooltip={getTooltipContent('height')}
+          tooltipPlacement="top"
+          parameterType="height"
+          showValidation={true}
         />
       </div>
 

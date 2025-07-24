@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react'
 import { ParameterInput } from './ParameterInput'
+import { useParameterTooltips } from '@/hooks/useParameterTooltips'
 
 interface BatchControlProps {
   batchSize: number
@@ -26,6 +27,8 @@ export const BatchControl: React.FC<BatchControlProps> = ({
   const performanceWarning = useMemo(() => getPerformanceWarning(batchSize, totalImages), [batchSize, totalImages])
   const memoryWarning = useMemo(() => getMemoryWarning(batchSize), [batchSize])
 
+  const { getTooltipContent } = useParameterTooltips()
+
   return (
     <div className={`batch-control ${className}`}>
       <div className="batch-dual-control">
@@ -38,6 +41,10 @@ export const BatchControl: React.FC<BatchControlProps> = ({
           onChange={onBatchSizeChange}
           disabled={disabled}
           className="batch-size-input"
+          tooltip={getTooltipContent('batchSize')}
+          tooltipPlacement="top"
+          parameterType="batchSize"
+          showValidation={true}
           aria-label="Number of images generated simultaneously"
         />
         
@@ -51,6 +58,10 @@ export const BatchControl: React.FC<BatchControlProps> = ({
           disabled={disabled}
           className="batch-count-input"
           aria-label="Number of batches to generate"
+          tooltip={getTooltipContent('batchCount')}
+          tooltipPlacement="top"
+          parameterType="batchCount"
+          showValidation={true}
         />
       </div>
 

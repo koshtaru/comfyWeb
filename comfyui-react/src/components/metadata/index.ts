@@ -21,6 +21,9 @@ export type { MetadataSearchProps, AdvancedMetadataSearchProps } from './Metadat
 export { MetadataComparison, generateComparison, getAllPaths, deepEqual } from './MetadataComparison'
 export type { MetadataComparisonProps } from './MetadataComparison'
 
+// Enhanced performance panel with timing analysis
+export { EnhancedPerformancePanel } from './EnhancedPerformancePanel'
+
 // CSS imports for styling
 import './MetadataDisplay.css'
 import './CollapsibleSection.css'

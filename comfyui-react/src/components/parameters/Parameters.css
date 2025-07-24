@@ -69,7 +69,7 @@
   border: 1px solid var(--color-border);
   border-radius: 6px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-  z-index: 99999; /* Very high z-index to ensure it appears above everything */
+  z-index: 1500; /* Dialogs and modals */
   max-height: 70vh; /* Use viewport height to ensure it fits on screen */
   overflow-y: auto;
   margin-top: 0.25rem;
@@ -1098,7 +1098,7 @@
     right: 1rem;
     transform: translateY(-50%);
     max-height: 70vh;
-    z-index: 10000; /* Even higher z-index for mobile */
+    z-index: 1500; /* Dialogs on mobile */
   }
 }
 
@@ -1225,21 +1225,21 @@
 /* Parameter section styling for preset components */
 .parameter-section .preset-dropdown-menu {
   margin-top: 0.5rem;
-  z-index: 99999; /* Ensure dropdown appears above other parameter sections */
+  z-index: 1000; /* Parameter dropdowns */
 }
 
 /* Fix dropdown z-index in parameter display context */
 .parameter-display .preset-dropdown-menu {
-  z-index: 99999;
+  z-index: 1000;
 }
 
 /* Ensure all parameter sections allow dropdown overflow */
 .parameter-section {
-  overflow: visible !important;
+  overflow: visible;
 }
 
 .parameter-section .section-content {
-  overflow: visible !important;
+  overflow: visible;
 }
 
 /* Ensure preset components work well in parameter grid */
@@ -1333,7 +1333,7 @@
 }
 
 .preset-dropdown.open {
-  z-index: 9999;
+  z-index: 1000;
 }
 
 /* Override any conflicting z-index from parent containers */
@@ -1343,32 +1343,32 @@
 }
 
 .parameter-display .preset-dropdown.open {
-  z-index: 9999;
+  z-index: 1000;
 }
 
 /* Ensure proper stacking in different contexts */
 .comfy-panel .preset-dropdown-menu,
 .parameter-section .preset-dropdown-menu {
-  z-index: 99999;
+  z-index: 1000;
 }
 
 /* Ensure comfy-panel allows dropdown overflow */
 .comfy-panel {
-  overflow: visible !important;
+  overflow: visible;
 }
 
 /* Ensure parameter-display container allows dropdown overflow */
 .parameter-display {
-  overflow: visible !important;
+  overflow: visible;
 }
 
 /* Ensure dropdown appears above all other parameter sections */
 .preset-dropdown.open {
-  z-index: 100000; /* Even higher to override any section stacking */
+  z-index: 1000; /* Parameter dropdowns */
 }
 
 .preset-dropdown.open .preset-dropdown-menu {
-  z-index: 100000;
+  z-index: 1000;
 }
 
 /* Generate Page Preset Manager Integration */
@@ -1413,7 +1413,9 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  overflow: visible; /* Ensure validation messages are not clipped */
   width: 100%;
+  position: relative;
 }
 
 .parameter-label {
@@ -1518,16 +1520,19 @@
 /* Steps Control Specific */
 .steps-control {
   /* Inherits base styles */
+  overflow: visible; /* Ensure validation messages are not clipped */
 }
 
 /* CFG Scale Control Specific */
 .cfg-scale-control {
   /* Inherits base styles */
+  overflow: visible; /* Ensure validation messages are not clipped */
 }
 
 /* Dimensions Control Specific */
 .dimensions-control {
   /* Special layout for dual width/height */
+  overflow: visible; /* Ensure validation messages are not clipped */
 }
 
 .dimensions-dual-input {
@@ -1588,6 +1593,7 @@
 /* Seed Control Specific */
 .seed-control {
   /* Inherits base styles */
+  overflow: visible; /* Ensure validation messages are not clipped */
 }
 
 .seed-input-container {
@@ -1781,6 +1787,7 @@
 /* Batch Control Specific */
 .batch-control {
   /* Inherits base styles */
+  overflow: visible; /* Ensure validation messages are not clipped */
 }
 
 .batch-dual-control {
@@ -2086,5 +2093,213 @@
 @keyframes parameter-spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* ========================================
+   VALIDATION FEEDBACK STYLES
+   ======================================== */
+
+/* Parameter validation states */
+.parameter-validated {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.parameter-validated.parameter-error {
+  border-color: var(--color-error) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+}
+
+.parameter-validated.parameter-warning {
+  border-color: #f59e0b !important; /* amber-500 */
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2);
+}
+
+.parameter-validated.parameter-info {
+  border-color: #3b82f6 !important; /* blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.parameter-validated.parameter-valid {
+  border-color: var(--color-success) !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* Validation message display */
+.parameter-validation-message {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.75rem;
+  margin-top: 0.25rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  position: relative;
+  z-index: 10; /* Above normal content but below dropdowns and tooltips */
+  opacity: 1; /* Ensure validation messages are visible by default */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.parameter-validation-message.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5; /* red-300 for dark theme readability */
+}
+
+.parameter-validation-message.warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fcd34d; /* amber-300 */
+}
+
+.parameter-validation-message.info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #93c5fd; /* blue-300 */
+}
+
+.parameter-validation-message.valid {
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #6ee7b7; /* emerald-300 */
+}
+
+.parameter-validation-icon {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+}
+
+.parameter-validation-text {
+  flex: 1;
+}
+
+/* Animation for validation messages */
+.parameter-validation-message.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.parameter-validation-message.hide {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+/* Input wrapper for validation */
+.parameter-input-wrapper.has-validation {
+  position: relative;
+}
+
+/* Validation state for different input types */
+.parameter-input.parameter-error,
+.seed-input.parameter-error,
+.dimensions-dual-input .parameter-error {
+  border-color: var(--color-error) !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+}
+
+.parameter-input.parameter-warning,
+.seed-input.parameter-warning,
+.dimensions-dual-input .parameter-warning {
+  border-color: #f59e0b !important;
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.2) !important;
+}
+
+.parameter-input.parameter-info,
+.seed-input.parameter-info,
+.dimensions-dual-input .parameter-info {
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Range slider validation states */
+input[type="range"].parameter-error {
+  accent-color: var(--color-error);
+}
+
+input[type="range"].parameter-warning {
+  accent-color: #f59e0b;
+}
+
+input[type="range"].parameter-info {
+  accent-color: #3b82f6;
+}
+
+input[type="range"].parameter-valid {
+  accent-color: var(--color-success);
+}
+
+/* Validation message positioning for different parameter types */
+.steps-control .parameter-validation-message,
+.cfg-scale-control .parameter-validation-message,
+.dimensions-control .parameter-validation-message,
+.batch-control .parameter-validation-message,
+.seed-control .parameter-validation-message {
+  margin-top: 0.5rem;
+  margin-bottom: 0.25rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Compact validation messages for inline display */
+.parameter-validation-message.compact {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  margin-top: 0.125rem;
+}
+
+/* Dark theme adjustments */
+@media (prefers-color-scheme: dark) {
+  .parameter-validation-message.error {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+  
+  .parameter-validation-message.warning {
+    background: rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.3);
+  }
+  
+  .parameter-validation-message.info {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.3);
+  }
+  
+  .parameter-validation-message.valid {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.3);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .parameter-validated.parameter-error {
+    border-width: 2px;
+  }
+  
+  .parameter-validated.parameter-warning {
+    border-width: 2px;
+  }
+  
+  .parameter-validation-message {
+    border-width: 2px;
+    font-weight: 600;
+  }
+}
+
+/* Reduced motion support for validation */
+@media (prefers-reduced-motion: reduce) {
+  .parameter-validated,
+  .parameter-validation-message {
+    transition: none;
+  }
+  
+  .parameter-validation-message.show,
+  .parameter-validation-message.hide {
+    transform: none;
   }
 }

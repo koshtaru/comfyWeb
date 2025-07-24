@@ -3,9 +3,11 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect, type KeyboardEvent } from 'react'
 import type { MetadataSchema } from '@/utils/metadataParser'
+import type { ComfyUIWebSocketService } from '@/services/websocket'
 import { CollapsibleSection } from './CollapsibleSection'
 import { CopyButton } from './CopyButton'
 import { MetadataSearch } from './MetadataSearch'
+import { EnhancedPerformancePanel } from './EnhancedPerformancePanel'
 import './MetadataDisplay.css'
 
 export interface MetadataDisplayProps {
@@ -16,6 +18,7 @@ export interface MetadataDisplayProps {
   onTabChange?: (tab: MetadataTab) => void
   showSearch?: boolean
   className?: string
+  webSocketService?: ComfyUIWebSocketService
 }
 
 export type MetadataTab = 'generation' | 'models' | 'workflow' | 'performance' | 'nodes'
@@ -67,7 +70,8 @@ export const MetadataDisplay: React.FC<MetadataDisplayProps> = ({
   defaultTab = 'generation',
   onTabChange,
   showSearch = true,
-  className = ''
+  className = '',
+  webSocketService
 }) => {
   const [activeTab, setActiveTab] = useState<MetadataTab>(defaultTab)
   const [searchQuery, setSearchQuery] = useState('')
@@ -353,10 +357,11 @@ export const MetadataDisplay: React.FC<MetadataDisplayProps> = ({
             aria-labelledby="tab-performance"
             tabIndex={0}
           >
-            <PerformancePanel
+            <EnhancedPerformancePanel
               metadata={filteredMetadata}
               expandedSections={expandedSections}
               onToggleSection={toggleSection}
+              webSocketService={webSocketService}
             />
           </div>
         )}
@@ -753,79 +758,19 @@ const WorkflowGraphPanel: React.FC<PanelProps> = ({
   )
 }
 
-// Performance Panel Component
+// Legacy Performance Panel Component - Replaced by EnhancedPerformancePanel
+// This component is kept for reference but not used
+/*
 const PerformancePanel: React.FC<PanelProps> = ({
   metadata,
   expandedSections,
   onToggleSection
 }) => {
   const { performance } = metadata
-
-  return (
-    <div className="performance-panel">
-      {/* Performance Overview */}
-      <CollapsibleSection
-        id="performance-overview"
-        title="Performance Overview"
-        isExpanded={expandedSections.has('performance-overview')}
-        onToggle={() => onToggleSection('performance-overview')}
-        icon="⚡"
-      >
-        <div className="performance-stats">
-          <div className="stat-item">
-            <label>Total Nodes:</label>
-            <span>{performance.totalNodes}</span>
-          </div>
-          <div className="stat-item">
-            <label>Processed:</label>
-            <span>{performance.processedNodes}</span>
-          </div>
-          <div className="stat-item">
-            <label>Cached:</label>
-            <span>{performance.cachedNodes}</span>
-          </div>
-          <div className="stat-item">
-            <label>Estimated Time:</label>
-            <span>{performance.estimatedTime}s</span>
-          </div>
-          {performance.actualTime && (
-            <div className="stat-item">
-              <label>Actual Time:</label>
-              <span>{performance.actualTime}s</span>
-            </div>
-          )}
-        </div>
-      </CollapsibleSection>
-
-      {/* Bottlenecks */}
-      {performance.bottlenecks && performance.bottlenecks.length > 0 && (
-        <CollapsibleSection
-          id="bottlenecks"
-          title={`Performance Bottlenecks (${performance.bottlenecks.length})`}
-          isExpanded={expandedSections.has('bottlenecks')}
-          onToggle={() => onToggleSection('bottlenecks')}
-          icon="🚨"
-        >
-          <div className="bottlenecks-list">
-            {performance.bottlenecks.map((bottleneck, index) => (
-              <div key={index} className="bottleneck-item">
-                <div className="bottleneck-header">
-                  <span className="node-type">{bottleneck.nodeType}</span>
-                  <span className="node-id">#{bottleneck.nodeId}</span>
-                  <span className="execution-time">{bottleneck.executionTime}s</span>
-                </div>
-                <div className="bottleneck-details">
-                  <span>Memory: {bottleneck.memoryUsage}MB</span>
-                  <span className="reason">{bottleneck.reason}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CollapsibleSection>
-      )}
-    </div>
-  )
+  // Implementation moved to EnhancedPerformancePanel
+  return null
 }
+*/
 
 // Node Details Panel Component
 const NodeDetailsPanel: React.FC<PanelProps> = ({
