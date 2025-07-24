@@ -1144,6 +1144,79 @@
    PARAMETER DISPLAY INTEGRATION STYLES
    ======================================== */
 
+/* Parameter grid layout - Fix responsive issues */
+.parameter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+  width: 100%;
+  align-items: start;
+}
+
+/* Parameter display base styling */
+.parameter-display {
+  width: 100%;
+  overflow: visible;
+}
+
+.parameter-section {
+  width: 100%;
+  margin-bottom: 1rem;
+  overflow: visible;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 0.5rem;
+}
+
+.section-header:hover {
+  background: rgba(255, 124, 0, 0.05);
+  border-color: var(--color-accent-orange);
+}
+
+.section-icon {
+  font-size: 1rem;
+  margin-right: 0.5rem;
+}
+
+.section-title {
+  flex: 1;
+  text-align: left;
+}
+
+.expand-icon {
+  transition: transform 0.2s ease;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-secondary);
+}
+
+.expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.section-content {
+  overflow: visible;
+  padding: 0.75rem;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  margin-top: -1px;
+}
+
 /* Preset section integration */
 .preset-section-content {
   display: flex;
@@ -1416,6 +1489,7 @@
   overflow: visible; /* Ensure validation messages are not clipped */
   width: 100%;
   position: relative;
+  min-width: 0; /* Allow flex items to shrink */
 }
 
 .parameter-label {
@@ -1425,6 +1499,9 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .parameter-control-container {
@@ -1432,6 +1509,52 @@
   flex-direction: column;
   gap: 0.75rem;
   width: 100%;
+  min-width: 0; /* Allow flex items to shrink */
+}
+
+/* Parameter field styling - Fix overlapping text */
+.parameter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.workflow-parameter-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.workflow-parameter-input {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.workflow-parameter-input:focus {
+  outline: none;
+  border-color: var(--color-accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
+}
+
+.workflow-parameter-input.readonly {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
 }
 
 /* Dual Input Layout */
@@ -2027,7 +2150,196 @@
   }
 }
 
+/* Metadata grid improvements */
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+}
+
+.metadata-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.metadata-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  word-break: break-word;
+}
+
+/* Feature tags styling */
+.feature-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.75rem;
+}
+
+.feature-tag {
+  padding: 0.25rem 0.5rem;
+  background: var(--color-accent-orange);
+  color: white;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  border-radius: 12px;
+  letter-spacing: 0.025em;
+}
+
+/* Prompt field improvements */
+.prompt-field {
+  margin-bottom: 1rem;
+}
+
+.prompt-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 0.75rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
+}
+
+.prompt-textarea[readonly] {
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  cursor: default;
+  resize: none;
+}
+
+/* LoRA and ControlNet list improvements */
+.lora-list,
+.controlnet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lora-item,
+.controlnet-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  gap: 0.75rem;
+}
+
+.lora-name,
+.controlnet-name {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lora-strengths,
+.controlnet-strength {
+  display: flex;
+  gap: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+
+.strength-label {
+  white-space: nowrap;
+}
+
+/* Subsection titles */
+.subsection-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0 0 0.75rem 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.parameter-subsection {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-border);
+}
+
 /* Responsive Design */
+@media (max-width: 768px) {
+  .parameter-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+  
+  .metadata-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+  }
+  
+  .metadata-item {
+    padding: 0.375rem;
+  }
+  
+  .lora-item,
+  .controlnet-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .lora-strengths,
+  .controlnet-strength {
+    align-self: stretch;
+    justify-content: space-between;
+  }
+}
+
 @media (max-width: 640px) {
   .parameter-dual-input {
     flex-direction: column;
@@ -2054,6 +2366,14 @@
   
   .seed-input {
     width: 100%;
+  }
+  
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .feature-tags {
+    justify-content: center;
   }
 }
 
@@ -2302,4 +2622,87 @@ input[type="range"].parameter-valid {
   .parameter-validation-message.hide {
     transform: none;
   }
+}
+
+/* ========================================
+   LAYOUT FIXES FOR GENERATION SETTINGS
+   ======================================== */
+
+/* Complexity indicators */
+.complexity-simple {
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.complexity-moderate {
+  color: var(--color-accent-blue);
+  font-weight: 600;
+}
+
+.complexity-complex {
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.complexity-expert {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+/* Architecture badges */
+.metadata-value.architecture {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.375rem;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Ensure proper button sizing and alignment */
+.comfy-button {
+  box-sizing: border-box;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+/* Fix any input field sizing issues */
+input[type="number"],
+input[type="text"],
+select,
+textarea {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+/* Ensure consistent spacing in all sections */
+.parameter-section .section-content > *:last-child {
+  margin-bottom: 0;
+}
+
+.parameter-section .parameter-grid > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Fix overlapping content in parameter sections */
+.parameter-section {
+  position: relative;
+  z-index: 1;
+}
+
+.parameter-section.expanded {
+  z-index: 2;
+}
+
+/* Ensure proper spacing between sections */
+.parameter-display > .parameter-section:not(:last-child) {
+  margin-bottom: 1.5rem;
 }
