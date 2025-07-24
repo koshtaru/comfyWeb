@@ -2,9 +2,11 @@
 // ComfyUI React - Generate Page (txt2img)
 // ============================================================================
 
-import React from 'react'
+import React, { useState, useMemo } from 'react'
 import { useAppStore } from '@/store'
 import { FileUpload, UploadProgress, ValidationResults, ParameterDisplay } from '@/components/workflow'
+import { MetadataDisplay } from '@/components/metadata/MetadataDisplay'
+import { parseWorkflowMetadata } from '@/utils/metadataParser'
 import { UploadErrorBoundary } from '@/components/common/ErrorBoundary'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useUploadManager } from '@/hooks/useUploadManager'
@@ -13,6 +15,7 @@ import { useUploadSelectors } from '@/store/uploadStore'
 export default function GeneratePage() {
   const { isGenerating, setIsGenerating } = useAppStore()
   const uploadSelectors = useUploadSelectors()
+  const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
   
   const {
     currentUpload,
@@ -46,6 +49,18 @@ export default function GeneratePage() {
   const handleParameterChange = (nodeId: string, parameter: string, value: any) => {
     updateParameter(nodeId, parameter, value)
   }
+
+  // Generate enhanced metadata from current workflow
+  const enhancedMetadata = useMemo(() => {
+    if (!currentWorkflow) return null
+    
+    try {
+      return parseWorkflowMetadata(currentWorkflow)
+    } catch (error) {
+      console.error('Failed to parse workflow metadata:', error)
+      return null
+    }
+  }, [currentWorkflow])
 
 
   const handlePaste = async (event: React.ClipboardEvent) => {
@@ -156,30 +171,57 @@ export default function GeneratePage() {
                   <div>
                     <div className="mb-2 flex items-center justify-between">
                       <label className="block text-sm font-medium text-comfy-text-primary">
-                        Workflow Parameters
+                        Workflow Analysis
                       </label>
                       
-                      <div className="flex items-center gap-2 text-xs text-comfy-text-secondary">
-                        <span className={`complexity-${extractedParameters.metadata.complexity.toLowerCase()}`}>
-                          {extractedParameters.metadata.complexity}
-                        </span>
-                        <span>•</span>
-                        <span>{extractedParameters.metadata.totalNodes} nodes</span>
-                        {extractedParameters.metadata.estimatedVRAM && (
-                          <>
-                            <span>•</span>
-                            <span>{extractedParameters.metadata.estimatedVRAM}</span>
-                          </>
-                        )}
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 text-xs text-comfy-text-secondary">
+                          <span className={`complexity-${extractedParameters.metadata.complexity.toLowerCase()}`}>
+                            {extractedParameters.metadata.complexity}
+                          </span>
+                          <span>•</span>
+                          <span>{extractedParameters.metadata.totalNodes} nodes</span>
+                          {extractedParameters.metadata.estimatedVRAM && (
+                            <>
+                              <span>•</span>
+                              <span>{extractedParameters.metadata.estimatedVRAM}</span>
+                            </>
+                          )}
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className={`text-xs px-3 py-1 rounded ${
+                              showEnhancedDisplay 
+                                ? 'bg-comfy-accent-orange text-white' 
+                                : 'bg-comfy-bg-tertiary text-comfy-text-secondary hover:text-comfy-text-primary'
+                            }`}
+                            onClick={() => setShowEnhancedDisplay(!showEnhancedDisplay)}
+                            title="Toggle enhanced analysis display"
+                          >
+                            {showEnhancedDisplay ? '📊 Enhanced' : '⚙️ Basic'}
+                          </button>
+                        </div>
                       </div>
                     </div>
                     
                     <div className="comfy-panel p-4">
-                      <ParameterDisplay
-                        parameters={extractedParameters}
-                        onParameterChange={handleParameterChange}
-                        readOnly={isGenerating || isProcessing}
-                      />
+                      {showEnhancedDisplay && enhancedMetadata ? (
+                        <MetadataDisplay
+                          metadata={enhancedMetadata}
+                          isLoading={false}
+                          compact={true}
+                          defaultTab="models"
+                          showSearch={false}
+                        />
+                      ) : (
+                        <ParameterDisplay
+                          parameters={extractedParameters}
+                          onParameterChange={handleParameterChange}
+                          readOnly={isGenerating || isProcessing}
+                        />
+                      )}
                     </div>
                   </div>
                 </UploadErrorBoundary>
