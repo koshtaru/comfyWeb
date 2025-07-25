@@ -106,6 +106,17 @@ export interface B64ImageMessage extends ComfyUIWebSocketMessage {
   }
 }
 
+// Executed Messages
+export interface ExecutedMessage extends ComfyUIWebSocketMessage {
+  type: 'executed'
+  data: {
+    node: string
+    prompt_id: string
+    output: Record<string, any>
+    timestamp: number
+  }
+}
+
 // Union type for all possible messages
 export type ComfyUIMessage = 
   | ExecutionStartMessage
@@ -117,6 +128,7 @@ export type ComfyUIMessage =
   | ExecutingMessage
   | StatusMessage
   | B64ImageMessage
+  | ExecutedMessage
 
 // WebSocket Connection States
 export type WebSocketState = 
@@ -154,6 +166,7 @@ export interface WebSocketEventHandlers {
   onExecuting?: (data: ExecutingMessage['data']) => void
   onStatus?: (data: StatusMessage['data']) => void
   onB64Image?: (data: B64ImageMessage['data']) => void
+  onExecuted?: (data: ExecutedMessage['data']) => void
 }
 
 // Generation Progress State
@@ -190,9 +203,9 @@ export interface GeneratedImage {
   promptId: string
   nodeId: string
   imageType: string
-  imageData: string // base64 encoded
+  imageData?: string // base64 encoded (optional for URL-based images)
   timestamp: number
-  url?: string // processed blob URL
+  url?: string // processed blob URL or ComfyUI view URL
 }
 
 // WebSocket Service State
@@ -232,9 +245,9 @@ export interface MessageQueueItem {
 // WebSocket Service Interface
 export interface WebSocketServiceInterface {
   // Connection Management
-  connect(): Promise<void>
+  connect(): void
   disconnect(): void
-  reconnect(): Promise<void>
+  reconnect(): void
   
   // State Management
   getState(): WebSocketServiceState

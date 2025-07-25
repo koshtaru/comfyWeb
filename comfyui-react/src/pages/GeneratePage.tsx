@@ -3,19 +3,25 @@
 // ============================================================================
 
 import React, { useState, useMemo } from 'react'
-import { useAppStore } from '@/store'
-import { FileUpload, UploadProgress, ValidationResults, ParameterDisplay } from '@/components/workflow'
+import { FileUpload, UploadProgress, ValidationResults } from '@/components/workflow'
+import type { ExtractedParameters } from '@/utils/parameterExtractor'
 import { MetadataDisplay } from '@/components/metadata/MetadataDisplay'
+import { GenerationSettings } from '@/components/ui'
 import { parseWorkflowMetadata } from '@/utils/metadataParser'
 import { UploadErrorBoundary } from '@/components/common/ErrorBoundary'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { useUploadSelectors } from '@/store/uploadStore'
+import { useGeneration } from '@/hooks/useGeneration'
+import { useWebSocketContext } from '@/contexts/WebSocketContext'
 
 export default function GeneratePage() {
-  const { isGenerating, setIsGenerating } = useAppStore()
   const uploadSelectors = useUploadSelectors()
   const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
+  
+  // Generation hook
+  const { state: generationState, generate, interrupt, clearError, isReady } = useGeneration()
+  const { isConnected, progress, generatedImages, connect: connectWS } = useWebSocketContext()
   
   const {
     currentUpload,
@@ -50,6 +56,27 @@ export default function GeneratePage() {
     updateParameter(nodeId, parameter, value)
   }
 
+  // Convert ExtractedParameters to GenerationSettings format
+  const convertToGenerationParams = (extractedParams: ExtractedParameters) => {
+    return {
+      steps: extractedParams.generation.steps,
+      cfgScale: extractedParams.generation.cfg,
+      seed: extractedParams.generation.seed?.toString() || '',
+      sampler: extractedParams.generation.sampler || 'euler',
+      scheduler: extractedParams.generation.scheduler || 'simple',
+      width: extractedParams.image.width,
+      height: extractedParams.image.height
+    }
+  }
+
+  // Handle parameter changes from GenerationSettings
+  const handleGenerationParamChange = (parameter: string, value: any) => {
+    if (!extractedParameters) return
+    
+    const nodeId = extractedParameters.generation.nodeId || ''
+    handleParameterChange(nodeId, parameter, value)
+  }
+
   // Generate enhanced metadata from current workflow
   const enhancedMetadata = useMemo(() => {
     if (!currentWorkflow) return null
@@ -80,15 +107,15 @@ export default function GeneratePage() {
     <>
       <ToastContainer position="top-right" maxToasts={5} />
       
-      <div className="space-y-6" onPaste={handlePaste} tabIndex={-1}>
+      <div className="grid grid-cols-1 lg:grid-cols-[3fr_1.25fr] gap-6" onPaste={handlePaste} tabIndex={-1}>
+        {/* Left Column - Workflow Controls */}
         <UploadErrorBoundary>
           <div className="comfy-panel p-6">
             <h1 className="mb-4 text-2xl font-bold text-comfy-text-primary">
-              Generate Images
+              Workflow Controls
             </h1>
             <p className="mb-6 text-comfy-text-secondary">
-              Create images using ComfyUI workflows. Upload a workflow JSON file,
-              paste JSON content, or configure parameters manually.
+              Upload a ComfyUI workflow and configure generation parameters.
             </p>
 
             <div className="space-y-4">
@@ -216,10 +243,10 @@ export default function GeneratePage() {
                           showSearch={false}
                         />
                       ) : (
-                        <ParameterDisplay
-                          parameters={extractedParameters}
-                          onParameterChange={handleParameterChange}
-                          readOnly={isGenerating || isProcessing}
+                        <GenerationSettings
+                          parameters={convertToGenerationParams(extractedParameters)}
+                          onParameterChange={handleGenerationParamChange}
+                          readOnly={generationState.isGenerating || isProcessing}
                         />
                       )}
                     </div>
@@ -235,38 +262,104 @@ export default function GeneratePage() {
                 <textarea
                   className="comfy-input h-24"
                   placeholder="Enter additional prompt here... (Ctrl+V to paste workflow JSON)"
-                  disabled={isGenerating || isProcessing}
+                  disabled={generationState.isGenerating || isProcessing}
                 />
+              </div>
+
+              {/* WebSocket Status */}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                  <span className="text-sm text-comfy-text-secondary">
+                    WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
+                  </span>
+                </div>
+                {!isConnected && (
+                  <button
+                    className="comfy-button secondary text-sm px-3 py-1"
+                    onClick={() => {
+                      console.log('[WebSocket] Manual connect requested')
+                      connectWS()
+                    }}
+                  >
+                    Connect WebSocket
+                  </button>
+                )}
               </div>
 
               <div className="flex gap-3">
                 <button
                   className={`comfy-button flex-1 ${
-                    (isGenerating || isProcessing || !currentWorkflow) 
+                    (!isReady || isProcessing || !currentWorkflow) 
                       ? 'cursor-not-allowed opacity-50' 
                       : ''
                   }`}
-                  onClick={() => setIsGenerating(!isGenerating)}
-                  disabled={isGenerating || isProcessing || !currentWorkflow}
+                  onClick={() => {
+                    console.log('[Generate Button] Clicked:', {
+                      currentWorkflow: !!currentWorkflow,
+                      isReady,
+                      isProcessing,
+                      generationState
+                    })
+                    if (currentWorkflow && isReady) {
+                      console.log('[Generate Button] Calling generate with workflow')
+                      generate(currentWorkflow)
+                    } else {
+                      console.log('[Generate Button] Cannot generate:', {
+                        noWorkflow: !currentWorkflow,
+                        notReady: !isReady
+                      })
+                    }
+                  }}
+                  disabled={!isReady || isProcessing || !currentWorkflow}
                 >
-                  {isGenerating ? 'Generating...' : 'Generate'}
+                  {generationState.isGenerating ? 'Generating...' : 'Generate'}
                 </button>
                 
+                {generationState.isGenerating && (
+                  <button
+                    className="comfy-button secondary"
+                    onClick={interrupt}
+                    title="Cancel generation"
+                  >
+                    Cancel
+                  </button>
+                )}
               </div>
 
-              {(isGenerating || isProcessing) && (
+              {(generationState.isGenerating || isProcessing) && (
                 <div className="mt-4 rounded-md bg-comfy-bg-tertiary p-4">
                   <div className="flex items-center space-x-3">
                     <div className="h-5 w-5 animate-spin rounded-full border-2 border-comfy-accent-orange border-t-transparent"></div>
                     <span className="text-comfy-text-secondary">
-                      {isGenerating 
-                        ? 'Generation in progress...' 
+                      {generationState.isGenerating 
+                        ? (progress.currentNode 
+                            ? `Executing: ${progress.currentNode}` 
+                            : 'Generation in progress...'
+                          )
                         : `${currentUpload.status.charAt(0).toUpperCase() + currentUpload.status.slice(1)}...`
                       }
                     </span>
                   </div>
                   
-                  {currentUpload.progress > 0 && currentUpload.progress < 100 && (
+                  {/* ComfyUI Progress Bar */}
+                  {generationState.isGenerating && progress.maxProgress > 0 && (
+                    <div className="mt-2">
+                      <div className="w-full bg-comfy-bg-secondary rounded-full h-2">
+                        <div 
+                          className="bg-comfy-accent-orange h-2 rounded-full transition-all duration-300"
+                          style={{ width: `${Math.round((progress.progress / progress.maxProgress) * 100)}%` }}
+                        />
+                      </div>
+                      <div className="mt-1 text-xs text-comfy-text-secondary">
+                        {progress.progress} / {progress.maxProgress} steps
+                        {progress.queueRemaining > 0 && ` • ${progress.queueRemaining} in queue`}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Upload Progress Bar */}
+                  {isProcessing && currentUpload.progress > 0 && currentUpload.progress < 100 && (
                     <div className="mt-2">
                       <div className="w-full bg-comfy-bg-secondary rounded-full h-2">
                         <div 
@@ -278,9 +371,92 @@ export default function GeneratePage() {
                   )}
                 </div>
               )}
+
+              {/* Generation Error Display */}
+              {generationState.error && (
+                <div className="mt-4 rounded-md bg-red-900/20 border border-red-500/30 p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3">
+                      <div className="text-red-400">⚠️</div>
+                      <div>
+                        <h4 className="text-sm font-medium text-red-400">Generation Failed</h4>
+                        <p className="mt-1 text-sm text-red-300">{generationState.error}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={clearError}
+                      className="text-red-400 hover:text-red-300"
+                      title="Dismiss error"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Connection Status */}
+              {!isConnected && (
+                <div className="mt-4 rounded-md bg-yellow-900/20 border border-yellow-500/30 p-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="text-yellow-400">⚠️</div>
+                    <span className="text-sm text-yellow-300">
+                      Not connected to ComfyUI server. Please check your connection.
+                    </span>
+                  </div>
+                </div>
+              )}
+
             </div>
           </div>
         </UploadErrorBoundary>
+
+        {/* Right Column - Generated Images Display */}
+        <div className="comfy-panel p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-comfy-text-primary">
+              Generated Images
+            </h2>
+            {/* Debug info - smaller on right column */}
+            <div className="text-xs text-comfy-text-secondary">
+              ({generatedImages?.length || 0})
+            </div>
+          </div>
+          
+          {generatedImages && generatedImages.length > 0 ? (
+            <div className="space-y-4">
+              {generatedImages.slice(0, 6).map((image, index) => (
+                <div key={`${image.promptId}-${image.nodeId}-${index}`} className="border border-comfy-border rounded-lg p-3">
+                  <div className="mb-2">
+                    <img
+                      src={image.url}
+                      alt={`Generated image ${index + 1}`}
+                      className="w-full rounded-md"
+                      style={{ maxHeight: '350px', objectFit: 'contain' }}
+                      onLoad={() => console.log(`🖼️ Image ${index + 1} loaded successfully:`, image.url)}
+                      onError={() => console.error(`🖼️ Failed to load image ${index + 1}:`, image.url)}
+                    />
+                  </div>
+                  <div className="text-xs text-comfy-text-secondary space-y-1">
+                    <div>Node: {image.nodeId}</div>
+                    <div>Type: {image.imageType}</div>
+                    <div>Time: {new Date(image.timestamp).toLocaleTimeString()}</div>
+                    <div>URL: <a href={image.url} target="_blank" rel="noopener noreferrer" className="text-comfy-accent-orange hover:underline">View</a></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-48 text-center text-comfy-text-secondary border-2 border-dashed border-comfy-border rounded-lg">
+              <div className="text-3xl mb-2">📷</div>
+              <div className="text-sm mb-1">
+                {progress.isGenerating ? 'Generating images...' : 'No images generated yet'}
+              </div>
+              <div className="text-xs">
+                Upload a workflow and click Generate to see results here
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </>
   )

@@ -1,10 +1,12 @@
 // WebSocket Context Provider for ComfyUI React
 // Provides global WebSocket state and functionality across the application
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 import { ComfyUIWebSocketService } from '@/services/websocket'
 import { useWebSocket, useGenerationProgress, useConnectionHealth } from '@/hooks/useWebSocket'
 import { uploadToasts } from '@/utils/toast'
+import { useAPIStore } from '@/store/apiStore'
+import { generationService } from '@/services/generationService'
 import type { 
   WebSocketConfig, 
   WebSocketState, 
@@ -48,9 +50,9 @@ interface WebSocketContextValue {
   }
   
   // Methods
-  connect: () => Promise<void>
+  connect: () => void
   disconnect: () => void
-  reconnect: () => Promise<void>
+  reconnect: () => void
   clearProgress: () => void
   clearErrors: () => void
   clearImages: () => void
@@ -75,23 +77,59 @@ interface WebSocketProviderProps {
 
 // Default configuration
 const defaultConfig: WebSocketConfig = {
-  url: 'ws://localhost:8188/ws',
+  url: 'ws://192.168.1.15:8188/ws',
   autoReconnect: true,
   maxReconnectAttempts: 10,
   reconnectInterval: 5000,
   heartbeatInterval: 30000,
-  messageTimeout: 10000,
+  messageTimeout: 300000, // 5 minutes instead of 10 seconds - allow for long generations
   debug: false
+}
+
+// Utility function to convert HTTP endpoint to WebSocket URL
+const convertToWebSocketURL = (httpEndpoint: string, clientId?: string): string => {
+  try {
+    const url = new URL(httpEndpoint)
+    const protocol = url.protocol === 'https:' ? 'wss:' : 'ws:'
+    const wsUrl = `${protocol}//${url.host}/ws`
+    return clientId ? `${wsUrl}?clientId=${clientId}` : wsUrl
+  } catch (error) {
+    console.warn('Invalid HTTP endpoint, falling back to default WebSocket URL:', error)
+    return 'ws://192.168.1.15:8188/ws'
+  }
 }
 
 // Provider component
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   children,
   config = {},
-  autoConnect = false,
+  autoConnect: _autoConnect = false, // Renamed to indicate it's intentionally unused
   showToastNotifications = true
 }) => {
-  const finalConfig = { ...defaultConfig, ...config }
+  const { endpoint } = useAPIStore()
+  
+  // Dynamically generate WebSocket URL from API endpoint
+  const dynamicWebSocketURL = useMemo(() => {
+    console.log('WebSocket URL generation - endpoint from store:', endpoint)
+    if (config.url) {
+      console.log('Using provided WebSocket URL:', config.url)
+      return config.url // Use provided URL if specified
+    }
+    
+    // Force use of current endpoint from store, ignore any cached values
+    const currentEndpoint = endpoint || 'http://192.168.1.15:8188'
+    // Get client ID from generation service
+    const clientId = generationService.getClientId()
+    const wsUrl = convertToWebSocketURL(currentEndpoint, clientId)
+    console.log('Generated WebSocket URL from endpoint:', currentEndpoint, '→', wsUrl, 'with clientId:', clientId)
+    return wsUrl
+  }, [endpoint, config.url])
+  
+  const finalConfig = { 
+    ...defaultConfig, 
+    ...config,
+    url: dynamicWebSocketURL
+  }
   
   // Core WebSocket hook
   const {
@@ -136,14 +174,20 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     errorCount: 0
   })
 
-  // Auto-connect on mount
-  useEffect(() => {
-    if (autoConnect && service) {
-      connectWS().catch(error => {
-        console.error('Auto-connect failed:', error)
-      })
-    }
-  }, [autoConnect, service, connectWS])
+  // Auto-connect disabled to prevent browser crashes
+  // useEffect(() => {
+  //   console.log('Auto-connect effect:', { autoConnect, service: !!service, connectWS: !!connectWS })
+  //   if (autoConnect && service && connectWS) {
+  //     console.log('Attempting auto-connect...')
+  //     try {
+  //       connectWS()
+  //     } catch (error) {
+  //       console.error('Auto-connect failed:', error)
+  //     }
+  //   } else {
+  //     console.log('Auto-connect skipped:', { autoConnect, service: !!service, connectWS: !!connectWS })
+  //   }
+  // }, [autoConnect, service, connectWS])
 
   // Toast notifications for connection state changes
   useEffect(() => {
@@ -220,7 +264,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     hasErrors,
     recentErrors.length,
     showToastNotifications,
-    lastToastState,
+    // Removed lastToastState to prevent infinite loop
     reconnectWS
   ])
 
@@ -271,9 +315,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   }, [service])
 
   // Enhanced connection methods with error handling
-  const connect = useCallback(async () => {
+  const connect = useCallback(() => {
     try {
-      await connectWS()
+      connectWS()
     } catch (error) {
       console.error('Connection failed:', error)
       if (showToastNotifications) {
@@ -286,7 +330,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           }
         })
       }
-      throw error
     }
   }, [connectWS, showToastNotifications])
 
@@ -300,7 +343,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     }
   }, [disconnectWS, showToastNotifications])
 
-  const reconnect = useCallback(async () => {
+  const reconnect = useCallback(() => {
     try {
       if (showToastNotifications) {
         uploadToasts.info('Reconnecting', {
@@ -308,7 +351,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           duration: 3000
         })
       }
-      await reconnectWS()
+      reconnectWS()
     } catch (error) {
       console.error('Reconnection failed:', error)
       if (showToastNotifications) {
@@ -321,7 +364,6 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
           }
         })
       }
-      throw error
     }
   }, [reconnectWS, showToastNotifications])
 

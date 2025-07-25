@@ -17,7 +17,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
   private config: Required<WebSocketConfig>
   private eventHandlers: Map<keyof WebSocketEventHandlers, Set<Function>> = new Map()
   
-  // State management
+  // Simplified state management like original
   private state: WebSocketServiceState = {
     connectionState: 'disconnected',
     lastError: null,
@@ -27,6 +27,9 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     lastHeartbeat: null,
     serverInfo: null
   }
+  
+  // Simple flags like original
+  private isManualDisconnect = false
 
   private progress: GenerationProgress = {
     promptId: null,
@@ -53,20 +56,17 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
   }
 
   // Internal management
-  private heartbeatTimer: NodeJS.Timeout | null = null
   private reconnectTimer: NodeJS.Timeout | null = null
   private messageQueue: MessageQueueItem[] = []
   private latencyTests: number[] = []
   private debug = false
-  private messageRateCounter = 0
-  private messageRateTimer: NodeJS.Timeout | null = null
 
   constructor(config: WebSocketConfig) {
     this.config = {
       url: config.url,
-      autoReconnect: config.autoReconnect ?? true,
-      maxReconnectAttempts: config.maxReconnectAttempts ?? 10,
-      reconnectInterval: config.reconnectInterval ?? 5000,
+      autoReconnect: config.autoReconnect ?? false,
+      maxReconnectAttempts: config.maxReconnectAttempts ?? 3,
+      reconnectInterval: config.reconnectInterval ?? 3000,
       heartbeatInterval: config.heartbeatInterval ?? 30000,
       messageTimeout: config.messageTimeout ?? 10000,
       debug: config.debug ?? false
@@ -74,96 +74,125 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
 
     this.debug = this.config.debug
     this.initializeEventHandlers()
-    this.startMessageRateTracking()
+    // Remove message rate tracking - simpler approach
   }
 
-  // Connection Management
-  async connect(): Promise<void> {
-    if (this.ws?.readyState === WebSocket.CONNECTING || this.ws?.readyState === WebSocket.OPEN) {
+  // Connection Management - Simple synchronous like original
+  connect(): void {
+    if (this.state.connectionState === 'connecting' || this.state.connectionState === 'connected') {
       return
     }
 
-    return new Promise((resolve, reject) => {
-      try {
-        this.log('Connecting to ComfyUI WebSocket...')
-        this.updateState({ connectionState: 'connecting' })
-        
-        this.ws = new WebSocket(this.config.url)
-        
-        const connectionTimeout = setTimeout(() => {
-          this.handleConnectionError(new Error('Connection timeout'))
-          reject(new Error('Connection timeout'))
-        }, this.config.messageTimeout)
-
-        this.ws.onopen = () => {
-          clearTimeout(connectionTimeout)
-          this.handleConnectionOpen()
-          resolve()
-        }
-
-        this.ws.onclose = (event) => {
-          clearTimeout(connectionTimeout)
-          this.handleConnectionClose(event)
-          if (!this.state.isReconnecting) {
-            reject(new Error(`Connection closed: ${event.reason || 'Unknown reason'}`))
-          }
-        }
-
-        this.ws.onerror = (error) => {
-          clearTimeout(connectionTimeout)
-          this.handleConnectionError(error)
-          reject(error)
-        }
-
-        this.ws.onmessage = (event) => {
-          this.handleMessage(event)
-        }
-
-      } catch (error) {
-        this.handleConnectionError(error as Error)
-        reject(error)
-      }
-    })
+    this.isManualDisconnect = false
+    this.updateState({ connectionState: 'connecting' })
+    
+    try {
+      this.log(`Connecting to ComfyUI WebSocket at: ${this.config.url}`)
+      this.ws = new WebSocket(this.config.url)
+      this.log('WebSocket object created, setting up handlers...')
+      this.setupEventHandlers()
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error)
+      this.handleConnectionError(error as Error)
+    }
   }
 
   disconnect(): void {
-    this.log('Disconnecting from ComfyUI WebSocket...')
+    this.isManualDisconnect = true
+    this.clearReconnectTimer()
     
+    if (this.ws) {
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close()
+      }
+    }
+    
+    this.updateState({ connectionState: 'disconnected' })
+  }
+
+  // Setup event handlers like original - called after WebSocket creation
+  private setupEventHandlers(): void {
+    if (!this.ws) return
+
+    this.ws.onopen = () => {
+      this.log('WebSocket connected to ComfyUI')
+      this.updateState({ 
+        connectionState: 'connected',
+        connectedAt: Date.now(),
+        lastError: null,
+        reconnectAttempts: 0
+      })
+      this.emitEvent('onOpen')
+    }
+
+    this.ws.onmessage = (event) => {
+      try {
+        this.handleMessage(event)
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error)
+        this.emitEvent('onError', { type: 'parse_error', error, data: event.data })
+      }
+    }
+
+    this.ws.onclose = (event) => {
+      console.error(`🔌 [CRITICAL] WebSocket connection closed during operation!`)
+      console.error(`🔌 Close Code: ${event.code}`)
+      console.error(`🔌 Close Reason: "${event.reason}"`)
+      console.error(`🔌 Was Clean: ${event.wasClean}`)
+      console.error(`🔌 Manual Disconnect: ${this.isManualDisconnect}`)
+      console.error(`🔌 Connection State: ${this.state.connectionState}`)
+      console.error(`🔌 Timestamp: ${new Date().toISOString()}`)
+      
+      // Log common close codes for debugging
+      const closeCodeMeanings: Record<number, string> = {
+        1000: 'Normal Closure',
+        1001: 'Going Away',
+        1002: 'Protocol Error',
+        1003: 'Unsupported Data',
+        1005: 'No Status Received',
+        1006: 'Abnormal Closure',
+        1007: 'Invalid frame payload data',
+        1008: 'Policy Violation',
+        1009: 'Message Too Big',
+        1010: 'Mandatory Extension',
+        1011: 'Internal Server Error',
+        1015: 'TLS Handshake Error'
+      }
+      
+      const meaning = closeCodeMeanings[event.code] || 'Unknown Close Code'
+      console.error(`🔌 Close Code Meaning: ${meaning}`)
+      
+      this.log(`WebSocket disconnected: ${event.code} ${event.reason}`)
+      this.updateState({ connectionState: 'disconnected' })
+      this.emitEvent('onClose', event)
+      
+      // Disable automatic reconnection to prevent infinite loops
+      // if (!this.isManualDisconnect && this.state.reconnectAttempts < this.config.maxReconnectAttempts) {
+      //   this.scheduleReconnect()
+      // }
+    }
+
+    this.ws.onerror = (error) => {
+      console.error('WebSocket error:', error)
+      this.handleConnectionError(error)
+    }
+  }
+
+  private clearReconnectTimer(): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer)
       this.reconnectTimer = null
     }
-
-    if (this.heartbeatTimer) {
-      clearTimeout(this.heartbeatTimer)
-      this.heartbeatTimer = null
-    }
-
-    this.updateState({ 
-      isReconnecting: false,
-      connectionState: 'disconnected' 
-    })
-
-    if (this.ws) {
-      this.ws.close(1000, 'Client initiated disconnect')
-      this.ws = null
-    }
   }
 
-  async reconnect(): Promise<void> {
+  // Simple reconnect like original
+  reconnect(): void {
     this.log('Attempting to reconnect...')
     this.disconnect()
-    
-    this.updateState({ 
-      isReconnecting: true,
-      reconnectAttempts: this.state.reconnectAttempts + 1 
-    })
-
-    this.connectionStats.totalReconnections++
-
-    await new Promise(resolve => setTimeout(resolve, this.config.reconnectInterval))
-    return this.connect()
+    this.connect()
   }
+
+  // scheduleReconnect method removed - automatic reconnection disabled to prevent infinite loops
 
   // Event Management
   addEventListener<T extends keyof WebSocketEventHandlers>(
@@ -263,7 +292,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       'onOpen', 'onClose', 'onError', 'onMessage',
       'onExecutionStart', 'onExecutionSuccess', 'onExecutionCached',
       'onExecutionInterrupted', 'onExecutionError', 'onProgress',
-      'onExecuting', 'onStatus', 'onB64Image'
+      'onExecuting', 'onStatus', 'onExecuted', 'onB64Image'
     ]
 
     events.forEach(event => {
@@ -271,66 +300,27 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     })
   }
 
-  private handleConnectionOpen(): void {
-    this.log('WebSocket connected successfully')
-    
-    this.updateState({
-      connectionState: 'connected',
-      lastError: null,
-      reconnectAttempts: 0,
-      isReconnecting: false,
-      connectedAt: Date.now(),
-      lastHeartbeat: Date.now()
-    })
-
-    this.connectionStats.totalConnections++
-    this.startHeartbeat()
-    this.emitEvent('onOpen')
-  }
-
-  private handleConnectionClose(event: CloseEvent): void {
-    this.log(`WebSocket closed: ${event.code} - ${event.reason}`)
-    
-    this.stopHeartbeat()
-    this.updateState({
-      connectionState: 'disconnected',
-      connectedAt: null,
-      lastHeartbeat: null
-    })
-
-    this.emitEvent('onClose', event)
-
-    // Auto-reconnect if enabled and not a clean close
-    if (this.config.autoReconnect && event.code !== 1000 && !this.state.isReconnecting) {
-      if (this.state.reconnectAttempts < this.config.maxReconnectAttempts) {
-        this.scheduleReconnect()
-      } else {
-        this.log('Max reconnection attempts reached')
-        this.updateState({ lastError: 'Max reconnection attempts reached' })
-      }
-    }
-  }
+  // Removed old complex connection handlers - using simple setupEventHandlers instead
 
   private handleConnectionError(error: Event | Error): void {
-    const errorMessage = error instanceof Error ? error.message : 'WebSocket error'
-    this.log(`WebSocket error: ${errorMessage}`)
+    this.updateState({ connectionState: 'error' })
+    this.emitEvent('onError', { type: 'connection_error', error })
     
-    this.updateState({
-      connectionState: 'error',
-      lastError: errorMessage
-    })
-
-    this.connectionStats.lastError = errorMessage
-    this.emitEvent('onError', error)
+    // Disable automatic reconnection to prevent infinite loops
+    // if (!this.isManualDisconnect && this.state.reconnectAttempts < this.config.maxReconnectAttempts) {
+    //   this.scheduleReconnect()
+    // }
   }
 
   private handleMessage(event: MessageEvent): void {
+    console.log(`🔌 [MESSAGE] Raw WebSocket message received:`, event.data)
+    
     try {
       const message: ComfyUIMessage = JSON.parse(event.data)
       
+      console.log(`🔌 [MESSAGE] Parsed message type: ${message.type}`, message.data)
+      
       this.connectionStats.totalMessages++
-      this.messageRateCounter++
-      this.updateLastHeartbeat()
       
       this.log(`Received message: ${message.type}`, message.data)
       
@@ -357,15 +347,22 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     
     for (const item of unprocessedMessages) {
       try {
+        console.log(`🔌 [PROCESS] Processing message ${item.message.type}`)
         this.processMessage(item.message)
         item.processed = true
+        console.log(`🔌 [PROCESS] Successfully processed ${item.message.type}`)
       } catch (error) {
+        console.error(`🔌 [ERROR] Failed to process message ${item.id} (${item.message.type}):`, error)
+        console.error(`🔌 [ERROR] Message data:`, item.message.data)
         this.log(`Failed to process message ${item.id}:`, error)
         item.retryCount++
         
         if (item.retryCount >= 3) {
+          console.warn(`🔌 [WARN] Giving up on message ${item.id} after 3 retries`)
           item.processed = true // Mark as processed to avoid infinite retries
         }
+        
+        // Don't let processing errors bubble up and close the connection
       }
     }
     
@@ -408,8 +405,25 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       case 'status':
         this.emitEvent('onStatus', message.data)
         break
+      case 'executed':
+        console.log('🔌 [EXECUTED] Node execution completed:', {
+          nodeId: message.data.node,
+          promptId: message.data.prompt_id,
+          output: message.data.output
+        })
+        this.emitEvent('onExecuted', message.data)
+        break
       case 'b64_image':
+        this.log('Received generated image data:', {
+          prompt_id: message.data.prompt_id,
+          node_id: message.data.node_id,
+          imageType: message.data.image_type
+        })
         this.emitEvent('onB64Image', message.data)
+        break
+      default:
+        // Log unknown message types to help debug missing events
+        console.log(`🔌 [UNKNOWN] Received unknown message type: ${message.type}`, message.data)
         break
     }
   }
@@ -438,12 +452,10 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
             lastUpdate: now
           }
         } else {
-          // Node is null, execution finished
+          // Node is null - don't mark as finished yet, wait for actual completion events
           this.progress = {
             ...this.progress,
             currentNode: null,
-            isGenerating: false,
-            endTime: now,
             lastUpdate: now
           }
         }
@@ -488,56 +500,16 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     }
   }
 
-  private scheduleReconnect(): void {
-    if (this.reconnectTimer) return
-    
-    this.log(`Scheduling reconnection attempt ${this.state.reconnectAttempts + 1}`)
-    
-    this.reconnectTimer = setTimeout(() => {
-      this.reconnectTimer = null
-      this.reconnect().catch(error => {
-        this.log('Reconnection failed:', error)
-      })
-    }, this.config.reconnectInterval)
-  }
 
-  private startHeartbeat(): void {
-    if (this.heartbeatTimer) return
-    
-    this.heartbeatTimer = setInterval(() => {
-      if (this.isConnected()) {
-        const now = Date.now()
-        const timeSinceLastMessage = now - (this.state.lastHeartbeat || 0)
-        
-        if (timeSinceLastMessage > this.config.heartbeatInterval * 2) {
-          this.log('Heartbeat timeout detected, reconnecting...')
-          this.reconnect()
-        }
-      }
-    }, this.config.heartbeatInterval)
-  }
+  // Heartbeat removed - keeping it simple like original implementation
 
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer)
-      this.heartbeatTimer = null
-    }
-  }
-
-  private startMessageRateTracking(): void {
-    this.messageRateTimer = setInterval(() => {
-      this.connectionStats.messagesPerSecond = this.messageRateCounter
-      this.messageRateCounter = 0
-    }, 1000)
-  }
+  // Message rate tracking removed - keeping it simple
 
   private updateState(updates: Partial<WebSocketServiceState>): void {
     this.state = { ...this.state, ...updates }
   }
 
-  private updateLastHeartbeat(): void {
-    this.state.lastHeartbeat = Date.now()
-  }
+  // Removed heartbeat tracking - keeping it simple
 
   private emitEvent<T extends keyof WebSocketEventHandlers>(
     event: T, 
@@ -561,15 +533,12 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     }
   }
 
+
+  // Client registration removed - not needed like original
+
   // Cleanup
   destroy(): void {
     this.disconnect()
-    
-    if (this.messageRateTimer) {
-      clearInterval(this.messageRateTimer)
-      this.messageRateTimer = null
-    }
-    
     this.eventHandlers.clear()
     this.messageQueue = []
   }

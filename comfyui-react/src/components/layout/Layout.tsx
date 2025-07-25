@@ -14,7 +14,7 @@ export default function Layout() {
       <Navigation />
 
       {/* Main Content */}
-      <main className="container mx-auto max-w-7xl px-4 py-6">
+      <main className="w-full px-6 py-6">
         <Outlet />
       </main>
 

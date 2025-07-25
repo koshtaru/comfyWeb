@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ComfyUIWebSocketService } from '@/services/websocket'
+import { useAPIStore } from '@/store/apiStore'
 import type {
   WebSocketConfig,
   WebSocketState,
@@ -18,7 +19,7 @@ export const useWebSocket = (config: WebSocketConfig) => {
   const [connectionState, setConnectionState] = useState<WebSocketState>('disconnected')
   const [lastError, setLastError] = useState<string | null>(null)
   const [isReconnecting, setIsReconnecting] = useState(false)
-  const [connectionStats, setConnectionStats] = useState<ConnectionStats>({
+  const [connectionStats] = useState<ConnectionStats>({ // Removed setConnectionStats as it's unused
     totalConnections: 0,
     totalReconnections: 0,
     totalMessages: 0,
@@ -59,30 +60,59 @@ export const useWebSocket = (config: WebSocketConfig) => {
       })
     ]
 
-    // Stats update timer
-    const statsTimer = setInterval(() => {
-      if (!mountedRef.current || !serviceRef.current) return
-      setConnectionStats(serviceRef.current.getConnectionStats())
-      
-      const state = serviceRef.current.getState()
-      setConnectionState(state.connectionState)
-      setLastError(state.lastError)
-      setIsReconnecting(state.isReconnecting)
-    }, 1000)
+    // Stats update timer - DISABLED to prevent potential infinite loops
+    // const statsTimer = setInterval(() => {
+    //   if (!mountedRef.current || !serviceRef.current) return
+    //   
+    //   const newStats = serviceRef.current.getConnectionStats()
+    //   const state = serviceRef.current.getState()
+    //   
+    //   // Only update stats if values have changed
+    //   setConnectionStats(prevStats => {
+    //     if (
+    //       prevStats.totalConnections !== newStats.totalConnections ||
+    //       prevStats.totalReconnections !== newStats.totalReconnections ||
+    //       prevStats.totalMessages !== newStats.totalMessages ||
+    //       prevStats.averageLatency !== newStats.averageLatency ||
+    //       Math.abs(prevStats.uptime - newStats.uptime) > 2000 // Only update uptime if diff > 2s
+    //     ) {
+    //       return newStats
+    //     }
+    //     return prevStats
+    //   })
+    //   
+    //   // Sync connection state with actual WebSocket state and recent activity
+    //   const isActuallyConnected = serviceRef.current.isConnected()
+    //   const hasRecentActivity = Date.now() - newStats.uptime < 30000 // Connected within last 30 seconds
+    //   
+    //   const actualConnectionState = isActuallyConnected ? 'connected' :
+    //                                hasRecentActivity && state.connectionState !== 'error' ? 'connecting' :
+    //                                state.connectionState === 'error' ? 'error' : 'disconnected'
+    //   
+    //   // Update connection state (React will optimize if values haven't changed)
+    //   setConnectionState(actualConnectionState)
+    //   setLastError(state.lastError)
+    //   setIsReconnecting(state.isReconnecting)
+    // }, 2000) // Reduced to every 2 seconds
 
     return () => {
       mountedRef.current = false
       unsubscribes.forEach(unsub => unsub())
-      clearInterval(statsTimer)
+      // clearInterval(statsTimer) // Commented out since timer is disabled
       service.destroy()
     }
-  }, [config])
+  }, [])
 
-  // Connection methods
-  const connect = useCallback(async () => {
-    if (!serviceRef.current) return
+  // Connection methods - simplified like original
+  const connect = useCallback(() => {
+    console.log('useWebSocket connect called, service:', !!serviceRef.current)
+    if (!serviceRef.current) {
+      console.log('No service available for connection')
+      return
+    }
     try {
-      await serviceRef.current.connect()
+      console.log('Calling service.connect()')
+      serviceRef.current.connect()
     } catch (error) {
       console.error('Failed to connect:', error)
     }
@@ -93,10 +123,10 @@ export const useWebSocket = (config: WebSocketConfig) => {
     serviceRef.current.disconnect()
   }, [])
 
-  const reconnect = useCallback(async () => {
+  const reconnect = useCallback(() => {
     if (!serviceRef.current) return
     try {
-      await serviceRef.current.reconnect()
+      serviceRef.current.reconnect()
     } catch (error) {
       console.error('Failed to reconnect:', error)
     }
@@ -122,6 +152,8 @@ export const useWebSocket = (config: WebSocketConfig) => {
 
 // Hook for generation progress tracking
 export const useGenerationProgress = (service: ComfyUIWebSocketService | null) => {
+  const { endpoint } = useAPIStore()
+  
   const [progress, setProgress] = useState<GenerationProgress>({
     promptId: null,
     currentNode: null,
@@ -142,6 +174,18 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
   useEffect(() => {
     if (!service) return
 
+    // Listen for custom events from history API fallback
+    const handleImagesFound = (event: CustomEvent) => {
+      console.log('🔌 [CUSTOM EVENT] Images found via history API:', event.detail.images)
+      setGeneratedImages(prev => {
+        const newImages = event.detail.images
+        console.log(`🔌 [CUSTOM EVENT] Adding ${newImages.length} images from history API`)
+        return [...newImages, ...prev.slice(0, 50 - newImages.length)] // Keep last 50 total
+      })
+    }
+
+    window.addEventListener('comfyui-images-found', handleImagesFound as EventListener)
+
     const unsubscribes = [
       // Progress updates
       service.addEventListener('onProgress', (data) => {
@@ -157,11 +201,14 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
 
       // Execution state changes
       service.addEventListener('onExecuting', (data) => {
+        console.log('🔌 [EXECUTING] Node execution update:', { node: data.node, prompt_id: data.prompt_id })
+        
         setProgress(prev => ({
           ...prev,
           currentNode: data.node,
           promptId: data.prompt_id,
-          isGenerating: data.node !== null,
+          // Don't set isGenerating to false when node is null - wait for actual completion events
+          isGenerating: data.node !== null ? true : prev.isGenerating,
           lastUpdate: Date.now()
         }))
       }),
@@ -226,8 +273,84 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
         }))
       }),
 
-      // Image generation
+      // Node execution completion - extract images from outputs
+      service.addEventListener('onExecuted', (data) => {
+        console.log('🔌 [EXECUTED] Processing node execution:', data)
+        console.log('🔌 [EXECUTED] Current endpoint:', endpoint)
+        
+        if (data.output && typeof data.output === 'object') {
+          console.log('🔌 [EXECUTED] Found output object with keys:', Object.keys(data.output))
+          
+          // Look for image outputs (SaveImage nodes typically have 'images' output)
+          let imagesFound = 0
+          Object.entries(data.output).forEach(([outputKey, outputValue]: [string, any]) => {
+            console.log(`🔌 [EXECUTED] Checking output "${outputKey}":`, outputValue)
+            
+            if (outputValue && Array.isArray(outputValue.images)) {
+              console.log(`🔌 [EXECUTED] Found ${outputValue.images.length} images in output "${outputKey}"`)
+              
+              outputValue.images.forEach((imageInfo: any, index: number) => {
+                console.log(`🔌 [EXECUTED] Processing image ${index + 1}:`, imageInfo)
+                
+                const image: GeneratedImage = {
+                  promptId: data.prompt_id,
+                  nodeId: data.node,
+                  imageType: imageInfo.type || 'png',
+                  timestamp: Date.now()
+                }
+                
+                // Construct ComfyUI view URL for the image using current endpoint
+                const filename = encodeURIComponent(imageInfo.filename || '')
+                const subfolder = encodeURIComponent(imageInfo.subfolder || '')
+                const type = encodeURIComponent(imageInfo.type || 'output')
+                
+                image.url = `${endpoint}/view?filename=${filename}&subfolder=${subfolder}&type=${type}`
+                
+                console.log(`🔌 [EXECUTED] Generated image URL:`, image.url)
+                console.log(`🔌 [EXECUTED] Image details:`, {
+                  filename: imageInfo.filename,
+                  subfolder: imageInfo.subfolder,
+                  type: imageInfo.type,
+                  constructed_url: image.url
+                })
+                
+                // Add image to state
+                setGeneratedImages(prev => {
+                  console.log(`🔌 [EXECUTED] Adding image to state. Previous count: ${prev.length}`)
+                  const newImages = [image, ...prev.slice(0, 49)] // Keep last 50 images
+                  console.log(`🔌 [EXECUTED] New image count: ${newImages.length}`)
+                  return newImages
+                })
+                
+                imagesFound++
+              })
+            } else {
+              console.log(`🔌 [EXECUTED] Output "${outputKey}" does not contain images array`)
+            }
+          })
+          
+          if (imagesFound > 0) {
+            console.log(`🔌 [EXECUTED] ✅ Found and processed ${imagesFound} images total`)
+            
+            // Mark generation as complete when images are found
+            setProgress(prev => ({
+              ...prev,
+              isGenerating: false,
+              endTime: Date.now(),
+              lastUpdate: Date.now()
+            }))
+          } else {
+            console.log('🔌 [EXECUTED] ⚠️ No images found in any outputs')
+          }
+        } else {
+          console.log('🔌 [EXECUTED] ⚠️ No output object found in executed event')
+        }
+      }),
+
+      // Image generation (base64 - fallback method)
       service.addEventListener('onB64Image', (data) => {
+        console.log('🔌 [B64IMAGE] Received base64 image data:', data)
+        
         const image: GeneratedImage = {
           promptId: data.prompt_id,
           nodeId: data.node_id,
@@ -238,6 +361,10 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
 
         // Convert base64 to blob URL for display
         try {
+          if (!image.imageData) {
+            console.error('No image data provided for b64_image')
+            return
+          }
           const binary = atob(image.imageData)
           const bytes = new Uint8Array(binary.length)
           for (let i = 0; i < binary.length; i++) {
@@ -245,6 +372,8 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
           }
           const blob = new Blob([bytes], { type: `image/${image.imageType}` })
           image.url = URL.createObjectURL(blob)
+          
+          console.log('🔌 [B64IMAGE] Created blob URL:', image.url)
         } catch (error) {
           console.error('Failed to process image data:', error)
         }
@@ -254,6 +383,7 @@ export const useGenerationProgress = (service: ComfyUIWebSocketService | null) =
     ]
 
     return () => {
+      window.removeEventListener('comfyui-images-found', handleImagesFound as EventListener)
       unsubscribes.forEach(unsub => unsub())
     }
   }, [service])
@@ -372,21 +502,36 @@ export const useConnectionHealth = (service: ComfyUIWebSocketService | null) => 
       const stats = service.getConnectionStats()
       const state = service.getState()
       
-      setHealth({
+      const newHealth = {
         isHealthy: service.isConnected() && state.lastError === null,
         latency: service.getLatency(),
         uptime: stats.uptime,
         reconnectCount: stats.totalReconnections,
         messageRate: stats.messagesPerSecond,
         lastError: state.lastError
+      }
+
+      // Only update if values have actually changed
+      setHealth(prevHealth => {
+        if (
+          prevHealth.isHealthy !== newHealth.isHealthy ||
+          prevHealth.latency !== newHealth.latency ||
+          prevHealth.uptime !== newHealth.uptime ||
+          prevHealth.reconnectCount !== newHealth.reconnectCount ||
+          prevHealth.messageRate !== newHealth.messageRate ||
+          prevHealth.lastError !== newHealth.lastError
+        ) {
+          return newHealth
+        }
+        return prevHealth
       })
     }
 
     // Update immediately
     updateHealth()
 
-    // Update periodically
-    const timer = setInterval(updateHealth, 1000)
+    // Update periodically every 5 seconds (reduced frequency to prevent issues)
+    const timer = setInterval(updateHealth, 5000)
 
     return () => {
       clearInterval(timer)
