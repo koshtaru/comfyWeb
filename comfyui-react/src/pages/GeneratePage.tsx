@@ -24,7 +24,7 @@ export default function GeneratePage() {
   
   // Generation hook
   const { state: generationState, generate, interrupt, clearError, isReady } = useGeneration()
-  const { isConnected, progress, generatedImages, connect: connectWS } = useWebSocketContext()
+  const { isConnected, progress, generatedImages } = useWebSocketContext()
   
   const {
     currentUpload,
@@ -329,26 +329,6 @@ export default function GeneratePage() {
                 )}
               </div>
 
-              {/* WebSocket Status */}
-              <div className="mb-4 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`h-3 w-3 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
-                  <span className="text-sm text-comfy-text-secondary">
-                    WebSocket: {isConnected ? 'Connected' : 'Disconnected'}
-                  </span>
-                </div>
-                {!isConnected && (
-                  <button
-                    className="comfy-button secondary text-sm px-3 py-1"
-                    onClick={() => {
-                      console.log('[WebSocket] Manual connect requested')
-                      connectWS()
-                    }}
-                  >
-                    Connect WebSocket
-                  </button>
-                )}
-              </div>
 
               <div className="flex gap-3">
                 <button
