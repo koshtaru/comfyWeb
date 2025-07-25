@@ -844,7 +844,8 @@ export class MetadataParser extends ParameterExtractor {
         if (connectedNode?.class_type === 'KSampler' || connectedNode?.class_type === 'KSamplerAdvanced') {
           // Check which input this connects to
           for (const [inputName, inputValue] of Object.entries(connectedNode.inputs)) {
-            if (Array.isArray(inputValue) && inputValue[0] === nodeId) {
+            // Fix type mismatch: ComfyUI node IDs can be strings or numbers in connection arrays
+            if (Array.isArray(inputValue) && String(inputValue[0]) === String(nodeId)) {
               return inputName === 'positive' ? 'positive' : 'negative'
             }
           }

@@ -34,13 +34,41 @@ export {
   Flex, 
   Grid, 
   Divider, 
-  containerVariants 
+  containerVariants,
+  type GridProps 
 } from './Container'
 
+export {
+  Layout,
+  LayoutHeader,
+  LayoutSidebar,
+  LayoutMain,
+  LayoutFooter,
+  layoutVariants,
+  type LayoutProps,
+  type LayoutHeaderProps,
+  type LayoutSidebarProps,
+  type LayoutMainProps,
+  type LayoutFooterProps
+} from './Layout'
+
+// Modal Components
+export { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal'
+
+// Generation Settings
+export { GenerationSettings } from './GenerationSettings'
+export { default as ProgressToast } from './ProgressToast'
+
 // Feedback Components
+export { IconButton, iconButtonVariants, type IconButtonProps } from './IconButton'
 export { ToastContainer, useToast } from './Toast'
 export { default as Tooltip } from './Tooltip'
+export { Progress, progressVariants, type ProgressProps } from './Progress'
+export { Spinner, CenteredSpinner, spinnerVariants, type SpinnerProps, type CenteredSpinnerProps } from './Spinner'
+export { Alert, AlertTitle, AlertDescription, alertVariants, type AlertProps } from './Alert'
+export { Badge, Tag, badgeVariants, type BadgeProps, type TagProps } from './Badge'
 
 // Import CSS files
 import './Toast.css'
 import './Tooltip.css'
+import './GenerationSettingsFixes.css'

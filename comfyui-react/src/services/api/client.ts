@@ -28,7 +28,7 @@ const DEFAULT_ENDPOINTS: APIEndpoints = {
 
 // Default configuration
 const DEFAULT_CONFIG: APIClientConfig = {
-  baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8188',
+  baseURL: import.meta.env.VITE_API_URL || 'http://192.168.1.15:8188',
   timeout: 30000, // 30 seconds
   retries: 3,
   retryDelay: 1000, // 1 second base delay

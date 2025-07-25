@@ -336,6 +336,10 @@ export class ImageProcessor {
 
     // Convert base64 to blob URL
     try {
+      if (!image.imageData) {
+        console.error('No image data provided for processing')
+        return image
+      }
       const binary = atob(image.imageData)
       const bytes = new Uint8Array(binary.length)
       
@@ -357,7 +361,7 @@ export class ImageProcessor {
     dimensions?: { width: number; height: number }
     format: string
   } {
-    const sizeInBytes = Math.round((image.imageData.length * 3) / 4) // Approximate base64 to binary size
+    const sizeInBytes = image.imageData ? Math.round((image.imageData.length * 3) / 4) : 0 // Approximate base64 to binary size
     
     return {
       size: sizeInBytes,

@@ -115,7 +115,7 @@ export interface WorkflowPreset {
 }
 
 // UI Types
-export type TabType = 'generate' | 'history' | 'models' | 'settings' | 'queue'
+export type TabType = 'generate' | 'history' | 'models' | 'settings' | 'queue' | 'websocket-test'
 
 export type ConnectionStatus =
   | 'connecting'

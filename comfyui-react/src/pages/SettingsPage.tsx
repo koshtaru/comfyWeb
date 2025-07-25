@@ -68,7 +68,7 @@ export default function SettingsPage() {
                   value={tempEndpoint}
                   onChange={e => setTempEndpoint(e.target.value)}
                   className="comfy-input"
-                  placeholder="http://127.0.0.1:8188"
+                  placeholder="http://192.168.1.15:8188"
                 />
               </div>
 

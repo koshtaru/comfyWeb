@@ -23,7 +23,7 @@ interface APIState {
   resetConnection: () => void
 }
 
-const DEFAULT_ENDPOINT = 'http://127.0.0.1:8188'
+const DEFAULT_ENDPOINT = 'http://192.168.1.15:8188'
 
 import { createCustomAPIClient } from '@/services/api'
 
@@ -134,7 +134,7 @@ export const useAPIStore = create<APIState>()(
           ),
       }),
       {
-        name: 'comfyui-api-store',
+        name: 'comfyui-api-store-v2',
         partialize: state => ({
           endpoint: state.endpoint,
           lastConnectionTest: state.lastConnectionTest,

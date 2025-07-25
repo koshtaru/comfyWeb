@@ -312,7 +312,7 @@ export class HistoryManager {
     const transaction = this.db!.transaction([STORES.GENERATIONS], 'readonly')
     const store = transaction.objectStore(STORES.GENERATIONS)
     
-    let results: StoredGeneration[] = []
+    const results: StoredGeneration[] = []
 
     // Use appropriate index for initial filtering
     let cursor: IDBRequest<IDBCursorWithValue | null>

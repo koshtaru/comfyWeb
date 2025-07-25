@@ -447,7 +447,7 @@
   letter-spacing: 0.5px;
 }
 
-.architecture-badge.sd1.5,
+.architecture-badge.sd1-5,
 .complexity-badge.simple { background: #10b981; color: white; }
 .architecture-badge.sdxl,
 .complexity-badge.moderate { background: #3b82f6; color: white; }

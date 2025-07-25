@@ -14,16 +14,18 @@ import { useUploadManager } from '@/hooks/useUploadManager'
 import { useUploadSelectors } from '@/store/uploadStore'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useWebSocketContext } from '@/contexts/WebSocketContext'
-import { applyPromptOverride, getPromptOverridePreview } from '@/utils/promptOverride'
+import { getPromptOverridePreview } from '@/utils/promptOverride'
+import { usePromptStore } from '@/store/promptStore'
 
 export default function GeneratePage() {
   const uploadSelectors = useUploadSelectors()
   const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
-  const [promptOverride, setPromptOverride] = useState('')
-  const [usePromptOverride, setUsePromptOverride] = useState(false)
   
-  // Generation hook
-  const { state: generationState, generate, interrupt, clearError, isReady } = useGeneration()
+  // Prompt override state from store
+  const { promptOverride, usePromptOverride, setPromptOverride, setUsePromptOverride } = usePromptStore()
+  
+  // Generation hook (only need clearError since generate/interrupt moved to header)
+  const { state: generationState, clearError } = useGeneration()
   const { isConnected, progress, generatedImages } = useWebSocketContext()
   
   const {
@@ -330,74 +332,6 @@ export default function GeneratePage() {
               </div>
 
 
-              <div className="flex gap-3">
-                <button
-                  className={`comfy-button flex-1 ${
-                    (!isReady || isProcessing || !currentWorkflow) 
-                      ? 'cursor-not-allowed opacity-50' 
-                      : ''
-                  }`}
-                  onClick={() => {
-                    console.log('[Generate Button] Clicked:', {
-                      currentWorkflow: !!currentWorkflow,
-                      isReady,
-                      isProcessing,
-                      generationState,
-                      promptOverride: promptOverride.trim()
-                    })
-                    if (currentWorkflow && isReady) {
-                      console.log('[Generate Button] Extracted parameters:', extractedParameters)
-                      console.log('[Generate Button] Prompt override text:', promptOverride.trim())
-                      console.log('[Generate Button] Use prompt override:', usePromptOverride)
-                      
-                      // Apply prompt override if enabled and provided
-                      const workflowToGenerate = (usePromptOverride && promptOverride.trim()) 
-                        ? applyPromptOverride(currentWorkflow, promptOverride, extractedParameters)
-                        : currentWorkflow
-                      
-                      if (usePromptOverride && promptOverride.trim()) {
-                        console.log('[Generate Button] ✅ Applied prompt override:', promptOverride.trim())
-                        
-                        // Validate that the override actually worked
-                        if (extractedParameters?.prompts.positiveNodeId) {
-                          const nodeId = extractedParameters.prompts.positiveNodeId
-                          const modifiedNode = workflowToGenerate[nodeId]
-                          if (modifiedNode?.inputs?.text === promptOverride.trim()) {
-                            console.log('[Generate Button] ✅ Validation: Override successfully applied to workflow')
-                          } else {
-                            console.error('[Generate Button] ❌ Validation: Override failed to apply to workflow')
-                            console.error('[Generate Button] Expected:', promptOverride.trim())
-                            console.error('[Generate Button] Actual:', modifiedNode?.inputs?.text)
-                          }
-                        }
-                      } else {
-                        console.log('[Generate Button] Using original workflow prompts')
-                      }
-                      
-                      console.log('[Generate Button] Calling generate with workflow')
-                      generate(workflowToGenerate)
-                    } else {
-                      console.log('[Generate Button] Cannot generate:', {
-                        noWorkflow: !currentWorkflow,
-                        notReady: !isReady
-                      })
-                    }
-                  }}
-                  disabled={!isReady || isProcessing || !currentWorkflow}
-                >
-                  {generationState.isGenerating ? 'Generating...' : 'Generate'}
-                </button>
-                
-                {generationState.isGenerating && (
-                  <button
-                    className="comfy-button secondary"
-                    onClick={interrupt}
-                    title="Cancel generation"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
 
               {(generationState.isGenerating || isProcessing) && (
                 <div className="mt-4 rounded-md bg-comfy-bg-tertiary p-4">

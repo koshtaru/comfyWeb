@@ -10,9 +10,16 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
   result, 
   onDismiss 
 }) => {
-  const [isCollapsed, setIsCollapsed] = useState(false)
+  // Filter out non-actionable warnings (unknown node types)
+  const actionableWarnings = result.warnings.filter(warning => 
+    !(warning.type === 'schema' && warning.message.startsWith('Unknown node type:'))
+  )
   
-  if (result.isValid && result.warnings.length === 0) {
+  // Start collapsed by default for warnings, expanded only for critical errors
+  const hasErrors = result.errors.length > 0
+  const [isCollapsed, setIsCollapsed] = useState(!hasErrors)
+  
+  if (result.isValid && actionableWarnings.length === 0) {
     return (
       <div className="validation-results success">
         <div className="validation-header">
@@ -35,8 +42,6 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
     )
   }
 
-  const hasErrors = result.errors.length > 0
-
   return (
     <div className={`validation-results ${hasErrors ? 'error' : 'warning'}`}>
       <div className="validation-header">
@@ -56,8 +61,8 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
             {result.errors.length > 0 && (
               <span className="error-count">{result.errors.length} errors</span>
             )}
-            {result.warnings.length > 0 && (
-              <span className="warning-count">{result.warnings.length} warnings</span>
+            {actionableWarnings.length > 0 && (
+              <span className="warning-count">{actionableWarnings.length} warnings</span>
             )}
             <span className="node-count">{result.nodeCount} nodes</span>
           </div>
@@ -106,25 +111,22 @@ export const ValidationResults: React.FC<ValidationResultsProps> = ({
             <div className="validation-section">
               <h4 className="section-title">Warnings</h4>
               <div className="validation-list">
-                {result.warnings.map((warning, index) => (
-                  <ValidationErrorItem key={index} error={warning} />
-                ))}
+                {result.warnings
+                  .filter(warning => {
+                    // Hide common "Unknown node type" warnings that aren't actionable
+                    if (warning.type === 'schema' && warning.message.startsWith('Unknown node type:')) {
+                      return false
+                    }
+                    return true
+                  })
+                  .map((warning, index) => (
+                    <ValidationErrorItem key={index} error={warning} />
+                  ))}
               </div>
             </div>
           )}
 
-          {result.nodeTypes.length > 0 && (
-            <div className="validation-section">
-              <h4 className="section-title">Node Types Found</h4>
-              <div className="node-types-list">
-                {result.nodeTypes.map((nodeType, index) => (
-                  <span key={index} className="node-type-tag">
-                    {nodeType}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Node Types Found section removed to reduce clutter - not actionable for users */}
         </div>
       )}
     </div>

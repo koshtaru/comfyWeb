@@ -1,0 +1,388 @@
+/* Generation Settings UI Fixes */
+
+/* ========================================
+   LAYOUT FIXES FOR ALIGNMENT ISSUES
+   ======================================== */
+
+/* Ensure consistent card heights */
+.generation-settings .parameter-info-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 60px;
+  padding: 12px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+}
+
+/* Fix button alignment issues */
+.generation-settings .preset-buttons-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 6px;
+  align-items: stretch;
+}
+
+.generation-settings .preset-button-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+.generation-settings .preset-button-fixed:hover {
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  border-color: var(--color-accent-orange);
+}
+
+.generation-settings .preset-button-fixed.active {
+  background: var(--color-accent-orange);
+  color: white;
+  border-color: var(--color-accent-orange);
+  box-shadow: 0 2px 4px rgba(255, 124, 0, 0.2);
+}
+
+/* Fix text overflow and alignment */
+.generation-settings .parameter-label-fixed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 8px;
+  line-height: 1.2;
+}
+
+.generation-settings .parameter-value-display {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* Fix grid alignment issues */
+.generation-settings .settings-grid-fixed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+  align-items: start;
+}
+
+/* Ensure consistent section spacing */
+.generation-settings .parameter-section-fixed {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  height: 100%;
+}
+
+/* Fix slider and input alignment */
+.generation-settings .dual-input-fixed {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
+.generation-settings .slider-fixed {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+}
+
+.generation-settings .number-input-fixed {
+  width: 64px;
+  padding: 6px 8px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+}
+
+.generation-settings .number-input-fixed:focus {
+  outline: none;
+  border-color: var(--color-accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
+}
+
+/* Fix info cards grid alignment */
+.generation-settings .info-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.generation-settings .info-card-fixed {
+  padding: 8px 10px;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.generation-settings .info-card-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  margin-bottom: 2px;
+  line-height: 1.1;
+}
+
+.generation-settings .info-card-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+/* Fix seed section alignment */
+.generation-settings .seed-section-fixed {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.generation-settings .seed-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.generation-settings .seed-input-fixed {
+  flex: 1;
+  padding: 8px 10px;
+  font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+  font-size: 13px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+}
+
+.generation-settings .seed-button-fixed {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-secondary);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.generation-settings .seed-button-fixed:hover {
+  background: var(--color-accent-orange);
+  border-color: var(--color-accent-orange);
+  color: white;
+}
+
+/* Fix dropdown alignment */
+.generation-settings .dropdown-fixed {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--color-bg-tertiary);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  font-size: 13px;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 8px center;
+  background-repeat: no-repeat;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.generation-settings .dropdown-fixed:focus {
+  outline: none;
+  border-color: var(--color-accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
+}
+
+/* Fix warning/info boxes alignment */
+.generation-settings .alert-box-fixed {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 12px;
+}
+
+.generation-settings .alert-warning {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  color: #fcd34d;
+}
+
+.generation-settings .alert-info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+
+.generation-settings .alert-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  margin-top: 1px;
+}
+
+/* Responsive fixes */
+@media (max-width: 1024px) {
+  .generation-settings .settings-grid-fixed {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .generation-settings .settings-grid-fixed {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  
+  .generation-settings .info-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  
+  .generation-settings .preset-buttons-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .generation-settings .dual-input-fixed {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .generation-settings .number-input-fixed {
+    width: 100%;
+  }
+  
+  .generation-settings .preset-buttons-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Fix z-index issues */
+.generation-settings {
+  position: relative;
+  z-index: 1;
+}
+
+.generation-settings .dropdown-fixed {
+  position: relative;
+  z-index: 10;
+}
+
+/* Ensure consistent hover states */
+.generation-settings *:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Fix text selection issues */
+.generation-settings .preset-button-fixed,
+.generation-settings .seed-button-fixed {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* Accessibility improvements */
+.generation-settings .parameter-label-fixed button {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 2px;
+  transition: all 0.15s ease;
+}
+
+.generation-settings .parameter-label-fixed button:hover {
+  background: rgba(255, 124, 0, 0.1);
+}
+
+.generation-settings .parameter-label-fixed button:focus {
+  outline: 2px solid var(--color-accent-orange);
+  outline-offset: 1px;
+}
+
+/* Animation fixes */
+.generation-settings * {
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Ensure proper spacing and alignment */
+.generation-settings .parameter-section-fixed > *:last-child {
+  margin-bottom: 0;
+}
+
+.generation-settings .parameter-section-fixed > * + * {
+  margin-top: 0;
+}
+
+/* Loading state fixes */
+.generation-settings.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.generation-settings.loading::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  border: 2px solid var(--color-accent-orange);
+  border-radius: 50%;
+  border-top-color: transparent;
+  animation: spin 1s linear infinite;
+  z-index: 1000;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

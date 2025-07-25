@@ -555,7 +555,7 @@ const ModelDetailsPanel: React.FC<PanelProps> = ({
           </div>
           <div className="model-item">
             <label>Architecture:</label>
-            <span className={`architecture-badge ${models.checkpoint.architecture.toLowerCase()}`}>
+            <span className={`architecture-badge ${models.checkpoint.architecture.toLowerCase().replace('.', '-')}`}>
               {models.checkpoint.architecture}
             </span>
             <CopyButton data={models.checkpoint.architecture} format="text" size="small" />
@@ -687,7 +687,7 @@ const WorkflowGraphPanel: React.FC<PanelProps> = ({
           </div>
           <div className="stat-item">
             <label>Architecture:</label>
-            <span className={`architecture-badge ${workflow.architecture.toLowerCase()}`}>
+            <span className={`architecture-badge ${workflow.architecture.toLowerCase().replace('.', '-')}`}>
               {workflow.architecture}
             </span>
           </div>

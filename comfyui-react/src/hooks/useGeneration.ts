@@ -264,7 +264,7 @@ export const useGeneration = (): UseGenerationReturn => {
       // Check if this execution contains images in any output
       let hasImages = false
       if (data.output && typeof data.output === 'object') {
-        for (const [outputKey, outputValue] of Object.entries(data.output)) {
+        for (const [, outputValue] of Object.entries(data.output)) {
           if (outputValue && Array.isArray((outputValue as any).images)) {
             hasImages = true
             break

@@ -126,7 +126,7 @@ export const VAEInfoComponent: React.FC<VAEInfoProps> = ({
                        enhancedVAE.compatibility.includes('SDXL')
 
     let level: keyof typeof COMPATIBILITY_INDICATORS
-    let reasons: string[] = []
+    const reasons: string[] = []
 
     if (isNativeCompatible && isUniversal) {
       level = 'excellent'

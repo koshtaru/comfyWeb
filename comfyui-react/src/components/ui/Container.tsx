@@ -165,19 +165,30 @@ const Flex = forwardRef<HTMLDivElement, BaseComponentProps & {
 Flex.displayName = 'Flex'
 
 /**
- * A CSS Grid container component for grid layouts.
+ * A CSS Grid container component for grid layouts with responsive support.
  */
-const Grid = forwardRef<HTMLDivElement, BaseComponentProps & {
+export interface GridProps extends BaseComponentProps {
+  /** Number of columns */
   cols?: '1' | '2' | '3' | '4' | '5' | '6' | '12'
+  /** Number of rows */
   rows?: '1' | '2' | '3' | '4' | '5' | '6'
+  /** Grid Gap */
   gap?: 'none' | 'xs' | 'sm' | 'md' | 'lg' | 'xl'
-  responsive?: boolean
-}>(({
+  /** Responsive breakpoint configurations */
+  responsive?: {
+    sm?: '1' | '2' | '3' | '4' | '5' | '6' | '12'
+    md?: '1' | '2' | '3' | '4' | '5' | '6' | '12'
+    lg?: '1' | '2' | '3' | '4' | '5' | '6' | '12'
+    xl?: '1' | '2' | '3' | '4' | '5' | '6' | '12'
+  }
+}
+
+const Grid = forwardRef<HTMLDivElement, GridProps>(({
   className,
   cols = '1',
   rows,
   gap = 'md',
-  responsive = false,
+  responsive,
   children,
   testId,
   ...props
@@ -210,14 +221,23 @@ const Grid = forwardRef<HTMLDivElement, BaseComponentProps & {
     xl: 'gap-8'
   }
 
+  // Build responsive classes
+  const responsiveClasses = responsive ? [
+    responsive.sm && `sm:grid-cols-${responsive.sm}`,
+    responsive.md && `md:grid-cols-${responsive.md}`,
+    responsive.lg && `lg:grid-cols-${responsive.lg}`,
+    responsive.xl && `xl:grid-cols-${responsive.xl}`
+  ].filter(Boolean).join(' ') : '';
+
   return (
     <div
       ref={ref}
       className={cn(
         'grid',
-        responsive ? `grid-cols-1 md:${colClasses[cols]}` : colClasses[cols],
+        colClasses[cols],
         rows && rowClasses[rows as keyof typeof rowClasses],
         gapClasses[gap],
+        responsiveClasses,
         className
       )}
       data-testid={testId}

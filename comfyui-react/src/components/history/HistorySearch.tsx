@@ -386,7 +386,7 @@ export const HistorySearch: React.FC<HistorySearchProps> = ({
           <div className="active-filters-list">
             {query && (
               <span className="active-filter">
-                Text: "{query}"
+                Text: &quot;{query}&quot;
                 <button onClick={() => setQuery('')} className="remove-filter">×</button>
               </span>
             )}
