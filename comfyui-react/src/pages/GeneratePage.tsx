@@ -14,10 +14,13 @@ import { useUploadManager } from '@/hooks/useUploadManager'
 import { useUploadSelectors } from '@/store/uploadStore'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { applyPromptOverride, getPromptOverridePreview } from '@/utils/promptOverride'
 
 export default function GeneratePage() {
   const uploadSelectors = useUploadSelectors()
   const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
+  const [promptOverride, setPromptOverride] = useState('')
+  const [usePromptOverride, setUsePromptOverride] = useState(false)
   
   // Generation hook
   const { state: generationState, generate, interrupt, clearError, isReady } = useGeneration()
@@ -88,6 +91,18 @@ export default function GeneratePage() {
       return null
     }
   }, [currentWorkflow])
+
+  // Get prompt override preview info
+  const promptPreview = useMemo(() => {
+    const preview = getPromptOverridePreview(extractedParameters)
+    console.log('[PromptPreview] Debug info:', {
+      extractedParameters: !!extractedParameters,
+      positiveNodeId: extractedParameters?.prompts?.positiveNodeId,
+      canOverride: preview.canOverride,
+      originalPrompt: preview.originalPrompt
+    })
+    return preview
+  }, [extractedParameters])
 
 
   const handlePaste = async (event: React.ClipboardEvent) => {
@@ -256,14 +271,62 @@ export default function GeneratePage() {
 
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-comfy-text-primary">
-                  Additional Prompt
-                </label>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-comfy-text-primary">
+                    Prompt Override
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {promptPreview.canOverride && (
+                      <div className="text-xs text-comfy-text-secondary">
+                        {usePromptOverride && promptOverride.trim() ? (
+                          <span className="text-comfy-accent-orange">Override active</span>
+                        ) : (
+                          <span>Original: "{promptPreview.originalPrompt?.substring(0, 30)}..."</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <label className={`relative inline-flex items-center ${promptPreview.canOverride ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={usePromptOverride}
+                          disabled={!promptPreview.canOverride}
+                          onChange={(e) => setUsePromptOverride(e.target.checked)}
+                        />
+                        <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                          usePromptOverride && promptPreview.canOverride ? 'bg-comfy-accent-orange' : 'bg-comfy-bg-tertiary'
+                        }`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                            usePromptOverride && promptPreview.canOverride ? 'translate-x-5' : 'translate-x-0.5'
+                          } mt-0.5`} />
+                        </div>
+                        <span className="ml-2 text-xs text-comfy-text-secondary">
+                          Use Override
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
                 <textarea
-                  className="comfy-input h-24"
-                  placeholder="Enter additional prompt here... (Ctrl+V to paste workflow JSON)"
-                  disabled={generationState.isGenerating || isProcessing}
+                  className={`comfy-input h-24 ${(!usePromptOverride || !promptPreview.canOverride) ? 'opacity-50' : ''}`}
+                  placeholder={
+                    promptPreview.canOverride 
+                      ? (usePromptOverride 
+                          ? "Enter prompt to override the workflow's positive prompt... (Ctrl+V to paste workflow JSON)"
+                          : "Toggle 'Use Override' to enable prompt override... (Ctrl+V to paste workflow JSON)"
+                        )
+                      : "Upload a workflow first to enable prompt override... (Ctrl+V to paste workflow JSON)"
+                  }
+                  value={promptOverride}
+                  onChange={(e) => setPromptOverride(e.target.value)}
+                  disabled={generationState.isGenerating || isProcessing || !usePromptOverride || !promptPreview.canOverride}
                 />
+                {usePromptOverride && promptOverride.trim() && promptPreview.canOverride && (
+                  <div className="mt-1 text-xs text-comfy-text-secondary">
+                    This will replace the positive prompt in node {promptPreview.nodeId}
+                  </div>
+                )}
               </div>
 
               {/* WebSocket Status */}
@@ -299,11 +362,40 @@ export default function GeneratePage() {
                       currentWorkflow: !!currentWorkflow,
                       isReady,
                       isProcessing,
-                      generationState
+                      generationState,
+                      promptOverride: promptOverride.trim()
                     })
                     if (currentWorkflow && isReady) {
+                      console.log('[Generate Button] Extracted parameters:', extractedParameters)
+                      console.log('[Generate Button] Prompt override text:', promptOverride.trim())
+                      console.log('[Generate Button] Use prompt override:', usePromptOverride)
+                      
+                      // Apply prompt override if enabled and provided
+                      const workflowToGenerate = (usePromptOverride && promptOverride.trim()) 
+                        ? applyPromptOverride(currentWorkflow, promptOverride, extractedParameters)
+                        : currentWorkflow
+                      
+                      if (usePromptOverride && promptOverride.trim()) {
+                        console.log('[Generate Button] ✅ Applied prompt override:', promptOverride.trim())
+                        
+                        // Validate that the override actually worked
+                        if (extractedParameters?.prompts.positiveNodeId) {
+                          const nodeId = extractedParameters.prompts.positiveNodeId
+                          const modifiedNode = workflowToGenerate[nodeId]
+                          if (modifiedNode?.inputs?.text === promptOverride.trim()) {
+                            console.log('[Generate Button] ✅ Validation: Override successfully applied to workflow')
+                          } else {
+                            console.error('[Generate Button] ❌ Validation: Override failed to apply to workflow')
+                            console.error('[Generate Button] Expected:', promptOverride.trim())
+                            console.error('[Generate Button] Actual:', modifiedNode?.inputs?.text)
+                          }
+                        }
+                      } else {
+                        console.log('[Generate Button] Using original workflow prompts')
+                      }
+                      
                       console.log('[Generate Button] Calling generate with workflow')
-                      generate(currentWorkflow)
+                      generate(workflowToGenerate)
                     } else {
                       console.log('[Generate Button] Cannot generate:', {
                         noWorkflow: !currentWorkflow,

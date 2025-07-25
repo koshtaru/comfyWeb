@@ -423,7 +423,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
         break
       default:
         // Log unknown message types to help debug missing events
-        console.log(`🔌 [UNKNOWN] Received unknown message type: ${message.type}`, message.data)
+        console.log(`🔌 [UNKNOWN] Received unknown message type: ${(message as any).type}`, (message as any).data)
         break
     }
   }

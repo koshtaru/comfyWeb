@@ -237,43 +237,74 @@ export class ParameterExtractor {
   private extractPromptParameters(): PromptParameters {
     const params: PromptParameters = {}
 
+    // Debug: Log all node types found in workflow
+    const nodeTypes = Object.values(this.workflow).map(node => node.class_type)
+    const uniqueNodeTypes = [...new Set(nodeTypes)]
+    console.log(`[ParameterExtractor] Workflow contains node types:`, uniqueNodeTypes)
+    
     // Find CLIPTextEncode nodes
-    for (const [nodeId, node] of Object.entries(this.workflow)) {
-      if (node.class_type === 'CLIPTextEncode') {
-        const text = this.getStringValue(node.inputs.text)
+    const clipNodes = Object.entries(this.workflow).filter(([, node]) => node.class_type === 'CLIPTextEncode')
+    console.log(`[ParameterExtractor] Found ${clipNodes.length} CLIPTextEncode nodes`)
+    
+    for (const [nodeId, node] of clipNodes) {
+      const text = this.getStringValue(node.inputs.text)
+      
+      // Determine if this is positive or negative based on connections
+      const connections = this.nodeConnections.get(nodeId)
+      let promptType: 'positive' | 'negative' | 'unknown' = 'unknown'
+      
+      if (connections && connections.length > 0) {
+        // Extended list of sampler types to support modern workflows
+        const samplerTypes = [
+          'KSampler', 'KSamplerAdvanced', 
+          'SamplerCustom', 'SamplerCustomAdvanced',
+          'SamplerDPMPP_2M', 'SamplerDPMPP_SDE',  
+          'SamplerEuler', 'SamplerEulerAncestral',
+          'SamplerDDIM', 'SamplerLMS',
+          'SamplerDPM2', 'SamplerDPM2Ancestral'
+        ]
         
-        // Determine if this is positive or negative based on connections
-        const connections = this.nodeConnections.get(nodeId)
-        if (connections && connections.length > 0) {
-          const connectedToSampler = connections.some(conn => {
-            const connNode = this.workflow[conn.nodeId]
-            return connNode?.class_type === 'KSampler' || connNode?.class_type === 'KSamplerAdvanced'
-          })
-          
-          if (connectedToSampler) {
-            // Check which input of the sampler this connects to
-            const samplerConnection = connections.find(conn => {
-              const connNode = this.workflow[conn.nodeId]
-              return connNode?.class_type === 'KSampler' || connNode?.class_type === 'KSamplerAdvanced'
-            })
-            
-            if (samplerConnection) {
-              const samplerNode = this.workflow[samplerConnection.nodeId]
-              // Check if this node connects to positive or negative input
-              for (const [inputName, inputValue] of Object.entries(samplerNode.inputs)) {
-                if (Array.isArray(inputValue) && inputValue[0] === nodeId) {
-                  if (inputName === 'positive') {
-                    params.positive = text
-                    params.positiveNodeId = nodeId
-                  } else if (inputName === 'negative') {
-                    params.negative = text
-                    params.negativeNodeId = nodeId
-                  }
-                  break
-                }
+        const samplerConnection = connections.find(conn => {
+          const connNode = this.workflow[conn.nodeId]
+          return samplerTypes.includes(connNode?.class_type || '')
+        })
+        
+        if (samplerConnection) {
+          const samplerNode = this.workflow[samplerConnection.nodeId]
+          // Check if this node connects to positive or negative input
+          for (const [inputName, inputValue] of Object.entries(samplerNode.inputs)) {
+            if (Array.isArray(inputValue) && String(inputValue[0]) === String(nodeId)) {
+              if (inputName === 'positive') {
+                promptType = 'positive'
+              } else if (inputName === 'negative') {
+                promptType = 'negative'
               }
+              break
             }
           }
+        }
+      }
+      
+      // If we found a connection, use it
+      if (promptType === 'positive') {
+        params.positive = text
+        params.positiveNodeId = nodeId
+        console.log(`[ParameterExtractor] Found positive prompt: "${text}" in node ${nodeId}`)
+      } else if (promptType === 'negative') {
+        params.negative = text
+        params.negativeNodeId = nodeId
+        console.log(`[ParameterExtractor] Found negative prompt: "${text}" in node ${nodeId}`)
+      } else {
+        // Fallback: If we can't determine connection, assume first CLIPTextEncode is positive
+        // This helps with complex workflows where connections aren't easily traced
+        if (!params.positiveNodeId) {
+          params.positive = text
+          params.positiveNodeId = nodeId
+          console.log(`[ParameterExtractor] Fallback: Assuming first CLIPTextEncode is positive: "${text}" in node ${nodeId}`)
+        } else if (!params.negativeNodeId && text !== params.positive) {
+          params.negative = text  
+          params.negativeNodeId = nodeId
+          console.log(`[ParameterExtractor] Fallback: Assuming second CLIPTextEncode is negative: "${text}" in node ${nodeId}`)
         }
       }
     }
