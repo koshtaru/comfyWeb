@@ -19,8 +19,7 @@ export const ImportPreviewDialog: React.FC<ImportPreviewDialogProps> = ({
   presets,
   validation,
   onConfirm,
-  onCancel,
-  sourceFormat
+  onCancel
 }) => {
   const [selectedPresets, setSelectedPresets] = useState<Set<string>>(
     new Set(presets.map(p => p.id))

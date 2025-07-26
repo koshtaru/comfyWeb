@@ -2,8 +2,8 @@
 // ComfyUI React - Import Service
 // ============================================================================
 
-import type { IPreset, IPresetImportResult, IPresetsExportData, IPresetExportData } from '@/types/preset'
-import type { ComfyUIWorkflow } from '@/types'
+import type { IPreset, IPresetImportResult, IPresetMetadata } from '@/types/preset'
+import type { ComfyUIWorkflow, ComfyUINode } from '@/types'
 import { compressionService } from '@/utils/compression'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -46,6 +46,81 @@ export interface IImportProgress {
 }
 
 export type ImportProgressCallback = (progress: IImportProgress) => void
+
+// Import data format interfaces
+export interface IComfyUIExportData {
+  version?: string
+  exportedAt?: string
+  checksum?: string
+  presets?: IPreset[]
+  preset?: IPreset
+}
+
+export interface IRawWorkflowData {
+  nodes?: Record<string, ComfyUINode>
+  links?: Array<[number, number, number, number, number, string]>
+  groups?: unknown[]
+  config?: Record<string, unknown>
+  extra?: Record<string, unknown>
+  version?: number
+  [key: string]: unknown // For numeric node IDs
+}
+
+export interface IAutomaticExportData {
+  name?: string
+  prompt?: string
+  negative_prompt?: string
+  steps?: number
+  cfg_scale?: number
+  sampler_name?: string
+  scheduler?: string
+  seed?: number
+  width?: number
+  height?: number
+  batch_size?: number
+  model?: string
+  vae?: string
+  clip_skip?: number
+  denoising_strength?: number
+  enable_hr?: boolean
+  hr_scale?: number
+  hr_upscaler?: string
+  hr_second_pass_steps?: number
+  hr_resize_x?: number
+  hr_resize_y?: number
+}
+
+export interface IInvokeAIExportData {
+  meta?: {
+    version?: string
+  }
+  presets?: Array<{
+    name?: string
+    description?: string
+    positive_prompt?: string
+    negative_prompt?: string
+    width?: number
+    height?: number
+    cfg_scale?: number
+    steps?: number
+    sampler?: string
+    model?: string
+    seed?: number
+    seamless?: boolean
+    hires_fix?: boolean
+    variation_amount?: number
+    threshold?: number
+    perlin?: number
+  }>
+}
+
+export interface ICompressionWrapper {
+  compressed: boolean
+  algorithm: string
+  data: string
+}
+
+export type ImportData = IComfyUIExportData | IRawWorkflowData | IAutomaticExportData[] | IInvokeAIExportData | ICompressionWrapper
 
 export class ImportService {
   private progressCallback?: ImportProgressCallback
@@ -109,7 +184,7 @@ export class ImportService {
   /**
    * Parse input data from string or file
    */
-  private async parseInputData(data: string | File): Promise<any> {
+  private async parseInputData(data: string | File): Promise<ImportData> {
     let jsonString: string
 
     if (data instanceof File) {
@@ -152,7 +227,7 @@ export class ImportService {
   /**
    * Validate import data structure
    */
-  private async validateImportData(data: any): Promise<IImportValidationResult> {
+  private async validateImportData(data: ImportData): Promise<IImportValidationResult> {
     const errors: string[] = []
     const warnings: string[] = []
     let format: 'comfyui' | 'automatic1111' | 'invokeai' | 'raw-workflow' | 'unknown' = 'unknown'
@@ -165,7 +240,7 @@ export class ImportService {
       format = 'comfyui'
       version = data.version
       
-      if (!this.SUPPORTED_VERSIONS.includes(version)) {
+      if (version && !this.SUPPORTED_VERSIONS.includes(version)) {
         warnings.push(`Import file version ${version} may require migration`)
       }
       
@@ -249,7 +324,7 @@ export class ImportService {
   /**
    * Extract presets from import data based on format
    */
-  private async extractPresets(data: any, format: string): Promise<IPreset[]> {
+  private async extractPresets(data: ImportData, format: string): Promise<IPreset[]> {
     switch (format) {
       case 'comfyui':
         return this.extractComfyUIPresets(data)
@@ -271,7 +346,7 @@ export class ImportService {
   /**
    * Extract ComfyUI format presets
    */
-  private extractComfyUIPresets(data: any): IPreset[] {
+  private extractComfyUIPresets(data: IComfyUIExportData): IPreset[] {
     if (data.presets && Array.isArray(data.presets)) {
       return data.presets
     } else if (data.preset) {
@@ -283,7 +358,7 @@ export class ImportService {
   /**
    * Convert from Automatic1111 format
    */
-  private convertFromAutomatic1111(data: any[]): IPreset[] {
+  private convertFromAutomatic1111(data: IAutomaticExportData[]): IPreset[] {
     return data.map(a1111Preset => {
       const preset: IPreset = {
         id: uuidv4(),
@@ -331,7 +406,8 @@ export class ImportService {
   /**
    * Convert from InvokeAI format
    */
-  private convertFromInvokeAI(data: any[]): IPreset[] {
+  private convertFromInvokeAI(data: IInvokeAIExportData['presets']): IPreset[] {
+    if (!data) return []
     return data.map(invokePreset => {
       const preset: IPreset = {
         id: uuidv4(),
@@ -378,7 +454,7 @@ export class ImportService {
   /**
    * Create ComfyUI workflow from A1111 preset
    */
-  private createWorkflowFromA1111(a1111Preset: any): ComfyUIWorkflow {
+  private createWorkflowFromA1111(a1111Preset: IAutomaticExportData): ComfyUIWorkflow {
     // This is a simplified example - in reality, you'd create a full workflow
     return {
       nodes: {
@@ -437,9 +513,23 @@ export class ImportService {
   /**
    * Create ComfyUI workflow from InvokeAI preset
    */
-  private createWorkflowFromInvokeAI(invokePreset: any): ComfyUIWorkflow {
-    // Similar to A1111 conversion
-    return this.createWorkflowFromA1111(invokePreset)
+  private createWorkflowFromInvokeAI(invokePreset: IInvokeAIExportData['presets'][0]): ComfyUIWorkflow {
+    // Convert InvokeAI preset to A1111 format for workflow creation
+    const a1111Equivalent: IAutomaticExportData = {
+      name: invokePreset?.name,
+      prompt: invokePreset?.positive_prompt,
+      negative_prompt: invokePreset?.negative_prompt,
+      steps: invokePreset?.steps,
+      cfg_scale: invokePreset?.cfg_scale,
+      sampler_name: invokePreset?.sampler,
+      seed: invokePreset?.seed,
+      width: invokePreset?.width,
+      height: invokePreset?.height,
+      batch_size: 1,
+      model: invokePreset?.model,
+      enable_hr: invokePreset?.hires_fix
+    }
+    return this.createWorkflowFromA1111(a1111Equivalent)
   }
 
   /**
@@ -650,10 +740,10 @@ export class ImportService {
    */
   private comparePresets(preset1: IPreset, preset2: IPreset): Array<{
     field: string
-    imported: any
-    existing: any
+    imported: unknown
+    existing: unknown
   }> {
-    const differences: Array<{ field: string; imported: any; existing: any }> = []
+    const differences: Array<{ field: string; imported: unknown; existing: unknown }> = []
     
     // Compare basic fields
     const fieldsToCompare = ['name', 'description', 'category', 'compressed']
@@ -726,7 +816,7 @@ export class ImportService {
   /**
    * Check if data is a raw ComfyUI workflow
    */
-  private isRawComfyUIWorkflow(data: any): boolean {
+  private isRawComfyUIWorkflow(data: unknown): data is IRawWorkflowData {
     if (!data || typeof data !== 'object') return false
     
     // Check for typical ComfyUI workflow structure
@@ -738,7 +828,7 @@ export class ImportService {
       const numericEntries = Object.entries(data).filter(([key]) => /^\d+$/.test(key))
       
       if (numericEntries.length > 0) {
-        const [, firstNode] = numericEntries[0] as [string, any]
+        const [, firstNode] = numericEntries[0] as [string, unknown]
         
         // Check if it has ComfyUI node structure
         return firstNode && 
@@ -750,15 +840,15 @@ export class ImportService {
     // Alternative check: look for ComfyUI workflow structure with nodes object
     return !!(data.nodes && typeof data.nodes === 'object' && 
              Object.keys(data.nodes).length > 0 &&
-             Object.values(data.nodes).some((node: any) => 
-               node && typeof node === 'object' && node.class_type
+             Object.values(data.nodes).some((node: unknown) => 
+               node && typeof node === 'object' && node !== null && 'class_type' in node
              ))
   }
 
   /**
    * Convert raw ComfyUI workflow to preset format
    */
-  private convertFromRawWorkflow(workflowData: any): IPreset[] {
+  private convertFromRawWorkflow(workflowData: IRawWorkflowData): IPreset[] {
     // Convert raw workflow to proper ComfyUI format with nodes wrapper
     const properWorkflowData = {
       nodes: workflowData,
@@ -790,7 +880,7 @@ export class ImportService {
   /**
    * Extract metadata from raw ComfyUI workflow
    */
-  private extractMetadataFromWorkflow(workflow: any): any {
+  private extractMetadataFromWorkflow(workflow: IRawWorkflowData): IPresetMetadata {
     const metadata = {
       model: { name: 'Unknown Model', architecture: 'SD1.5', hash: undefined },
       generation: { steps: 20, cfg: 7, sampler: 'euler', scheduler: 'normal', seed: -1 },

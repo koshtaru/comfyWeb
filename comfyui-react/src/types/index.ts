@@ -50,14 +50,14 @@ export interface ComfyUIWorkflowAPI {
 export interface ComfyUIWorkflowUI {
   nodes: Record<string, ComfyUINode>
   links: Array<[number, number, number, number, number, string]>
-  groups: any[]
-  config: Record<string, any>
-  extra?: Record<string, any>
+  groups: unknown[]
+  config: Record<string, unknown>
+  extra?: Record<string, unknown>
   version?: number
 }
 
 export interface ComfyUINode {
-  inputs: Record<string, any>
+  inputs: Record<string, unknown>
   class_type: string
   _meta?: {
     title?: string
@@ -180,7 +180,7 @@ export interface ComfyUIQueueResponse {
 export interface QueueItem {
   prompt_id: string
   number: number
-  outputs: Record<string, any>
+  outputs: Record<string, unknown>
 }
 
 export interface ComfyUIHistoryResponse {
@@ -188,8 +188,8 @@ export interface ComfyUIHistoryResponse {
 }
 
 export interface HistoryItem {
-  prompt: [number, string, ComfyUIWorkflow, any]
-  outputs: Record<string, any>
+  prompt: [number, string, ComfyUIWorkflow, Record<string, unknown>]
+  outputs: Record<string, unknown>
   status: {
     status_str: string
     completed: boolean

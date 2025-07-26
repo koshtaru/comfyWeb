@@ -206,7 +206,7 @@ export const PresetStorageIndicator: React.FC<PresetStorageIndicatorProps> = ({
             )}
 
             {/* Most used presets */}
-            {usageAnalytics?.mostUsedPresets.length > 0 && (
+            {usageAnalytics?.mostUsedPresets?.length && usageAnalytics.mostUsedPresets.length > 0 && (
               <div className="section">
                 <h4>Most Used Presets</h4>
                 <div className="preset-list">
@@ -224,7 +224,7 @@ export const PresetStorageIndicator: React.FC<PresetStorageIndicatorProps> = ({
                         <div 
                           className="usage-fill"
                           style={{ 
-                            width: `${(preset.useCount / usageAnalytics.mostUsedPresets[0].useCount) * 100}%` 
+                            width: `${(preset.useCount / (usageAnalytics?.mostUsedPresets?.[0]?.useCount || 1)) * 100}%` 
                           }}
                         />
                       </div>

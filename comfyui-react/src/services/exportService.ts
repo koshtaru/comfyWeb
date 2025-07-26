@@ -100,8 +100,8 @@ export class ExportService {
       if (compressed.compressed) {
         finalData = JSON.stringify({
           compressed: true,
-          algorithm: compressed.algorithm,
-          data: compressed.compressed,
+          algorithm: 'lz-string', // Default compression algorithm used
+          data: compressed.data,
           originalSize: size
         })
         size = new Blob([finalData]).size
@@ -202,8 +202,8 @@ export class ExportService {
         if (compressed.compressed) {
           content = JSON.stringify({
             compressed: true,
-            algorithm: compressed.algorithm,
-            data: compressed.compressed,
+            algorithm: 'lz-string', // Default compression algorithm used
+            data: compressed.data,
             originalSize: new Blob([content]).size
           })
         }

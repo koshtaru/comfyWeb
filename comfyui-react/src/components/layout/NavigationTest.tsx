@@ -5,7 +5,6 @@ import { TAB_CONFIG } from '@/constants/routes'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useUploadStore } from '@/store/uploadStore'
 import { usePromptStore } from '@/store/promptStore'
-import { applyPromptOverride } from '@/utils/promptOverride'
 import { ProgressToast } from '@/components/ui'
 import AlertNotificationIconSimple from '@/components/ui/AlertNotificationIconSimple'
 
@@ -13,8 +12,8 @@ export default function NavigationTest() {
   const location = useLocation()
   const { isConnected } = useWebSocketContext()
   const { state: generationState } = useGeneration()
-  const { currentWorkflow, validationResult } = useUploadStore()
-  const { promptOverride } = usePromptStore()
+  const { currentWorkflow } = useUploadStore()
+  const { } = usePromptStore()
   
   return (
     <header className="bg-comfy-bg-secondary border-b border-comfy-border p-4">

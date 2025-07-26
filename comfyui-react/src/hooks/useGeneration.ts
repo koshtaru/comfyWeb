@@ -5,6 +5,30 @@ import { useWebSocketContext } from '@/contexts/WebSocketContext'
 import { useAPIStore } from '@/store/apiStore'
 import type { ComfyUIWorkflow } from '@/types'
 
+// Event data interfaces
+interface ExecutionEventData {
+  prompt_id?: string
+  node?: string
+}
+
+interface ExecutionSuccessData extends ExecutionEventData {
+  outputs?: Record<string, {
+    images?: Array<{
+      filename: string
+      subfolder: string
+      type: string
+    }>
+  }>
+}
+
+interface ExecutionErrorData extends ExecutionEventData {
+  exception_message?: string
+  exception_type?: string
+  traceback?: string[]
+  node_id?: string
+  node_type?: string
+}
+
 export interface GenerationState {
   isGenerating: boolean
   currentPromptId: string | null
@@ -131,7 +155,7 @@ export const useGeneration = (): UseGenerationReturn => {
         })
       }, 120000) // 120 seconds timeout to allow for model loading and long generations
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to start generation:', error)
       setState(prev => ({
         ...prev,
@@ -160,7 +184,7 @@ export const useGeneration = (): UseGenerationReturn => {
       }))
 
       console.log('[Generation] Generation interrupted successfully')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to interrupt generation:', error)
       setState(prev => ({
         ...prev,
@@ -173,7 +197,7 @@ export const useGeneration = (): UseGenerationReturn => {
   useEffect(() => {
     if (!service) return
 
-    const unsubscribeStart = service.addEventListener('onExecutionStart', (data: any) => {
+    const unsubscribeStart = service.addEventListener('onExecutionStart', (data: ExecutionEventData) => {
       console.log('[Generation] Execution started:', data)
       if (data.prompt_id === state.currentPromptId) {
         setState(prev => ({
@@ -183,7 +207,7 @@ export const useGeneration = (): UseGenerationReturn => {
       }
     })
 
-    const unsubscribeSuccess = service.addEventListener('onExecutionSuccess', (data: any) => {
+    const unsubscribeSuccess = service.addEventListener('onExecutionSuccess', (data: ExecutionSuccessData) => {
       console.log('[Generation] ✅ Execution completed successfully:', data)
       console.log('[Generation] Current prompt ID:', state.currentPromptId)
       console.log('[Generation] Event prompt ID:', data.prompt_id)
@@ -215,7 +239,7 @@ export const useGeneration = (): UseGenerationReturn => {
                       console.log('[Generation] Processing outputs from history:', promptData.outputs)
                       
                       // Extract images from outputs (same logic as original script.js)
-                      const imageUrls: any[] = []
+                      const imageUrls: string[] = []
                       
                       for (const nodeId in promptData.outputs) {
                         const nodeOutput = promptData.outputs[nodeId]
@@ -270,7 +294,7 @@ export const useGeneration = (): UseGenerationReturn => {
     })
     
     // Also listen for executed events which contain the actual outputs
-    const unsubscribeExecuted = service.addEventListener('onExecuted', (data: any) => {
+    const unsubscribeExecuted = service.addEventListener('onExecuted', (data: ExecutionSuccessData) => {
       console.log('[Generation] 🖼️ Node executed with outputs:', data)
       
       // Check if this execution contains images in any output
@@ -293,7 +317,7 @@ export const useGeneration = (): UseGenerationReturn => {
       }
     })
 
-    const unsubscribeError = service.addEventListener('onExecutionError', (data: any) => {
+    const unsubscribeError = service.addEventListener('onExecutionError', (data: ExecutionErrorData) => {
       console.error('[Generation] Execution error:', data)
       // Always mark as not generating and show error on any execution error
       setState(prev => ({
@@ -303,7 +327,7 @@ export const useGeneration = (): UseGenerationReturn => {
       }))
     })
 
-    const unsubscribeInterrupted = service.addEventListener('onExecutionInterrupted', (data: any) => {
+    const unsubscribeInterrupted = service.addEventListener('onExecutionInterrupted', (data: ExecutionEventData) => {
       console.log('[Generation] Execution interrupted:', data)
       // Always mark as not generating on interruption
       setState(prev => ({

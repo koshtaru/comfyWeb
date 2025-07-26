@@ -122,25 +122,42 @@ export const createAPIClient = (config: Partial<APIClientConfig> = {}): AxiosIns
 }
 
 // Format API errors consistently
-const formatAPIError = (error: any): IAPIError => {
-  if (error.response) {
-    // Server responded with error status
-    return {
-      error: error.response.data?.error || `HTTP ${error.response.status}: ${error.response.statusText}`,
-      details: error.response.data?.details || error.message,
-      node_errors: error.response.data?.node_errors,
+const formatAPIError = (error: unknown): IAPIError => {
+  // Type guard for axios errors
+  if (error && typeof error === 'object' && 'response' in error) {
+    const axiosError = error as { 
+      response: { 
+        status: number
+        statusText: string
+        data?: { 
+          error?: string
+          details?: string
+          node_errors?: Record<string, unknown>
+        } 
+      }
+      message?: string
     }
-  } else if (error.request) {
+    return {
+      error: axiosError.response.data?.error || `HTTP ${axiosError.response.status}: ${axiosError.response.statusText}`,
+      details: axiosError.response.data?.details || axiosError.message,
+      node_errors: axiosError.response.data?.node_errors,
+    }
+  } else if (error && typeof error === 'object' && 'request' in error) {
     // Request was made but no response received
     return {
       error: 'Network Error',
       details: 'Unable to connect to ComfyUI server. Please check your connection and server status.',
     }
-  } else {
+  } else if (error instanceof Error) {
     // Something else happened
     return {
       error: 'Request Error',
       details: error.message || 'An unexpected error occurred',
+    }
+  } else {
+    return {
+      error: 'Request Error',
+      details: 'An unexpected error occurred',
     }
   }
 }

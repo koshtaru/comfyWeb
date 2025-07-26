@@ -168,7 +168,7 @@ export class GenerationService {
       }
       
       return response.data
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Submission failed:', error)
       throw new Error(
         error.response?.data?.error || 
@@ -185,7 +185,7 @@ export class GenerationService {
     try {
       const response = await this.getAPIClient().get('/queue')
       return response.data
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to get queue status:', error)
       throw new Error('Failed to get queue status')
     }
@@ -199,7 +199,7 @@ export class GenerationService {
       console.log('[Generation] Interrupting generation')
       await this.getAPIClient().post('/interrupt')
       console.log('[Generation] Generation interrupted successfully')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to interrupt generation:', error)
       throw new Error('Failed to interrupt generation')
     }
@@ -214,7 +214,7 @@ export class GenerationService {
         params: { max_items: maxItems }
       })
       return response.data
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to get history:', error)
       throw new Error('Failed to get generation history')
     }
@@ -228,7 +228,7 @@ export class GenerationService {
       console.log('[Generation] Clearing queue')
       await this.getAPIClient().post('/queue', { clear: true })
       console.log('[Generation] Queue cleared successfully')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[Generation] Failed to clear queue:', error)
       throw new Error('Failed to clear queue')
     }

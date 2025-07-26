@@ -239,7 +239,7 @@ export const utilAPI = {
     try {
       const stats = await systemAPI.getStats()
       return { online: true, stats }
-    } catch (error: any) {
+    } catch (error: unknown) {
       return { 
         online: false, 
         error: error.error || error.message || 'Unknown error' 

@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React, { useState, useEffect } from 'react'
-import type { IPreset, IPresetCreateInput, PresetCategory, IPresetValidationResult } from '@/types/preset'
+import type { IPreset, IPresetCreateInput, PresetCategory, IPresetValidationResult, IPresetMetadata } from '@/types/preset'
 import type { ComfyUIWorkflow } from '@/types'
 import { compressionService } from '@/utils/compression'
 import './PresetSaveDialog.css'
@@ -190,7 +190,7 @@ export const PresetSaveDialog: React.FC<PresetSaveDialogProps> = ({
   }
 
   // Extract metadata from workflow (placeholder implementation)
-  const extractMetadataFromWorkflow = (workflow: ComfyUIWorkflow) => {
+  const extractMetadataFromWorkflow = (_workflow: ComfyUIWorkflow): IPresetMetadata => {
     // This would need to be implemented based on your actual workflow structure
     // For now, returning a basic structure
     return {

@@ -2,8 +2,9 @@
 // ComfyUI React - Format Converter Service
 // ============================================================================
 
-import type { ComfyUIWorkflow } from '@/types'
+import type { ComfyUIWorkflow, ComfyUINode } from '@/types'
 import type { IPreset, IPresetMetadata } from '@/types/preset'
+import { getWorkflowNodes } from '@/types'
 import { v4 as uuidv4 } from 'uuid'
 
 // Type definitions for external formats
@@ -79,7 +80,7 @@ export class FormatConverterService {
       'DDIM': 'ddim',
       'PLMS': 'plms',
       'UniPC': 'uni_pc'
-    },
+    } as Record<string, string>,
     comfyUIToA1111: {} as Record<string, string> // Will be inverted from above
   }
 
@@ -92,7 +93,7 @@ export class FormatConverterService {
       'sgm_uniform': 'sgm_uniform',
       'simple': 'simple',
       'ddim_uniform': 'ddim_uniform'
-    }
+    } as Record<string, string>
   }
 
   constructor() {
@@ -163,7 +164,7 @@ export class FormatConverterService {
    * Create ComfyUI workflow from A1111 preset
    */
   private createComfyUIWorkflowFromA1111(preset: IA1111Preset): ComfyUIWorkflow {
-    const nodes: Record<string, any> = {}
+    const nodes: Record<string, ComfyUINode> = {}
     let nodeId = 1
 
     // Checkpoint Loader
@@ -533,8 +534,11 @@ export class FormatConverterService {
     const errors: string[] = []
     const warnings: string[] = []
 
+    // Extract nodes using type-safe helper
+    const workflowNodes = getWorkflowNodes(workflow)
+
     // Check for required nodes
-    const nodeTypes = Object.values(workflow.nodes).map(node => node.class_type)
+    const nodeTypes = Object.values(workflowNodes).map(node => node.class_type)
     
     if (!nodeTypes.includes('CheckpointLoaderSimple')) {
       errors.push('Missing checkpoint loader')
@@ -549,12 +553,12 @@ export class FormatConverterService {
     }
 
     // Validate connections
-    for (const [nodeId, node] of Object.entries(workflow.nodes)) {
+    for (const [nodeId, node] of Object.entries(workflowNodes)) {
       if (node.inputs) {
-        for (const [inputName, inputValue] of Object.entries(node.inputs)) {
+        for (const [_inputName, inputValue] of Object.entries(node.inputs)) {
           if (Array.isArray(inputValue) && inputValue.length === 2) {
             const [sourceNodeId] = inputValue
-            if (!workflow.nodes[sourceNodeId]) {
+            if (!workflowNodes[sourceNodeId]) {
               errors.push(`Node ${nodeId} references non-existent node ${sourceNodeId}`)
             }
           }

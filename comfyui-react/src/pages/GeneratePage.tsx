@@ -21,6 +21,18 @@ import { usePresetStore } from '@/store/presetStore'
 import { PresetSaveDialog } from '@/components/presets/PresetSaveDialog'
 import type { IPreset } from '@/types/preset'
 
+// Type guard for model architecture validation
+const VALID_ARCHITECTURES = ['SD1.5', 'SDXL', 'SD3', 'Flux', 'Unknown'] as const
+type ModelArchitecture = typeof VALID_ARCHITECTURES[number]
+
+function isValidArchitecture(value: string | undefined): value is ModelArchitecture {
+  return value != null && VALID_ARCHITECTURES.includes(value as ModelArchitecture)
+}
+
+function validateArchitecture(value: string | undefined): ModelArchitecture {
+  return isValidArchitecture(value) ? value : 'Unknown'
+}
+
 export default function GeneratePage() {
   const location = useLocation()
   const uploadSelectors = useUploadSelectors()
@@ -33,7 +45,7 @@ export default function GeneratePage() {
   const { promptOverride, usePromptOverride, setPromptOverride, setUsePromptOverride } = usePromptStore()
   
   // Preset store methods
-  const { presets, loadPresets, createPreset, activePreset, setActivePreset } = usePresetStore()
+  const { presets, loadPresets, createPreset } = usePresetStore()
   const [showPresetSelector, setShowPresetSelector] = useState(false)
   const [workflowQueue, setWorkflowQueue] = useState<Array<{
     id: string
@@ -99,7 +111,12 @@ export default function GeneratePage() {
         if (preset.metadata) {
           const extractedParams: ExtractedParameters = {
             generation: preset.metadata.generation,
-            model: { ...preset.metadata.model, loras: [], controlnets: [] },
+            model: { 
+              ...preset.metadata.model, 
+              loras: [], 
+              controlnets: [],
+              architecture: validateArchitecture(preset.metadata.model.architecture)
+            },
             image: preset.metadata.dimensions,
             prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: undefined, negativeNodeId: undefined },
             advanced: { customNodes: [] },
@@ -111,7 +128,7 @@ export default function GeneratePage() {
               hasControlNet: false,
               hasLora: false,
               hasUpscaling: false,
-              architecture: preset.metadata.model.architecture || 'Unknown',
+              architecture: validateArchitecture(preset.metadata.model.architecture),
               complexity: 'Simple'
             }
           }
@@ -147,7 +164,12 @@ export default function GeneratePage() {
         if (preset.metadata) {
           const extractedParams: ExtractedParameters = {
             generation: preset.metadata.generation,
-            model: { ...preset.metadata.model, loras: [], controlnets: [] },
+            model: { 
+              ...preset.metadata.model, 
+              loras: [], 
+              controlnets: [],
+              architecture: validateArchitecture(preset.metadata.model.architecture)
+            },
             image: preset.metadata.dimensions,
             prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: undefined, negativeNodeId: undefined },
             advanced: { customNodes: [] },
@@ -159,7 +181,7 @@ export default function GeneratePage() {
               hasControlNet: false,
               hasLora: false,
               hasUpscaling: false,
-              architecture: preset.metadata.model.architecture || 'Unknown',
+              architecture: validateArchitecture(preset.metadata.model.architecture),
               complexity: 'Simple'
             }
           }
@@ -188,7 +210,9 @@ export default function GeneratePage() {
       
       // Use setTimeout to ensure this runs after the component has mounted
       setTimeout(async () => {
-        await loadPresetDirect(navigationState.presetToLoad)
+        if (navigationState.presetToLoad) {
+          await loadPresetDirect(navigationState.presetToLoad)
+        }
         // Clear navigation state to prevent re-loading on refresh
         window.history.replaceState({}, document.title)
       }, 100)
@@ -323,7 +347,7 @@ export default function GeneratePage() {
   }
 
   // Handle save as preset
-  const handleSaveAsPreset = async (presetName: string) => {
+  const _handleSaveAsPreset = async (presetName: string) => {
     if (!presetName.trim()) return false
 
     setSavingPreset(true)

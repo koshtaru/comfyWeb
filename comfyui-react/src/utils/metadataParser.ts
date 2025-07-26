@@ -4,6 +4,8 @@
 import type { WorkflowData } from './workflowValidator'
 import type { ExtractedParameters } from './parameterExtractor'
 import { ParameterExtractor } from './parameterExtractor'
+import type { ComfyUIWorkflow } from '@/types'
+import { getWorkflowNodes } from '@/types'
 
 // JSON Schema for metadata validation
 export interface MetadataSchema {
@@ -216,7 +218,7 @@ export class MetadataParser extends ParameterExtractor {
   private executionOrder: string[] = []
   private metadata: Partial<MetadataSchema> = {}
 
-  constructor(workflow: WorkflowData, nodeDefinitions?: Map<string, NodeTypeDefinition>) {
+  constructor(workflow: ComfyUIWorkflow | WorkflowData, nodeDefinitions?: Map<string, NodeTypeDefinition>) {
     // Clean and validate workflow before processing
     const cleanedWorkflow = MetadataParser.cleanWorkflow(workflow)
     super(cleanedWorkflow)
@@ -229,7 +231,7 @@ export class MetadataParser extends ParameterExtractor {
   /**
    * Clean workflow data by removing invalid nodes
    */
-  private static cleanWorkflow(workflow: WorkflowData): WorkflowData {
+  private static cleanWorkflow(workflow: ComfyUIWorkflow | WorkflowData): WorkflowData {
     const cleaned: WorkflowData = {}
     
     if (!workflow || typeof workflow !== 'object') {
@@ -237,14 +239,10 @@ export class MetadataParser extends ParameterExtractor {
       return cleaned
     }
 
-    // Check if this is a ComfyUI UI export format with nodes property
-    let actualWorkflow = workflow
-    if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
-      console.log('[MetadataParser] Detected ComfyUI UI format, extracting nodes for cleaning')
-      actualWorkflow = (workflow as any).nodes as WorkflowData
-    }
+    // Extract nodes using the unified type helper
+    const workflowNodes = getWorkflowNodes(workflow as ComfyUIWorkflow)
 
-    for (const [nodeId, node] of Object.entries(actualWorkflow)) {
+    for (const [nodeId, node] of Object.entries(workflowNodes)) {
       // Skip invalid nodes
       if (!node || typeof node !== 'object') {
         console.warn(`[MetadataParser] Skipping invalid node ${nodeId}`)
@@ -521,7 +519,7 @@ export class MetadataParser extends ParameterExtractor {
   /**
    * Extract checkpoint information
    */
-  private extractCheckpointInfo(baseModels: any): CheckpointInfo {
+  private extractCheckpointInfo(baseModels: { checkpoint?: string; architecture?: string; nodeId?: string }): CheckpointInfo {
     const checkpoint = baseModels.checkpoint
     const architecture = baseModels.architecture || 'Unknown'
     
@@ -730,7 +728,7 @@ export class MetadataParser extends ParameterExtractor {
     return bottlenecks
   }
 
-  private estimateNodeMemoryUsage(node: any): number {
+  private estimateNodeMemoryUsage(node: { class_type: string; inputs?: Record<string, unknown> }): number {
     // Estimate memory usage in MB
     switch (node.class_type) {
       case 'CheckpointLoaderSimple': return 2000
@@ -740,7 +738,7 @@ export class MetadataParser extends ParameterExtractor {
     }
   }
 
-  private extractNodeInputs(node: any, nodeType?: NodeTypeDefinition): NodeInput[] {
+  private extractNodeInputs(node: { inputs?: Record<string, unknown> }, nodeType?: NodeTypeDefinition): NodeInput[] {
     const inputs: NodeInput[] = []
     
     // Safety check for node.inputs
@@ -766,7 +764,7 @@ export class MetadataParser extends ParameterExtractor {
     return inputs
   }
 
-  private extractNodeOutputs(node: any, nodeType?: NodeTypeDefinition): NodeOutput[] {
+  private extractNodeOutputs(node: { class_type: string }, nodeType?: NodeTypeDefinition): NodeOutput[] {
     const outputs: NodeOutput[] = []
     const nodeOutputs = nodeType?.outputs || []
     
@@ -785,7 +783,7 @@ export class MetadataParser extends ParameterExtractor {
     return outputs
   }
 
-  private findConnectedNodes(sourceNode: any, outputIndex: number): string[] {
+  private findConnectedNodes(sourceNode: { inputs?: Record<string, unknown> }, outputIndex: number): string[] {
     const connected: string[] = []
     const sourceNodeId = Object.keys(this.workflow).find(
       id => this.workflow[id] === sourceNode
@@ -943,7 +941,7 @@ export class MetadataParser extends ParameterExtractor {
     return undefined
   }
 
-  private extractLoRAInfo(baseLoras: any[]): LoRAInfo[] {
+  private extractLoRAInfo(baseLoras: Array<{ name?: string; strength?: number; clipStrength?: number; nodeId?: string }>): LoRAInfo[] {
     return baseLoras.map(lora => ({
       name: lora.name,
       modelStrength: lora.modelStrength,
@@ -964,7 +962,7 @@ export class MetadataParser extends ParameterExtractor {
     return embeddings
   }
 
-  private extractControlNetInfo(baseControlNets: any[]): ControlNetInfo[] {
+  private extractControlNetInfo(baseControlNets: Array<{ model?: string; weight?: number; startPercent?: number; endPercent?: number; nodeId?: string }>): ControlNetInfo[] {
     return baseControlNets.map(cn => ({
       name: cn.name,
       model: cn.name, // Would need to be extracted from loader
@@ -1036,7 +1034,7 @@ export interface NodeTypeDefinition {
 }
 
 // Utility functions
-export function parseWorkflowMetadata(workflow: WorkflowData): MetadataSchema {
+export function parseWorkflowMetadata(workflow: ComfyUIWorkflow | WorkflowData): MetadataSchema {
   const parser = new MetadataParser(workflow)
   return parser.parseWorkflow()
 }
@@ -1049,7 +1047,7 @@ export function validateWorkflowMetadata(_metadata: MetadataSchema): boolean {
 export function compareWorkflowMetadata(
   _metadata1: MetadataSchema,
   _metadata2: MetadataSchema
-): Record<string, any> {
+): Record<string, unknown> {
   // Implement metadata comparison
   return {}
 }

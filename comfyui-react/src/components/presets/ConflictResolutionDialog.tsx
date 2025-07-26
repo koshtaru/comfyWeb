@@ -19,7 +19,7 @@ export const ConflictResolutionDialog: React.FC<ConflictResolutionDialogProps> =
   onCancel
 }) => {
   const [resolutions, setResolutions] = useState<Record<string, 'replace' | 'skip' | 'merge' | 'rename'>>(
-    conflicts.reduce((acc, conflict, index) => ({
+    conflicts.reduce((acc, _conflict, index) => ({
       ...acc,
       [index]: 'skip' // Default to skip
     }), {})
