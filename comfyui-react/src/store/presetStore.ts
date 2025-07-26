@@ -136,15 +136,19 @@ export const usePresetStore = create<PresetState>()(
 
       // Enhanced actions using PresetService
       loadPresets: async (options = {}) => {
+        console.log('[PresetStore] loadPresets called with options:', options)
         set({ isLoadingPresets: true, lastError: null }, false, 'loadPresets:start')
         
         try {
+          console.log('[PresetStore] Calling presetService.listPresets...')
           const presets = await presetService.listPresets(options)
+          console.log('[PresetStore] presetService.listPresets returned:', presets.length, 'presets')
           set({ 
             presets, 
             isLoadingPresets: false 
           }, false, 'loadPresets:success')
         } catch (error) {
+          console.error('[PresetStore] loadPresets error:', error)
           const errorMessage = error instanceof Error ? error.message : 'Failed to load presets'
           set({ 
             isLoadingPresets: false, 
@@ -511,6 +515,10 @@ export const usePresetStore = create<PresetState>()(
       },
 
       importPresets: async (data, replace = false) => {
+        console.log('[PresetStore] importPresets called with data type:', typeof data)
+        console.log('[PresetStore] importPresets data preview:', data?.substring?.(0, 100))
+        console.trace('[PresetStore] importPresets call stack')
+        
         set({ lastError: null }, false, 'importPresets:start')
         
         try {

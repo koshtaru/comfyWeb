@@ -27,6 +27,72 @@
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
   box-shadow: var(--shadow);
+  
+  /* Force normal text rendering for all children */
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+}
+
+/* Apply text fixes to all text elements within preset card */
+.preset-card *,
+.preset-card *::before,
+.preset-card *::after {
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  white-space: normal !important;
+  /* Additional fixes for vertical text issue */
+  text-combine-upright: none !important;
+  text-transform: none;
+  letter-spacing: normal;
+  word-spacing: normal;
+  line-height: inherit;
+  font-variant: normal;
+  font-feature-settings: normal;
+  font-kerning: auto;
+  font-stretch: normal;
+}
+
+/* Specifically target text-containing elements */
+.preset-card h1,
+.preset-card h2, 
+.preset-card h3,
+.preset-card h4,
+.preset-card h5,
+.preset-card h6,
+.preset-card p,
+.preset-card span,
+.preset-card div,
+.preset-card label {
+  display: block !important;
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  white-space: normal !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.preset-card span.value,
+.preset-card span.label,
+.preset-card .badge {
+  display: inline !important;
+}
+
+/* Debug styles removed - preset card back to normal styling */
+
+/* Debug backgrounds removed */
+
+/* Force text to render properly */
+.preset-card .preset-name,
+.preset-card .metadata-item .value,
+.preset-card .metadata-item .label {
+  font-family: Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  display: inline-block !important;
+  vertical-align: baseline !important;
+  text-align: left !important;
 }
 
 .preset-card:hover {
@@ -95,9 +161,16 @@
 
 /* Main content */
 .preset-content {
-  padding: 16px;
-  padding-left: 44px; /* Account for checkbox */
+  padding: 20px;
+  padding-left: 48px; /* Account for checkbox */
+  padding-right: 80px; /* Account for action buttons */
   flex: 1;
+  /* Force normal text direction and writing mode */
+  writing-mode: horizontal-tb;
+  text-orientation: mixed;
+  direction: ltr;
+  word-break: break-word;
+  white-space: normal;
 }
 
 .list .preset-content {
@@ -109,8 +182,8 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 12px;
-  gap: 12px;
+  margin-bottom: 16px;
+  gap: 16px;
 }
 
 .preset-title {
@@ -125,6 +198,12 @@
   color: var(--text-primary);
   line-height: 1.3;
   word-break: break-word;
+  /* Force normal text rendering */
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  white-space: normal !important;
+  display: block !important;
 }
 
 .edit-input {
@@ -151,8 +230,9 @@
 .preset-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .badge {
@@ -189,9 +269,9 @@
 
 .metadata-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 8px;
-  margin-bottom: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
 }
 
 .list .metadata-grid {
@@ -216,11 +296,52 @@
   font-size: 13px;
   color: var(--text-primary);
   font-weight: 500;
+  /* Force normal text rendering */
+  writing-mode: horizontal-tb !important;
+  text-orientation: mixed !important;
+  direction: ltr !important;
+  white-space: normal !important;
+  display: inline !important;
 }
 
 /* Prompt preview */
 .prompt-preview {
   margin-top: 8px;
+}
+
+/* Prompt editing styles */
+.prompt-edit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prompt-edit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prompt-edit-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prompt-textarea {
+  min-height: 60px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.prompt-textarea:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
 }
 
 .prompt-positive {
@@ -291,9 +412,12 @@
   top: 12px;
   right: 12px;
   display: flex;
-  gap: 4px;
+  flex-direction: column;
+  gap: 12px;
   opacity: 0;
   transition: opacity 0.2s;
+  max-width: 60px;
+  align-items: center;
 }
 
 .preset-card:hover .preset-actions {
@@ -307,19 +431,22 @@
 }
 
 .action-btn {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
-  border-radius: 6px;
-  background: rgba(0, 0, 0, 0.7);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.8);
   color: white;
-  font-size: 14px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
   backdrop-filter: blur(4px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  margin: 4px 0;
+  flex-shrink: 0;
 }
 
 .action-btn:hover {
@@ -365,6 +492,14 @@
 
 .action-btn.details:hover {
   background: #6b7280;
+}
+
+.action-btn.json-edit {
+  background: rgba(139, 92, 246, 0.9);
+}
+
+.action-btn.json-edit:hover {
+  background: #8b5cf6;
 }
 
 .action-btn.cancel {

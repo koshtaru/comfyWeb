@@ -251,7 +251,7 @@ export class CompressionService {
   }
 
   /**
-   * Decompress workflow data with support for all compression levels
+   * Decompress workflow data with auto-detection of compression method
    */
   async decompressWorkflow(
     data: string | ChunkMetadata[],
@@ -274,47 +274,100 @@ export class CompressionService {
         }
       }
 
-      // Handle non-compressed data
-      if (compressionLevel === CompressionLevel.NONE || !compressionLevel) {
-        if (typeof data !== 'string') {
-          throw new Error('Invalid data type for non-compressed workflow')
-        }
-        const jsonString = atob(data)
-        return JSON.parse(jsonString)
+      if (typeof data !== 'string') {
+        throw new Error('Invalid data type for workflow decompression')
       }
 
-      // Handle LZ-string basic compression
-      if (compressionLevel === CompressionLevel.BASIC) {
-        if (typeof data !== 'string') {
-          throw new Error('Invalid data type for basic compressed workflow')
-        }
-        const decompressed = LZString.decompressFromBase64(data)
-        if (!decompressed) {
-          throw new Error('Failed to decompress data')
-        }
-        return JSON.parse(decompressed)
+      // If compression level is specified, use it
+      if (compressionLevel !== undefined) {
+        return await this.decompressWithLevel(data, compressionLevel)
       }
 
-      // Handle UTF16 compression
-      if (compressionLevel === CompressionLevel.ENHANCED) {
-        if (typeof data !== 'string') {
-          throw new Error('Invalid data type for enhanced compressed workflow')
-        }
-        // Decode from base64 first
-        const utf16Data = decodeURIComponent(escape(atob(data)))
-        const decompressed = LZString.decompressFromUTF16(utf16Data)
-        if (!decompressed) {
-          throw new Error('Failed to decompress UTF16 data')
-        }
-        return JSON.parse(decompressed)
-      }
-
-      throw new Error(`Unknown compression level: ${compressionLevel}`)
+      // Auto-detect compression method and decompress
+      return await this.autoDecompress(data)
       
     } catch (error) {
       console.error('Failed to decompress workflow:', error)
       throw new Error('Invalid or corrupted workflow data')
     }
+  }
+
+  /**
+   * Auto-detect compression method and decompress
+   */
+  private async autoDecompress(data: string): Promise<ComfyUIWorkflow> {
+    // Try different decompression methods in order of likelihood
+    
+    // 1. Try LZ-string base64 decompression (most common)
+    try {
+      const decompressed = LZString.decompressFromBase64(data)
+      if (decompressed) {
+        return JSON.parse(decompressed)
+      }
+    } catch (error) {
+      // Continue to next method
+    }
+
+    // 2. Try UTF16 decompression
+    try {
+      const utf16Data = decodeURIComponent(escape(atob(data)))
+      const decompressed = LZString.decompressFromUTF16(utf16Data)
+      if (decompressed) {
+        return JSON.parse(decompressed)
+      }
+    } catch (error) {
+      // Continue to next method
+    }
+
+    // 3. Try base64 decoding (uncompressed)
+    try {
+      const jsonString = atob(data)
+      return JSON.parse(jsonString)
+    } catch (error) {
+      // Continue to next method
+    }
+
+    // 4. Try direct JSON parsing (if data is already JSON)
+    try {
+      return JSON.parse(data)
+    } catch (error) {
+      // All methods failed
+    }
+
+    throw new Error('Unable to decompress data with any known method')
+  }
+
+  /**
+   * Decompress with specific compression level
+   */
+  private async decompressWithLevel(data: string, compressionLevel: CompressionLevel): Promise<ComfyUIWorkflow> {
+    // Handle non-compressed data
+    if (compressionLevel === CompressionLevel.NONE) {
+      const jsonString = atob(data)
+      return JSON.parse(jsonString)
+    }
+
+    // Handle LZ-string basic compression
+    if (compressionLevel === CompressionLevel.BASIC) {
+      const decompressed = LZString.decompressFromBase64(data)
+      if (!decompressed) {
+        throw new Error('Failed to decompress data')
+      }
+      return JSON.parse(decompressed)
+    }
+
+    // Handle UTF16 compression
+    if (compressionLevel === CompressionLevel.ENHANCED) {
+      // Decode from base64 first
+      const utf16Data = decodeURIComponent(escape(atob(data)))
+      const decompressed = LZString.decompressFromUTF16(utf16Data)
+      if (!decompressed) {
+        throw new Error('Failed to decompress UTF16 data')
+      }
+      return JSON.parse(decompressed)
+    }
+
+    throw new Error(`Unknown compression level: ${compressionLevel}`)
   }
 
   /**

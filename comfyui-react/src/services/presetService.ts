@@ -65,9 +65,12 @@ export class PresetService {
       await this.loadPresetsFromStorage()
       await this.performMaintenanceTasks()
       this.isInitialized = true
+      console.log(`PresetService initialized successfully with ${this.cache.size} presets`)
     } catch (error) {
       console.error('Failed to initialize PresetService:', error)
-      throw new Error('PresetService initialization failed')
+      // Don't throw error - allow service to work with empty state
+      this.isInitialized = true
+      console.warn('PresetService initialized in recovery mode')
     }
   }
 
@@ -121,7 +124,7 @@ export class PresetService {
       }
 
       // Store compressed data
-      await this.storePreset(preset, compressionResult.data)
+      await this.storePreset(preset, compressionResult)
 
       // Add to cache
       this.cache.set(preset.id, preset)
@@ -186,10 +189,13 @@ export class PresetService {
    */
   async listPresets(options: IPresetSearchOptions = {}): Promise<IPreset[]> {
     try {
+      console.log('[PresetService] listPresets called, cache size:', this.cache.size)
       // Ensure all presets are loaded
       await this.loadAllPresets()
+      console.log('[PresetService] After loadAllPresets, cache size:', this.cache.size)
 
       let presets = Array.from(this.cache.values())
+      console.log('[PresetService] Raw presets array length:', presets.length)
 
       // Apply filters
       if (options.category) {
@@ -306,18 +312,24 @@ export class PresetService {
       }
 
       // Re-compress if workflow changed
-      let compressionData: string
+      let compressionResult: any
       if (updates.metadata || JSON.stringify(preset.workflowData) !== JSON.stringify(updatedPreset.workflowData)) {
-        const compressionResult = await compressionService.compressWorkflow(updatedPreset.workflowData)
-        compressionData = compressionResult.data
+        compressionResult = await compressionService.compressWorkflow(updatedPreset.workflowData)
         updatedPreset.compressed = compressionResult.compressed
         updatedPreset.size = compressionResult.compressedSize
       } else {
-        compressionData = await this.getStoredPresetData(id)
+        // Get existing compression data
+        const existingData = await this.getStoredPresetData(id)
+        compressionResult = {
+          data: existingData,
+          compressed: preset.compressed,
+          compressionLevel: 1, // Default to basic compression
+          isChunked: false
+        }
       }
 
       // Store updated preset
-      await this.storePreset(updatedPreset, compressionData)
+      await this.storePreset(updatedPreset, compressionResult)
 
       // Update cache
       this.cache.set(id, updatedPreset)
@@ -547,10 +559,16 @@ export class PresetService {
    * Import multiple presets
    */
   async importPresets(data: string, replace: boolean = false): Promise<IPresetImportResult> {
+    console.log('[PresetService] importPresets called!')
+    console.log('[PresetService] Data type:', typeof data)
+    console.log('[PresetService] Data preview:', data?.substring(0, 200))
+    console.trace('[PresetService] importPresets call stack')
+    
     try {
       const importData: IPresetsExportData = JSON.parse(data)
 
       if (!importData.presets || !Array.isArray(importData.presets)) {
+        console.error('[PresetService] Invalid import data structure:', importData)
         return {
           success: false,
           imported: [],
@@ -703,18 +721,39 @@ export class PresetService {
   private async loadPresetsFromStorage(): Promise<void> {
     try {
       const keys = this.getStorageKeys()
+      console.log('[PresetService] loadPresetsFromStorage - Found storage keys:', keys)
+      console.log('[PresetService] Storage key prefix:', `${this.config.storage.storageKey}_`)
+      console.log('[PresetService] Total localStorage items:', localStorage.length)
       
       for (const key of keys) {
         const data = localStorage.getItem(key)
         if (data) {
-          const preset = await this.parseStoredPreset(data)
-          if (preset) {
-            this.cache.set(preset.id, preset)
+          try {
+            const preset = await this.parseStoredPreset(data)
+            if (preset) {
+              this.cache.set(preset.id, preset)
+            }
+          } catch (error) {
+            console.warn(`Failed to parse preset from key ${key}, removing corrupted data:`, error)
+            // Remove corrupted data
+            localStorage.removeItem(key)
           }
         }
       }
     } catch (error) {
       console.error('Failed to load presets from storage:', error)
+      // If all fails, clear all preset storage to prevent further issues
+      this.clearCorruptedStorage()
+    }
+  }
+
+  private clearCorruptedStorage(): void {
+    try {
+      const keys = this.getStorageKeys()
+      keys.forEach(key => localStorage.removeItem(key))
+      console.log('Cleared corrupted preset storage')
+    } catch (error) {
+      console.error('Failed to clear corrupted storage:', error)
     }
   }
 
@@ -742,15 +781,17 @@ export class PresetService {
     return `${this.config.storage.storageKey}_${id}`
   }
 
-  private async storePreset(preset: IPreset, compressedData: string): Promise<void> {
+  private async storePreset(preset: IPreset, compressionResult: any): Promise<void> {
     const key = this.getPresetStorageKey(preset.id)
     const storageData = {
       preset: {
         ...preset,
         workflowData: undefined, // Don't store workflow in metadata
       },
-      workflowData: compressedData,
-      compressed: preset.compressed,
+      workflowData: compressionResult.data,
+      compressed: compressionResult.compressed,
+      compressionLevel: compressionResult.compressionLevel,
+      isChunked: compressionResult.isChunked || false,
     }
 
     localStorage.setItem(key, JSON.stringify(storageData))
@@ -778,10 +819,46 @@ export class PresetService {
   private async parseStoredPreset(data: string): Promise<IPreset | null> {
     try {
       const parsed = JSON.parse(data)
-      const { preset, workflowData, compressed } = parsed
+      
+      if (!parsed.preset || !parsed.workflowData) {
+        console.warn('Invalid preset data structure:', parsed)
+        return null
+      }
+      
+      const { preset, workflowData, compressed, compressionLevel, isChunked } = parsed
 
       // Decompress workflow data
-      const workflow = await compressionService.decompressWorkflow(workflowData, compressed)
+      let workflow
+      try {
+        if (compressed || compressionLevel !== undefined) {
+          // Use the compression service with stored compression level
+          workflow = await compressionService.decompressWorkflow(
+            workflowData, 
+            compressionLevel, 
+            preset.id
+          )
+        } else {
+          // Handle uncompressed data
+          workflow = typeof workflowData === 'string' ? JSON.parse(workflowData) : workflowData
+        }
+      } catch (compressionError) {
+        console.warn('Failed to decompress workflow data, treating as uncompressed:', compressionError)
+        // Try parsing as uncompressed JSON as fallback
+        try {
+          workflow = typeof workflowData === 'string' ? JSON.parse(workflowData) : workflowData
+        } catch (parseError) {
+          console.error('Failed to parse workflow data:', parseError)
+          // Return a minimal valid workflow structure
+          workflow = {
+            nodes: {},
+            links: [],
+            groups: [],
+            config: {},
+            extra: {},
+            version: 0.4
+          }
+        }
+      }
 
       return {
         ...preset,
@@ -840,5 +917,10 @@ export class PresetService {
 // Default service instance
 export const presetService = new PresetService()
 
-// Initialize on first import
-presetService.initialize().catch(console.error)
+// Initialize on first import with detailed logging
+console.log('[PresetService] Creating service instance...')
+presetService.initialize().then(() => {
+  console.log('[PresetService] Successfully initialized')
+}).catch((error) => {
+  console.error('[PresetService] Initialization failed:', error)
+})

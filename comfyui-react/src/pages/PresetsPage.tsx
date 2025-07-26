@@ -20,10 +20,25 @@ const PresetsPage: React.FC = () => {
     setActivePreset
   } = usePresetStore()
 
-  // Load presets on mount
+  // Load presets on mount with debugging
   useEffect(() => {
-    loadPresets()
+    console.log('[PresetsPage] Component mounted, loading presets...')
+    loadPresets().then(() => {
+      console.log('[PresetsPage] Load presets completed')
+    }).catch((err) => {
+      console.error('[PresetsPage] Load presets failed:', err)
+    })
   }, [loadPresets])
+
+  // Debug log current state
+  useEffect(() => {
+    console.log('[PresetsPage] State update:', {
+      presetsCount: presets.length,
+      loading,
+      error,
+      presets: presets.slice(0, 2) // First 2 presets for debugging
+    })
+  }, [presets, loading, error])
 
   const handlePresetSelect = (preset: any) => {
     setActivePreset(preset)
@@ -42,8 +57,29 @@ const PresetsPage: React.FC = () => {
   }
 
   const handlePresetsImport = async (presets: any[]) => {
-    // Convert presets array to JSON string for the store
-    const jsonData = JSON.stringify(presets)
+    console.log('[PresetsPage] handlePresetsImport called with:', presets?.length, 'presets')
+    console.trace('[PresetsPage] handlePresetsImport call stack')
+    
+    // This should only be called when importing from files, not during normal loading
+    // The PresetImportExport component should handle the format conversion
+    if (!Array.isArray(presets) || presets.length === 0) {
+      console.warn('[PresetsPage] handlePresetsImport called with invalid data')
+      return
+    }
+    
+    // Convert presets array to proper import format
+    const importData = {
+      version: '1.0.0',
+      exportedAt: new Date().toISOString(),
+      presets: presets,
+      metadata: {
+        totalCount: presets.length,
+        totalSize: presets.reduce((sum, p) => sum + (p.size || 0), 0),
+        compressionUsed: presets.some(p => p.compressed)
+      }
+    }
+    
+    const jsonData = JSON.stringify(importData)
     await importPresets(jsonData)
   }
 

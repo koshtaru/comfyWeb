@@ -4,6 +4,7 @@
 
 import React, { useState } from 'react'
 import type { IPreset } from '@/types/preset'
+import { PresetJsonEditor } from './PresetJsonEditor'
 import './PresetCard.css'
 
 interface PresetCardProps {
@@ -28,9 +29,12 @@ export const PresetCard: React.FC<PresetCardProps> = ({
   viewMode
 }) => {
   const [showDetails, setShowDetails] = useState(false)
+  const [showJsonEditor, setShowJsonEditor] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editName, setEditName] = useState(preset.name)
   const [editTags, setEditTags] = useState(preset.tags?.join(', ') || '')
+  const [editPositivePrompt, setEditPositivePrompt] = useState(preset.metadata.prompts.positive)
+  const [editNegativePrompt, setEditNegativePrompt] = useState(preset.metadata.prompts.negative)
 
   // Format file size
   const formatSize = (bytes: number): string => {
@@ -69,7 +73,14 @@ export const PresetCard: React.FC<PresetCardProps> = ({
   const handleEditSave = () => {
     const updates: Partial<IPreset> = {
       name: editName.trim(),
-      tags: editTags.split(',').map(tag => tag.trim()).filter(Boolean)
+      tags: editTags.split(',').map(tag => tag.trim()).filter(Boolean),
+      metadata: {
+        ...preset.metadata,
+        prompts: {
+          positive: editPositivePrompt.trim(),
+          negative: editNegativePrompt.trim()
+        }
+      }
     }
     
     onEdit(updates)
@@ -80,6 +91,8 @@ export const PresetCard: React.FC<PresetCardProps> = ({
   const handleEditCancel = () => {
     setEditName(preset.name)
     setEditTags(preset.tags?.join(', ') || '')
+    setEditPositivePrompt(preset.metadata.prompts.positive)
+    setEditNegativePrompt(preset.metadata.prompts.negative)
     setIsEditing(false)
   }
 
@@ -121,7 +134,7 @@ export const PresetCard: React.FC<PresetCardProps> = ({
                 autoFocus
               />
             ) : (
-              <h3 className="preset-name">{preset.name}</h3>
+              <h3 className="preset-name">{String(preset.name || 'Unnamed Preset')}</h3>
             )}
           </div>
           
@@ -152,34 +165,63 @@ export const PresetCard: React.FC<PresetCardProps> = ({
           <div className="metadata-grid">
             <div className="metadata-item">
               <span className="label">Model:</span>
-              <span className="value">{preset.metadata.model.name}</span>
+              <span className="value">{String(preset.metadata.model.name || 'Unknown')}</span>
             </div>
             <div className="metadata-item">
               <span className="label">Steps:</span>
-              <span className="value">{preset.metadata.generation.steps}</span>
+              <span className="value">{String(preset.metadata.generation.steps || '20')}</span>
             </div>
             <div className="metadata-item">
               <span className="label">CFG:</span>
-              <span className="value">{preset.metadata.generation.cfg}</span>
+              <span className="value">{String(preset.metadata.generation.cfg || '7')}</span>
             </div>
             <div className="metadata-item">
               <span className="label">Size:</span>
               <span className="value">
-                {preset.metadata.dimensions.width}×{preset.metadata.dimensions.height}
+                {String(preset.metadata.dimensions.width || '512')}×{String(preset.metadata.dimensions.height || '512')}
               </span>
             </div>
           </div>
           
           {/* Prompt preview */}
           <div className="prompt-preview">
-            <div className="prompt-positive">
-              {preset.metadata.prompts.positive.slice(0, 100)}
-              {preset.metadata.prompts.positive.length > 100 && '...'}
-            </div>
-            {preset.metadata.prompts.negative && (
-              <div className="prompt-negative">
-                Negative: {preset.metadata.prompts.negative.slice(0, 60)}
-                {preset.metadata.prompts.negative.length > 60 && '...'}
+            {isEditing ? (
+              <div className="prompt-edit-section">
+                <div className="prompt-edit-group">
+                  <label className="prompt-edit-label">Positive Prompt:</label>
+                  <textarea
+                    value={editPositivePrompt}
+                    onChange={(e) => setEditPositivePrompt(e.target.value)}
+                    className="edit-input prompt-textarea"
+                    placeholder="Enter positive prompt..."
+                    onClick={(e) => e.stopPropagation()}
+                    rows={3}
+                  />
+                </div>
+                <div className="prompt-edit-group">
+                  <label className="prompt-edit-label">Negative Prompt:</label>
+                  <textarea
+                    value={editNegativePrompt}
+                    onChange={(e) => setEditNegativePrompt(e.target.value)}
+                    className="edit-input prompt-textarea"
+                    placeholder="Enter negative prompt..."
+                    onClick={(e) => e.stopPropagation()}
+                    rows={2}
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="prompt-display">
+                <div className="prompt-positive">
+                  {preset.metadata.prompts.positive.slice(0, 100)}
+                  {preset.metadata.prompts.positive.length > 100 && '...'}
+                </div>
+                {preset.metadata.prompts.negative && (
+                  <div className="prompt-negative">
+                    Negative: {preset.metadata.prompts.negative.slice(0, 60)}
+                    {preset.metadata.prompts.negative.length > 60 && '...'}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -290,6 +332,17 @@ export const PresetCard: React.FC<PresetCardProps> = ({
         </button>
         
         <button
+          className="action-btn json-edit"
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowJsonEditor(true)
+          }}
+          title="Edit JSON"
+        >
+          🔧
+        </button>
+        
+        <button
           className="action-btn delete"
           onClick={(e) => {
             e.stopPropagation()
@@ -388,6 +441,15 @@ export const PresetCard: React.FC<PresetCardProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* JSON Editor Modal */}
+      {showJsonEditor && (
+        <PresetJsonEditor
+          preset={preset}
+          onSave={onEdit}
+          onClose={() => setShowJsonEditor(false)}
+        />
       )}
     </div>
   )

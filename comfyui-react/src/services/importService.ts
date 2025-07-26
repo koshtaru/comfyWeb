@@ -758,16 +758,26 @@ export class ImportService {
    * Convert raw ComfyUI workflow to preset format
    */
   private convertFromRawWorkflow(workflowData: any): IPreset[] {
+    // Convert raw workflow to proper ComfyUI format with nodes wrapper
+    const properWorkflowData = {
+      nodes: workflowData,
+      links: [],
+      groups: [],
+      config: {},
+      extra: {},
+      version: 0.4
+    }
+
     const preset: IPreset = {
       id: uuidv4(),
       name: `Imported Workflow ${new Date().toLocaleDateString()}`,
       description: 'Imported from raw ComfyUI workflow file',
       createdAt: new Date(),
       lastModified: new Date(),
-      workflowData: workflowData,
-      metadata: this.extractMetadataFromWorkflow(workflowData),
+      workflowData: properWorkflowData,
+      metadata: this.extractMetadataFromWorkflow(workflowData), // Still extract from raw data
       compressed: false,
-      size: new Blob([JSON.stringify(workflowData)]).size,
+      size: new Blob([JSON.stringify(properWorkflowData)]).size,
       tags: ['imported', 'raw-workflow'],
       category: 'imported',
       version: '2.0.0'

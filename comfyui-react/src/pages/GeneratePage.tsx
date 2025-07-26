@@ -2,7 +2,7 @@
 // ComfyUI React - Generate Page (txt2img)
 // ============================================================================
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { FileUpload, UploadProgress } from '@/components/workflow'
 import type { ExtractedParameters } from '@/utils/parameterExtractor'
 import { MetadataDisplay } from '@/components/metadata/MetadataDisplay'
@@ -29,7 +29,16 @@ export default function GeneratePage() {
   const { promptOverride, usePromptOverride, setPromptOverride, setUsePromptOverride } = usePromptStore()
   
   // Preset store methods
-  const { createPreset } = usePresetStore()
+  const { presets, loadPresets, createPreset } = usePresetStore()
+  const [showPresetSelector, setShowPresetSelector] = useState(false)
+  const [workflowQueue, setWorkflowQueue] = useState<Array<{
+    id: string
+    name: string
+    preset: any
+    status: 'pending' | 'processing' | 'completed' | 'failed'
+    addedAt: Date
+  }>>([])
+  const [showQueue, setShowQueue] = useState(false)
   
   // Generation hook (only need clearError since generate/interrupt moved to header)
   const { state: generationState, clearError } = useGeneration()
@@ -59,8 +68,84 @@ export default function GeneratePage() {
     }
   })
 
+  // Load presets on component mount
+  useEffect(() => {
+    loadPresets()
+  }, [loadPresets])
+
   const handleFileSelect = async (file: File) => {
     await uploadFile(file)
+  }
+
+  const handleLoadPreset = async (preset: any) => {
+    try {
+      // Convert the preset workflow data to JSON string and load it
+      const workflowJson = JSON.stringify(preset.workflowData, null, 2)
+      await pasteWorkflow(workflowJson)
+      setShowPresetSelector(false)
+      
+      // Update prompt override if the preset has prompts
+      if (preset.metadata?.prompts?.positive) {
+        setPromptOverride(preset.metadata.prompts.positive)
+        setUsePromptOverride(true)
+      }
+    } catch (error) {
+      console.error('Failed to load preset:', error)
+    }
+  }
+
+  // Queue management functions
+  const addToQueue = (preset: any, name?: string) => {
+    const queueItem = {
+      id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      name: name || preset.name || 'Unnamed Workflow',
+      preset,
+      status: 'pending' as const,
+      addedAt: new Date()
+    }
+    
+    setWorkflowQueue(prev => [...prev, queueItem])
+    setShowQueue(true)
+  }
+
+  const removeFromQueue = (id: string) => {
+    setWorkflowQueue(prev => prev.filter(item => item.id !== id))
+  }
+
+  const processNextInQueue = async () => {
+    const nextItem = workflowQueue.find(item => item.status === 'pending')
+    if (!nextItem) return
+
+    // Mark as processing
+    setWorkflowQueue(prev => prev.map(item => 
+      item.id === nextItem.id 
+        ? { ...item, status: 'processing' as const }
+        : item
+    ))
+
+    try {
+      await handleLoadPreset(nextItem.preset)
+      
+      // Mark as completed
+      setWorkflowQueue(prev => prev.map(item => 
+        item.id === nextItem.id 
+          ? { ...item, status: 'completed' as const }
+          : item
+      ))
+    } catch (error) {
+      console.error('Failed to process queue item:', error)
+      
+      // Mark as failed
+      setWorkflowQueue(prev => prev.map(item => 
+        item.id === nextItem.id 
+          ? { ...item, status: 'failed' as const }
+          : item
+      ))
+    }
+  }
+
+  const clearQueue = () => {
+    setWorkflowQueue([])
   }
 
   const handleParameterChange = (nodeId: string, parameter: string, value: any) => {
@@ -289,6 +374,156 @@ export default function GeneratePage() {
                 )}
                 
               </div>
+
+              {/* Preset Selector */}
+              <div className="mt-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-comfy-text-primary">
+                    Load Preset
+                  </label>
+                  <button
+                    type="button"
+                    className="text-xs text-comfy-text-secondary hover:text-comfy-text-primary"
+                    onClick={() => setShowPresetSelector(!showPresetSelector)}
+                  >
+                    {showPresetSelector ? 'Hide' : 'Show'} ({presets.length} available)
+                  </button>
+                </div>
+
+                {showPresetSelector && (
+                  <div className="comfy-panel p-3 max-h-48 overflow-y-auto">
+                    {presets.length === 0 ? (
+                      <div className="text-sm text-comfy-text-secondary text-center py-4">
+                        No presets saved yet. Upload a workflow and save it as a preset!
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {presets.slice(0, 10).map(preset => (
+                          <div
+                            key={preset.id}
+                            className="flex items-center justify-between p-2 border border-comfy-border rounded hover:bg-comfy-bg-tertiary"
+                          >
+                            <div className="flex-1 min-w-0" onClick={() => handleLoadPreset(preset)} style={{ cursor: 'pointer' }}>
+                              <div className="text-sm font-medium text-comfy-text-primary truncate">
+                                {preset.name}
+                              </div>
+                              <div className="text-xs text-comfy-text-secondary truncate">
+                                {preset.metadata?.model?.name || 'Unknown model'} • {preset.category}
+                                {preset.tags && preset.tags.length > 0 && (
+                                  <span className="ml-1">
+                                    {preset.tags.slice(0, 2).map(tag => (
+                                      <span key={tag} className="inline-block bg-comfy-bg-tertiary px-1 rounded text-xs ml-1">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2">
+                              <button
+                                className="text-xs px-2 py-1 bg-comfy-accent-blue text-white rounded hover:bg-opacity-80"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  addToQueue(preset)
+                                }}
+                                title="Add to queue"
+                              >
+                                📋
+                              </button>
+                              <div className="text-xs text-comfy-text-secondary">
+                                {new Date(preset.lastModified).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {presets.length > 10 && (
+                          <div className="text-xs text-comfy-text-secondary text-center pt-2 border-t border-comfy-border">
+                            Showing first 10 presets • <a href="/presets" className="text-comfy-accent-orange hover:underline">View all in Preset Manager</a>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Workflow Queue */}
+              {workflowQueue.length > 0 && (
+                <div className="mt-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <label className="block text-sm font-medium text-comfy-text-primary">
+                      Workflow Queue ({workflowQueue.length})
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        className="text-xs px-2 py-1 bg-comfy-accent-orange text-white rounded hover:bg-opacity-80"
+                        onClick={processNextInQueue}
+                        disabled={!workflowQueue.find(item => item.status === 'pending')}
+                      >
+                        Process Next
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-comfy-text-secondary hover:text-comfy-text-primary"
+                        onClick={() => setShowQueue(!showQueue)}
+                      >
+                        {showQueue ? 'Hide' : 'Show'} Queue
+                      </button>
+                      <button
+                        type="button"
+                        className="text-xs text-red-400 hover:text-red-300"
+                        onClick={clearQueue}
+                      >
+                        Clear All
+                      </button>
+                    </div>
+                  </div>
+
+                  {showQueue && (
+                    <div className="comfy-panel p-3 max-h-32 overflow-y-auto">
+                      <div className="space-y-1">
+                        {workflowQueue.map(item => (
+                          <div
+                            key={item.id}
+                            className={`flex items-center justify-between p-2 border rounded ${
+                              item.status === 'pending' ? 'border-comfy-border' :
+                              item.status === 'processing' ? 'border-comfy-accent-orange bg-comfy-accent-orange bg-opacity-10' :
+                              item.status === 'completed' ? 'border-comfy-success bg-comfy-success bg-opacity-10' :
+                              'border-red-500 bg-red-500 bg-opacity-10'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-comfy-text-primary truncate">
+                                {item.name}
+                              </div>
+                              <div className="text-xs text-comfy-text-secondary">
+                                Added: {item.addedAt.toLocaleTimeString()} • Status: {item.status}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-2">
+                              <div className="text-xs">
+                                {item.status === 'pending' && '⏳'}
+                                {item.status === 'processing' && '🔄'}
+                                {item.status === 'completed' && '✅'}
+                                {item.status === 'failed' && '❌'}
+                              </div>
+                              <button
+                                className="text-xs text-red-400 hover:text-red-300"
+                                onClick={() => removeFromQueue(item.id)}
+                                title="Remove from queue"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {extractedParameters && (
                 <UploadErrorBoundary>
