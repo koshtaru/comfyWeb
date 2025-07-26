@@ -57,6 +57,13 @@ interface UploadState {
   uploadHistory: UploadHistoryItem[]
   maxHistoryItems: number
 
+  // Notification state
+  notificationState: {
+    hasUnreadValidationIssues: boolean
+    lastValidationResultId: string | null
+    isNotificationDropdownOpen: boolean
+  }
+
   // Settings
   autoValidate: boolean
   autoExtractParameters: boolean
@@ -87,6 +94,11 @@ interface UploadState {
     failedUploads: number
     averageProcessingTime: number
   }
+
+  // Notification management
+  setNotificationDropdownOpen: (isOpen: boolean) => void
+  markValidationIssuesAsRead: () => void
+  updateNotificationState: (updates: Partial<UploadState['notificationState']>) => void
 
   // Settings
   updateSettings: (settings: Partial<{
@@ -119,6 +131,11 @@ export const useUploadStore = create<UploadState>()(
       processingQueue: false,
       uploadHistory: [],
       maxHistoryItems: 50,
+      notificationState: {
+        hasUnreadValidationIssues: false,
+        lastValidationResultId: null,
+        isNotificationDropdownOpen: false
+      },
       autoValidate: true,
       autoExtractParameters: true,
       showValidationWarnings: true,
@@ -134,8 +151,29 @@ export const useUploadStore = create<UploadState>()(
           'setUploadStatus'
         ),
 
-      setValidationResult: (result) =>
-        set({ validationResult: result }, false, 'setValidationResult'),
+      setValidationResult: (result) => {
+        const currentResult = get().validationResult
+        const hasIssues = result && (result.errors.length > 0 || result.warnings.length > 0)
+        const resultId = result ? `${Date.now()}-${Math.random()}` : null
+        
+        // Mark as unread if this is a new validation result with issues
+        const hasUnreadIssues = !!(hasIssues && (!currentResult || 
+          currentResult.errors.length !== result.errors.length ||
+          currentResult.warnings.length !== result.warnings.length))
+
+        set(
+          (state) => ({
+            validationResult: result,
+            notificationState: {
+              ...state.notificationState,
+              hasUnreadValidationIssues: hasUnreadIssues,
+              lastValidationResultId: resultId
+            }
+          }),
+          false,
+          'setValidationResult'
+        )
+      },
 
       setExtractedParameters: (parameters) =>
         set({ extractedParameters: parameters }, false, 'setExtractedParameters'),
@@ -242,6 +280,43 @@ export const useUploadStore = create<UploadState>()(
           averageProcessingTime
         }
       },
+
+      // Notification management
+      setNotificationDropdownOpen: (isOpen) =>
+        set(
+          (state) => ({
+            notificationState: {
+              ...state.notificationState,
+              isNotificationDropdownOpen: isOpen
+            }
+          }),
+          false,
+          'setNotificationDropdownOpen'
+        ),
+
+      markValidationIssuesAsRead: () =>
+        set(
+          (state) => ({
+            notificationState: {
+              ...state.notificationState,
+              hasUnreadValidationIssues: false
+            }
+          }),
+          false,
+          'markValidationIssuesAsRead'
+        ),
+
+      updateNotificationState: (updates) =>
+        set(
+          (state) => ({
+            notificationState: {
+              ...state.notificationState,
+              ...updates
+            }
+          }),
+          false,
+          'updateNotificationState'
+        ),
 
       // Settings
       updateSettings: (settings) =>

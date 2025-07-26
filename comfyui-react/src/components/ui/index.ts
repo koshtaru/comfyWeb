@@ -59,6 +59,10 @@ export { Modal, ModalHeader, ModalBody, ModalFooter } from './Modal'
 export { GenerationSettings } from './GenerationSettings'
 export { default as ProgressToast } from './ProgressToast'
 
+// Alert Notification System
+export { default as AlertNotificationIcon } from './AlertNotificationIcon'
+export { default as ValidationDropdown } from './ValidationDropdown'
+
 // Feedback Components
 export { IconButton, iconButtonVariants, type IconButtonProps } from './IconButton'
 export { ToastContainer, useToast } from './Toast'

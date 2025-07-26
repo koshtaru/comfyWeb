@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React, { useState, useMemo } from 'react'
-import { FileUpload, UploadProgress, ValidationResults } from '@/components/workflow'
+import { FileUpload, UploadProgress } from '@/components/workflow'
 import type { ExtractedParameters } from '@/utils/parameterExtractor'
 import { MetadataDisplay } from '@/components/metadata/MetadataDisplay'
 import { GenerationSettings } from '@/components/ui'
@@ -30,7 +30,6 @@ export default function GeneratePage() {
   
   const {
     currentUpload,
-    validationResult,
     extractedParameters,
     currentWorkflow,
     uploadFile,
@@ -200,14 +199,6 @@ export default function GeneratePage() {
                   </div>
                 )}
                 
-                {validationResult && (
-                  <ValidationResults
-                    result={validationResult}
-                    onDismiss={() => {
-                      // Handled by the upload store now
-                    }}
-                  />
-                )}
               </div>
 
               {extractedParameters && (
