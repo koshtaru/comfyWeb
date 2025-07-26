@@ -145,10 +145,11 @@ export interface IPresetValidationResult {
 
 // Compression options
 export interface ICompressionOptions {
-  algorithm: 'gzip' | 'deflate' | 'none'
+  algorithm: 'gzip' | 'deflate' | 'lzstring' | 'none'
   level?: number
   threshold: number
   maxSize: number
+  chunkSize?: number
 }
 
 // Storage configuration

@@ -1,21 +1,55 @@
 // ============================================================================
-// ComfyUI React - Compression Utilities
+// ComfyUI React - Enhanced Compression Service with LZ-string
 // ============================================================================
 
+import LZString from 'lz-string'
 import type { ComfyUIWorkflow } from '@/types'
 import type { ICompressionOptions } from '@/types/preset'
+import { chunkManager } from './chunkManager'
+
+// Compression levels based on data size
+export enum CompressionLevel {
+  NONE = 0,        // < 1KB - No compression, just base64
+  BASIC = 1,       // 1KB-50KB - LZ-string standard compression
+  ENHANCED = 2,    // 50KB-100KB - LZ-string UTF16 compression
+  CHUNKED = 3      // > 100KB - Chunked compression
+}
 
 // Default compression configuration
 const DEFAULT_COMPRESSION_OPTIONS: ICompressionOptions = {
-  algorithm: 'gzip',
+  algorithm: 'lzstring',
   level: 6,
   threshold: 1024, // 1KB
   maxSize: 5 * 1024 * 1024, // 5MB
+  chunkSize: 50 * 1024, // 50KB chunks for large data
+}
+
+// Chunk metadata for large workflows
+export interface ChunkMetadata {
+  id: string
+  presetId: string
+  chunkIndex: number
+  totalChunks: number
+  data: string
+  checksum: string
+  compressed: boolean
+}
+
+// Compression result with enhanced metadata
+export interface CompressionResult {
+  data: string | ChunkMetadata[]
+  compressed: boolean
+  compressionLevel: CompressionLevel
+  originalSize: number
+  compressedSize: number
+  ratio: number
+  isChunked: boolean
+  chunkCount?: number
 }
 
 /**
- * Simple base64 compression using pako or native compression
- * Fallback to JSON.stringify if compression is not available
+ * Enhanced compression service with LZ-string and chunking support
+ * Provides progressive compression levels based on data size
  */
 export class CompressionService {
   private options: ICompressionOptions
@@ -25,90 +59,258 @@ export class CompressionService {
   }
 
   /**
-   * Compress workflow data to base64 string
+   * Determine optimal compression level based on data size
    */
-  async compressWorkflow(workflow: ComfyUIWorkflow): Promise<{
-    data: string
-    compressed: boolean
-    originalSize: number
-    compressedSize: number
-    ratio: number
-  }> {
+  private getCompressionLevel(size: number): CompressionLevel {
+    if (size < this.options.threshold) return CompressionLevel.NONE
+    if (size < 50 * 1024) return CompressionLevel.BASIC
+    if (size < 100 * 1024) return CompressionLevel.ENHANCED
+    return CompressionLevel.CHUNKED
+  }
+
+  /**
+   * Calculate simple checksum for data integrity
+   */
+  private calculateChecksum(data: string): string {
+    let hash = 0
+    for (let i = 0; i < data.length; i++) {
+      const char = data.charCodeAt(i)
+      hash = ((hash << 5) - hash) + char
+      hash = hash & hash // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16)
+  }
+
+  /**
+   * Compress workflow data with progressive compression levels
+   */
+  async compressWorkflow(workflow: ComfyUIWorkflow): Promise<CompressionResult> {
     const jsonString = JSON.stringify(workflow)
     const originalSize = new Blob([jsonString]).size
+    const compressionLevel = this.getCompressionLevel(originalSize)
 
-    // Check if compression is needed
-    if (originalSize < this.options.threshold) {
+    // Level 0: No compression for small data
+    if (compressionLevel === CompressionLevel.NONE) {
+      const encoded = btoa(jsonString)
       return {
-        data: btoa(jsonString),
+        data: encoded,
         compressed: false,
+        compressionLevel,
         originalSize,
         compressedSize: originalSize,
         ratio: 1.0,
+        isChunked: false,
       }
     }
 
     try {
       let compressedData: string
+      let compressedSize: number
 
-      if (this.options.algorithm === 'gzip' && typeof window !== 'undefined' && 'CompressionStream' in window) {
-        compressedData = await this.compressWithStream(jsonString, 'gzip')
-      } else if (this.options.algorithm === 'deflate' && typeof window !== 'undefined' && 'CompressionStream' in window) {
-        compressedData = await this.compressWithStream(jsonString, 'deflate')
-      } else {
-        // Fallback to simple base64 encoding
-        compressedData = btoa(jsonString)
+      // Level 1: Basic LZ-string compression
+      if (compressionLevel === CompressionLevel.BASIC) {
+        compressedData = LZString.compressToBase64(jsonString)
+        compressedSize = new Blob([compressedData]).size
+        
+        return {
+          data: compressedData,
+          compressed: true,
+          compressionLevel,
+          originalSize,
+          compressedSize,
+          ratio: compressedSize / originalSize,
+          isChunked: false,
+        }
       }
 
-      const compressedSize = new Blob([compressedData]).size
-      const ratio = originalSize / compressedSize
-
-      return {
-        data: compressedData,
-        compressed: compressedSize < originalSize,
-        originalSize,
-        compressedSize,
-        ratio,
+      // Level 2: Enhanced UTF16 compression for better ratio
+      if (compressionLevel === CompressionLevel.ENHANCED) {
+        compressedData = LZString.compressToUTF16(jsonString)
+        // Convert to base64 for storage compatibility
+        compressedData = btoa(unescape(encodeURIComponent(compressedData)))
+        compressedSize = new Blob([compressedData]).size
+        
+        return {
+          data: compressedData,
+          compressed: true,
+          compressionLevel,
+          originalSize,
+          compressedSize,
+          ratio: compressedSize / originalSize,
+          isChunked: false,
+        }
       }
+
+      // Level 3: Chunked compression for large workflows
+      if (compressionLevel === CompressionLevel.CHUNKED) {
+        const presetId = workflow.id || `temp_${Date.now()}`
+        const chunks = await this.createChunks(jsonString, presetId)
+        const totalCompressedSize = chunks.reduce((sum, chunk) => 
+          sum + new Blob([chunk.data]).size, 0
+        )
+        
+        // Store chunks in ChunkManager for persistence
+        if (workflow.id) {
+          try {
+            await chunkManager.storeChunks(presetId, chunks)
+          } catch (error) {
+            console.warn('Failed to store chunks in ChunkManager:', error)
+          }
+        }
+        
+        return {
+          data: chunks,
+          compressed: true,
+          compressionLevel,
+          originalSize,
+          compressedSize: totalCompressedSize,
+          ratio: totalCompressedSize / originalSize,
+          isChunked: true,
+          chunkCount: chunks.length,
+        }
+      }
+
+      // Fallback (should not reach here)
+      throw new Error('Invalid compression level')
+      
     } catch (error) {
-      console.warn('Compression failed, using uncompressed data:', error)
+      console.warn('Compression failed, using base64 encoding:', error)
+      const encoded = btoa(jsonString)
       
       return {
-        data: btoa(jsonString),
+        data: encoded,
         compressed: false,
+        compressionLevel: CompressionLevel.NONE,
         originalSize,
         compressedSize: originalSize,
         ratio: 1.0,
+        isChunked: false,
       }
     }
   }
 
   /**
-   * Decompress workflow data from base64 string
+   * Create chunks for large workflow data
+   */
+  private async createChunks(data: string, presetId: string): Promise<ChunkMetadata[]> {
+    const compressed = LZString.compressToBase64(data)
+    const chunkSize = this.options.chunkSize || 50 * 1024
+    const chunks: ChunkMetadata[] = []
+    
+    for (let i = 0; i < compressed.length; i += chunkSize) {
+      const chunkData = compressed.slice(i, i + chunkSize)
+      const chunkId = `chunk_${presetId}_${chunks.length}`
+      
+      chunks.push({
+        id: chunkId,
+        presetId,
+        chunkIndex: chunks.length,
+        totalChunks: Math.ceil(compressed.length / chunkSize),
+        data: chunkData,
+        checksum: this.calculateChecksum(chunkData),
+        compressed: true,
+      })
+    }
+    
+    // Update total chunks count
+    chunks.forEach(chunk => {
+      chunk.totalChunks = chunks.length
+    })
+    
+    return chunks
+  }
+
+  /**
+   * Reassemble chunks into original data
+   */
+  private async reassembleChunks(chunks: ChunkMetadata[]): Promise<string> {
+    // Sort chunks by index
+    const sortedChunks = [...chunks].sort((a, b) => a.chunkIndex - b.chunkIndex)
+    
+    // Validate chunks
+    if (sortedChunks.length === 0) {
+      throw new Error('No chunks provided')
+    }
+    
+    const expectedCount = sortedChunks[0].totalChunks
+    if (sortedChunks.length !== expectedCount) {
+      throw new Error(`Missing chunks: expected ${expectedCount}, got ${sortedChunks.length}`)
+    }
+    
+    // Verify checksums
+    for (const chunk of sortedChunks) {
+      const calculatedChecksum = this.calculateChecksum(chunk.data)
+      if (calculatedChecksum !== chunk.checksum) {
+        throw new Error(`Chunk ${chunk.chunkIndex} checksum mismatch`)
+      }
+    }
+    
+    // Reassemble data
+    const reassembled = sortedChunks.map(chunk => chunk.data).join('')
+    return LZString.decompressFromBase64(reassembled) || ''
+  }
+
+  /**
+   * Decompress workflow data with support for all compression levels
    */
   async decompressWorkflow(
-    data: string,
-    isCompressed: boolean = false
+    data: string | ChunkMetadata[],
+    compressionLevel?: CompressionLevel,
+    presetId?: string
   ): Promise<ComfyUIWorkflow> {
     try {
-      if (!isCompressed) {
-        // Simple base64 decode
+      // Handle chunked data
+      if (Array.isArray(data)) {
+        const decompressed = await this.reassembleChunks(data)
+        return JSON.parse(decompressed)
+      }
+
+      // If presetId is provided and no data, try to get chunks from ChunkManager
+      if (!data && presetId && chunkManager.hasChunks(presetId)) {
+        const chunks = await chunkManager.getChunks(presetId)
+        if (chunks) {
+          const decompressed = await this.reassembleChunks(chunks)
+          return JSON.parse(decompressed)
+        }
+      }
+
+      // Handle non-compressed data
+      if (compressionLevel === CompressionLevel.NONE || !compressionLevel) {
+        if (typeof data !== 'string') {
+          throw new Error('Invalid data type for non-compressed workflow')
+        }
         const jsonString = atob(data)
         return JSON.parse(jsonString)
       }
 
-      let decompressedString: string
-
-      if (this.options.algorithm === 'gzip' && typeof window !== 'undefined' && 'DecompressionStream' in window) {
-        decompressedString = await this.decompressWithStream(data, 'gzip')
-      } else if (this.options.algorithm === 'deflate' && typeof window !== 'undefined' && 'DecompressionStream' in window) {
-        decompressedString = await this.decompressWithStream(data, 'deflate')
-      } else {
-        // Fallback to base64 decode
-        decompressedString = atob(data)
+      // Handle LZ-string basic compression
+      if (compressionLevel === CompressionLevel.BASIC) {
+        if (typeof data !== 'string') {
+          throw new Error('Invalid data type for basic compressed workflow')
+        }
+        const decompressed = LZString.decompressFromBase64(data)
+        if (!decompressed) {
+          throw new Error('Failed to decompress data')
+        }
+        return JSON.parse(decompressed)
       }
 
-      return JSON.parse(decompressedString)
+      // Handle UTF16 compression
+      if (compressionLevel === CompressionLevel.ENHANCED) {
+        if (typeof data !== 'string') {
+          throw new Error('Invalid data type for enhanced compressed workflow')
+        }
+        // Decode from base64 first
+        const utf16Data = decodeURIComponent(escape(atob(data)))
+        const decompressed = LZString.decompressFromUTF16(utf16Data)
+        if (!decompressed) {
+          throw new Error('Failed to decompress UTF16 data')
+        }
+        return JSON.parse(decompressed)
+      }
+
+      throw new Error(`Unknown compression level: ${compressionLevel}`)
+      
     } catch (error) {
       console.error('Failed to decompress workflow:', error)
       throw new Error('Invalid or corrupted workflow data')
@@ -116,92 +318,40 @@ export class CompressionService {
   }
 
   /**
-   * Compress string using native CompressionStream
+   * Analyze compression efficiency for a dataset
    */
-  private async compressWithStream(
-    data: string,
-    format: 'gzip' | 'deflate'
-  ): Promise<string> {
-    const stream = new CompressionStream(format)
-    const writer = stream.writable.getWriter()
-    const reader = stream.readable.getReader()
-
-    // Write data to compression stream
-    const encoder = new TextEncoder()
-    await writer.write(encoder.encode(data))
-    await writer.close()
-
-    // Read compressed data
-    const chunks: Uint8Array[] = []
-    let done = false
-
-    while (!done) {
-      const { value, done: readerDone } = await reader.read()
-      done = readerDone
-      if (value) {
-        chunks.push(value)
+  analyzeCompressionEfficiency(workflows: ComfyUIWorkflow[]): {
+    totalOriginalSize: number
+    totalCompressedSize: number
+    averageCompressionRatio: number
+    bestCompressionRatio: number
+    worstCompressionRatio: number
+    recommendedThreshold: number
+  } {
+    const results = workflows.map(workflow => {
+      const jsonString = JSON.stringify(workflow)
+      const originalSize = new Blob([jsonString]).size
+      const compressed = LZString.compressToBase64(jsonString)
+      const compressedSize = new Blob([compressed]).size
+      return {
+        originalSize,
+        compressedSize,
+        ratio: compressedSize / originalSize
       }
+    })
+
+    const totalOriginalSize = results.reduce((sum, r) => sum + r.originalSize, 0)
+    const totalCompressedSize = results.reduce((sum, r) => sum + r.compressedSize, 0)
+    const ratios = results.map(r => r.ratio)
+    
+    return {
+      totalOriginalSize,
+      totalCompressedSize,
+      averageCompressionRatio: totalCompressedSize / totalOriginalSize,
+      bestCompressionRatio: Math.min(...ratios),
+      worstCompressionRatio: Math.max(...ratios),
+      recommendedThreshold: results.find(r => r.ratio < 0.9)?.originalSize || 1024
     }
-
-    // Combine chunks and convert to base64
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
-    const combined = new Uint8Array(totalLength)
-    let offset = 0
-
-    for (const chunk of chunks) {
-      combined.set(chunk, offset)
-      offset += chunk.length
-    }
-
-    return btoa(String.fromCharCode(...combined))
-  }
-
-  /**
-   * Decompress string using native DecompressionStream
-   */
-  private async decompressWithStream(
-    data: string,
-    format: 'gzip' | 'deflate'
-  ): Promise<string> {
-    // Convert base64 to Uint8Array
-    const binaryString = atob(data)
-    const bytes = new Uint8Array(binaryString.length)
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i)
-    }
-
-    const stream = new DecompressionStream(format)
-    const writer = stream.writable.getWriter()
-    const reader = stream.readable.getReader()
-
-    // Write compressed data to decompression stream
-    await writer.write(bytes)
-    await writer.close()
-
-    // Read decompressed data
-    const chunks: Uint8Array[] = []
-    let done = false
-
-    while (!done) {
-      const { value, done: readerDone } = await reader.read()
-      done = readerDone
-      if (value) {
-        chunks.push(value)
-      }
-    }
-
-    // Combine chunks and decode as string
-    const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0)
-    const combined = new Uint8Array(totalLength)
-    let offset = 0
-
-    for (const chunk of chunks) {
-      combined.set(chunk, offset)
-      offset += chunk.length
-    }
-
-    const decoder = new TextDecoder()
-    return decoder.decode(combined)
   }
 
   /**
@@ -255,15 +405,25 @@ export class CompressionService {
   }
 }
 
-// Default instance
-export const compressionService = new CompressionService()
+// Default instance with enhanced configuration
+export const compressionService = new CompressionService({
+  algorithm: 'lzstring',
+  threshold: 1024, // 1KB
+  chunkSize: 50 * 1024, // 50KB chunks
+})
 
 // Utility functions for direct use
 export const compressWorkflow = (workflow: ComfyUIWorkflow) =>
   compressionService.compressWorkflow(workflow)
 
-export const decompressWorkflow = (data: string, isCompressed: boolean = false) =>
-  compressionService.decompressWorkflow(data, isCompressed)
+export const decompressWorkflow = (
+  data: string | ChunkMetadata[], 
+  compressionLevel?: CompressionLevel,
+  presetId?: string
+) => compressionService.decompressWorkflow(data, compressionLevel, presetId)
 
 export const shouldCompress = (data: string) =>
   compressionService.shouldCompress(data)
+
+export const analyzeCompressionEfficiency = (workflows: ComfyUIWorkflow[]) =>
+  compressionService.analyzeCompressionEfficiency(workflows)
