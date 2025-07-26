@@ -217,11 +217,56 @@ export class MetadataParser extends ParameterExtractor {
   private metadata: Partial<MetadataSchema> = {}
 
   constructor(workflow: WorkflowData, nodeDefinitions?: Map<string, NodeTypeDefinition>) {
-    super(workflow)
+    // Clean and validate workflow before processing
+    const cleanedWorkflow = MetadataParser.cleanWorkflow(workflow)
+    super(cleanedWorkflow)
     if (nodeDefinitions) {
       this.nodeTypes = nodeDefinitions
     }
     this.loadStandardNodeTypes()
+  }
+
+  /**
+   * Clean workflow data by removing invalid nodes
+   */
+  private static cleanWorkflow(workflow: WorkflowData): WorkflowData {
+    const cleaned: WorkflowData = {}
+    
+    if (!workflow || typeof workflow !== 'object') {
+      console.error('[MetadataParser] Invalid workflow structure')
+      return cleaned
+    }
+
+    // Check if this is a ComfyUI UI export format with nodes property
+    let actualWorkflow = workflow
+    if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
+      console.log('[MetadataParser] Detected ComfyUI UI format, extracting nodes for cleaning')
+      actualWorkflow = (workflow as any).nodes as WorkflowData
+    }
+
+    for (const [nodeId, node] of Object.entries(actualWorkflow)) {
+      // Skip invalid nodes
+      if (!node || typeof node !== 'object') {
+        console.warn(`[MetadataParser] Skipping invalid node ${nodeId}`)
+        continue
+      }
+
+      // Skip nodes without class_type
+      if (!node.class_type) {
+        console.warn(`[MetadataParser] Skipping node ${nodeId} without class_type`)
+        continue
+      }
+
+      // Ensure node has inputs object
+      if (!node.inputs) {
+        node.inputs = {}
+      }
+
+      cleaned[nodeId] = node
+    }
+
+    console.log(`[MetadataParser] Cleaned workflow: ${Object.keys(actualWorkflow).length} → ${Object.keys(cleaned).length} nodes`)
+    return cleaned
   }
 
   /**
@@ -367,6 +412,11 @@ export class MetadataParser extends ParameterExtractor {
     const relationships: NodeRelationship[] = []
 
     for (const [nodeId, node] of Object.entries(this.workflow)) {
+      // Safety check for node structure
+      if (!node || !node.inputs || typeof node.inputs !== 'object') {
+        continue
+      }
+      
       for (const [inputName, inputValue] of Object.entries(node.inputs)) {
         if (Array.isArray(inputValue) && inputValue.length === 2) {
           const [sourceNodeId, outputIndex] = inputValue
@@ -399,7 +449,9 @@ export class MetadataParser extends ParameterExtractor {
    * Analyze workflow features
    */
   private analyzeWorkflowFeatures(): WorkflowFeatures {
-    const nodeTypes = Object.values(this.workflow).map(n => n.class_type)
+    const nodeTypes = Object.values(this.workflow)
+      .filter(n => n && n.class_type)
+      .map(n => n.class_type)
     
     return {
       hasImg2Img: this.hasImg2Img(nodeTypes),
@@ -564,7 +616,8 @@ export class MetadataParser extends ParameterExtractor {
 
   private extractWorkflowName(): string | undefined {
     // Try to extract from metadata or comments
-    const firstNode = Object.values(this.workflow)[0]
+    const validNodes = Object.values(this.workflow).filter(n => n && typeof n === 'object')
+    const firstNode = validNodes[0]
     return firstNode?._meta?.title || undefined
   }
 
@@ -615,6 +668,11 @@ export class MetadataParser extends ParameterExtractor {
   private countConnections(): number {
     let count = 0
     for (const node of Object.values(this.workflow)) {
+      // Safety check for node structure
+      if (!node || !node.inputs || typeof node.inputs !== 'object') {
+        continue
+      }
+      
       for (const input of Object.values(node.inputs)) {
         if (Array.isArray(input) && input.length === 2) {
           count++
@@ -626,7 +684,7 @@ export class MetadataParser extends ParameterExtractor {
 
   private countCustomNodes(): number {
     return Object.values(this.workflow).filter(
-      node => !this.isStandardNode(node.class_type)
+      node => node && node.class_type && !this.isStandardNode(node.class_type)
     ).length
   }
 
@@ -684,6 +742,11 @@ export class MetadataParser extends ParameterExtractor {
 
   private extractNodeInputs(node: any, nodeType?: NodeTypeDefinition): NodeInput[] {
     const inputs: NodeInput[] = []
+    
+    // Safety check for node.inputs
+    if (!node.inputs || typeof node.inputs !== 'object') {
+      return inputs
+    }
     
     for (const [name, value] of Object.entries(node.inputs)) {
       const inputDef = nodeType?.inputs?.[name]
@@ -786,6 +849,7 @@ export class MetadataParser extends ParameterExtractor {
 
   private hasBatchProcessing(_nodeTypes: string[]): boolean {
     for (const node of Object.values(this.workflow)) {
+      if (!node || !node.inputs) continue
       const batchSize = this.getNumericValue(node.inputs.batch_size)
       if (batchSize && batchSize > 1) return true
     }
@@ -823,6 +887,7 @@ export class MetadataParser extends ParameterExtractor {
   private calculateTotalSteps(): number {
     let totalSteps = 0
     for (const node of Object.values(this.workflow)) {
+      if (!node || !node.class_type || !node.inputs) continue
       if (node.class_type === 'KSampler' || node.class_type === 'KSamplerAdvanced') {
         totalSteps += this.getNumericValue(node.inputs.steps) || 0
       }

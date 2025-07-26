@@ -103,7 +103,8 @@ export default function Navigation() {
                     ? applyPromptOverride(currentWorkflow, promptOverride, extractedParameters)
                     : currentWorkflow
                   
-                  generate(workflowToGenerate)
+                  // Ensure the workflow is in the correct format for ComfyUI
+                  generate(workflowToGenerate as any)
                 }
               }}
               disabled={!isReady || isProcessing || !currentWorkflow}

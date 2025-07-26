@@ -159,6 +159,14 @@ export const PresetSaveDialog: React.FC<PresetSaveDialogProps> = ({
         .filter(Boolean)
         .filter((tag, index, arr) => arr.indexOf(tag) === index) // Remove duplicates
 
+      // Debug workflow data before saving
+      console.log('[PresetSaveDialog] Saving workflow data:', {
+        workflowType: typeof workflowData,
+        workflowKeys: Object.keys(workflowData || {}),
+        sampleNode: Object.entries(workflowData || {})[0],
+        workflowData
+      })
+
       // Create preset object
       const preset: Omit<IPreset, 'id' | 'createdAt' | 'lastModified' | 'size'> = {
         name: formData.name.trim(),

@@ -99,17 +99,29 @@ export const useGeneration = (): UseGenerationReturn => {
       // Check if there were node errors
       if (response.node_errors && Object.keys(response.node_errors).length > 0) {
         console.error('[Generation] ⚠️ NODE ERRORS - Workflow won\'t execute properly:', response.node_errors)
+        
+        // Create detailed error message from node errors
+        const nodeErrorMessages = Object.entries(response.node_errors).map(([nodeId, error]: [string, any]) => {
+          if (error.type === 'value_not_found') {
+            return `Node ${nodeId}: ${error.message}. Possible missing input or invalid connection.`
+          }
+          return `Node ${nodeId}: ${error.message || 'Unknown error'}`
+        }).join('\n')
+        
         setState(prev => ({
           ...prev,
-          error: 'Workflow has node errors - check console for details'
+          isGenerating: false,
+          error: `Workflow has validation errors:\n${nodeErrorMessages}`,
+          currentPromptId: null
         }))
+        return // Don't continue with generation if there are node errors
       }
 
       // Fallback: Check generation status after a reasonable time if WebSocket doesn't update
       setTimeout(() => {
         setState(prev => {
           if (prev.isGenerating && prev.currentPromptId === response.prompt_id) {
-            console.log('[Generation] WebSocket didn\'t detect completion after 30s, marking as complete')
+            console.log('[Generation] WebSocket didn\'t detect completion after 120s, marking as complete')
             return {
               ...prev,
               isGenerating: false
@@ -117,7 +129,7 @@ export const useGeneration = (): UseGenerationReturn => {
           }
           return prev
         })
-      }, 30000) // 30 seconds timeout to allow for long generations
+      }, 120000) // 120 seconds timeout to allow for model loading and long generations
 
     } catch (error: any) {
       console.error('[Generation] Failed to start generation:', error)

@@ -15,6 +15,7 @@ interface PresetCardProps {
   onDelete: () => void
   onToggleSelection: (selected: boolean) => void
   onToggleCompression: () => void
+  onApplyAndNavigate: (preset: IPreset) => void
   viewMode: 'grid' | 'list'
 }
 
@@ -26,6 +27,7 @@ export const PresetCard: React.FC<PresetCardProps> = ({
   onDelete,
   onToggleSelection,
   onToggleCompression,
+  onApplyAndNavigate,
   viewMode
 }) => {
   const [showDetails, setShowDetails] = useState(false)
@@ -274,9 +276,9 @@ export const PresetCard: React.FC<PresetCardProps> = ({
           className="action-btn apply"
           onClick={(e) => {
             e.stopPropagation()
-            onSelect()
+            onApplyAndNavigate(preset)
           }}
-          title="Apply this preset"
+          title="Apply this preset and go to txt2img"
         >
           ✓
         </button>

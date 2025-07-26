@@ -92,9 +92,24 @@ export class ParameterExtractor {
   protected nodeConnections: Map<string, Array<{ nodeId: string, outputIndex: number }>>
 
   constructor(workflow: WorkflowData) {
-    this.workflow = workflow
+    // Extract nodes from ComfyUI UI format if needed
+    this.workflow = this.extractWorkflowNodes(workflow)
     this.nodeConnections = new Map()
     this.buildConnectionMap()
+  }
+
+  /**
+   * Extract workflow nodes from ComfyUI UI format
+   */
+  private extractWorkflowNodes(workflow: WorkflowData): WorkflowData {
+    // Check if this is a ComfyUI UI export format with nodes property
+    if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
+      console.log('[ParameterExtractor] Detected ComfyUI UI format, extracting nodes')
+      return (workflow as any).nodes as WorkflowData
+    }
+    
+    // Already in the correct format (direct node mapping)
+    return workflow
   }
 
   extract(): ExtractedParameters {
@@ -109,7 +124,24 @@ export class ParameterExtractor {
   }
 
   private buildConnectionMap(): void {
+    // Safety check for workflow structure
+    if (!this.workflow || typeof this.workflow !== 'object') {
+      console.error('[ParameterExtractor] Invalid workflow structure:', this.workflow)
+      return
+    }
+
     for (const [nodeId, node] of Object.entries(this.workflow)) {
+      // Safety check for node structure - only warn if truly invalid
+      if (!node || typeof node !== 'object') {
+        console.warn(`[ParameterExtractor] Invalid node structure for node ${nodeId}: not an object`)
+        continue
+      }
+      
+      // Skip nodes without inputs (metadata nodes, etc.)
+      if (!node.inputs) {
+        continue
+      }
+
       for (const [, inputValue] of Object.entries(node.inputs)) {
         if (Array.isArray(inputValue) && inputValue.length === 2) {
           const [sourceNodeId, outputIndex] = inputValue
@@ -301,6 +333,7 @@ export class ParameterExtractor {
           params.positive = text
           params.positiveNodeId = nodeId
           console.log(`[ParameterExtractor] Fallback: Assuming first CLIPTextEncode is positive: "${text}" in node ${nodeId}`)
+          console.log(`[ParameterExtractor] Set positiveNodeId to:`, params.positiveNodeId)
         } else if (!params.negativeNodeId && text !== params.positive) {
           params.negative = text  
           params.negativeNodeId = nodeId
@@ -309,6 +342,7 @@ export class ParameterExtractor {
       }
     }
 
+    console.log(`[ParameterExtractor] Final prompt parameters:`, params)
     return params
   }
 
@@ -340,16 +374,18 @@ export class ParameterExtractor {
   }
 
   protected extractWorkflowMetadata(): WorkflowMetadata {
-    const nodeTypes = [...new Set(Object.values(this.workflow).map(n => n.class_type))]
+    const nodeTypes = [...new Set(Object.values(this.workflow)
+      .filter(n => n && n.class_type)
+      .map(n => n.class_type))]
     const totalNodes = Object.keys(this.workflow).length
     
     // Detect workflow characteristics
     const hasImg2Img = nodeTypes.includes('LoadImage') && nodeTypes.includes('VAEEncode')
-    const hasInpainting = nodeTypes.some(type => type.toLowerCase().includes('inpaint'))
-    const hasControlNet = nodeTypes.some(type => type.includes('ControlNet'))
+    const hasInpainting = nodeTypes.some(type => type && type.toLowerCase().includes('inpaint'))
+    const hasControlNet = nodeTypes.some(type => type && type.includes('ControlNet'))
     const hasLora = nodeTypes.includes('LoraLoader')
     const hasUpscaling = nodeTypes.some(type => 
-      type.toLowerCase().includes('upscale') || type.toLowerCase().includes('esrgan')
+      type && (type.toLowerCase().includes('upscale') || type.toLowerCase().includes('esrgan'))
     )
 
     // Detect architecture from checkpoint

@@ -19,6 +19,7 @@ interface PresetManagerProps {
   onPresetUpdate: (id: string, updates: Partial<IPreset>) => Promise<void>
   onPresetDelete: (id: string) => Promise<void>
   onPresetsImport: (presets: IPreset[]) => Promise<void>
+  onPresetApplyAndNavigate: (preset: IPreset) => void
   loading?: boolean
   error?: string | null
   className?: string
@@ -31,6 +32,7 @@ export const PresetManager: React.FC<PresetManagerProps> = ({
   onPresetUpdate,
   onPresetDelete,
   onPresetsImport,
+  onPresetApplyAndNavigate,
   loading = false,
   error = null,
   className = ''
@@ -409,6 +411,7 @@ export const PresetManager: React.FC<PresetManagerProps> = ({
                 onSelect={() => handlePresetSelect(preset)}
                 onEdit={(updates) => onPresetUpdate(preset.id, updates)}
                 onDelete={() => handlePresetDelete(preset)}
+                onApplyAndNavigate={onPresetApplyAndNavigate}
                 onToggleSelection={(selected) => {
                   const newSelection = new Set(selectedPresets)
                   if (selected) {

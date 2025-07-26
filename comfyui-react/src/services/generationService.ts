@@ -32,18 +32,72 @@ export class GenerationService {
   }
 
   /**
+   * Extract workflow nodes from ComfyUI UI format
+   */
+  private extractWorkflowNodes(workflow: ComfyUIWorkflow): ComfyUIWorkflow {
+    // Check if this is a ComfyUI UI export format with nodes property
+    if (workflow.nodes && typeof workflow.nodes === 'object') {
+      console.log('[Generation] Detected ComfyUI UI format, extracting nodes')
+      return workflow.nodes as ComfyUIWorkflow
+    }
+    
+    // Already in the correct format (direct node mapping)
+    return workflow
+  }
+
+  /**
+   * Validate workflow structure before submission
+   */
+  private validateWorkflow(workflow: ComfyUIWorkflow): void {
+    if (!workflow || typeof workflow !== 'object') {
+      throw new Error('Invalid workflow: must be an object')
+    }
+
+    if (Object.keys(workflow).length === 0) {
+      throw new Error('Invalid workflow: cannot be empty')
+    }
+
+    // Check that all nodes have required properties
+    for (const [nodeId, node] of Object.entries(workflow)) {
+      if (!node || typeof node !== 'object') {
+        throw new Error(`Invalid node ${nodeId}: must be an object`)
+      }
+      
+      if (!node.class_type || typeof node.class_type !== 'string') {
+        console.error(`[Generation] Invalid node ${nodeId}:`, node)
+        throw new Error(`Invalid node ${nodeId}: missing or invalid class_type property. Node data: ${JSON.stringify(node)}`)
+      }
+      
+      if (!node.inputs || typeof node.inputs !== 'object') {
+        throw new Error(`Invalid node ${nodeId}: missing or invalid inputs property`)
+      }
+    }
+
+    console.log('[Generation] ✅ Workflow validation passed')
+  }
+
+  /**
    * Submit a workflow for generation
    */
   async generateImage(workflow: ComfyUIWorkflow): Promise<GenerationResponse> {
     try {
+      // Extract nodes from ComfyUI UI format if needed
+      const workflowNodes = this.extractWorkflowNodes(workflow)
+      
+      // Validate workflow structure before submission
+      this.validateWorkflow(workflowNodes)
+      
       console.log('[Generation] Submitting workflow:', { 
         client_id: this.client_id,
-        nodeCount: Object.keys(workflow).length,
-        workflow: workflow
+        nodeCount: Object.keys(workflowNodes).length,
+        workflowKeys: Object.keys(workflowNodes),
+        sampleNode: Object.entries(workflowNodes)[0]
       })
+      
+      console.log('[Generation] Full workflow structure:', JSON.stringify(workflowNodes, null, 2))
 
       // Force ComfyUI to execute by adding a timestamp to prevent caching
-      const workflowCopy = JSON.parse(JSON.stringify(workflow));
+      const workflowCopy = JSON.parse(JSON.stringify(workflowNodes));
       
       // Find any SaveImage node and add timestamp to filename
       let foundSaveImage = false;

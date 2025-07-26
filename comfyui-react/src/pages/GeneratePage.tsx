@@ -3,6 +3,7 @@
 // ============================================================================
 
 import React, { useState, useMemo, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { FileUpload, UploadProgress } from '@/components/workflow'
 import type { ExtractedParameters } from '@/utils/parameterExtractor'
 import { MetadataDisplay } from '@/components/metadata/MetadataDisplay'
@@ -11,16 +12,19 @@ import { parseWorkflowMetadata } from '@/utils/metadataParser'
 import { UploadErrorBoundary } from '@/components/common/ErrorBoundary'
 import { ToastContainer } from '@/components/ui/Toast'
 import { useUploadManager } from '@/hooks/useUploadManager'
-import { useUploadSelectors } from '@/store/uploadStore'
+import { useUploadSelectors, useUploadStore } from '@/store/uploadStore'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useWebSocketContext } from '@/contexts/WebSocketContext'
 import { getPromptOverridePreview } from '@/utils/promptOverride'
 import { usePromptStore } from '@/store/promptStore'
 import { usePresetStore } from '@/store/presetStore'
 import { PresetSaveDialog } from '@/components/presets/PresetSaveDialog'
+import type { IPreset } from '@/types/preset'
 
 export default function GeneratePage() {
+  const location = useLocation()
   const uploadSelectors = useUploadSelectors()
+  const { setCurrentWorkflow, setExtractedParameters, resetCurrentUpload } = useUploadStore()
   const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
   const [showSavePresetDialog, setShowSavePresetDialog] = useState(false)
   const [savingPreset, setSavingPreset] = useState(false)
@@ -29,7 +33,7 @@ export default function GeneratePage() {
   const { promptOverride, usePromptOverride, setPromptOverride, setUsePromptOverride } = usePromptStore()
   
   // Preset store methods
-  const { presets, loadPresets, createPreset } = usePresetStore()
+  const { presets, loadPresets, createPreset, activePreset, setActivePreset } = usePresetStore()
   const [showPresetSelector, setShowPresetSelector] = useState(false)
   const [workflowQueue, setWorkflowQueue] = useState<Array<{
     id: string
@@ -77,25 +81,100 @@ export default function GeneratePage() {
     await uploadFile(file)
   }
 
-  const handleLoadPreset = async (preset: any) => {
+  const handleLoadPreset = async (preset: IPreset) => {
     try {
-      // Convert the preset workflow data to JSON string and load it
-      const workflowJson = JSON.stringify(preset.workflowData, null, 2)
-      await pasteWorkflow(workflowJson)
-      setShowPresetSelector(false)
+      // Directly set the workflow data without JSON conversion
+      setCurrentWorkflow(preset.workflowData)
       
-      // Update prompt override if the preset has prompts
-      if (preset.metadata?.prompts?.positive) {
-        setPromptOverride(preset.metadata.prompts.positive)
-        setUsePromptOverride(true)
+      // Try to extract parameters from the workflow using parameter extractor directly
+      try {
+        const parameterExtractor = await import('@/utils/parameterExtractor')
+        const extractor = new parameterExtractor.ParameterExtractor(preset.workflowData)
+        const parsedMetadata = extractor.extract()
+        if (parsedMetadata) {
+          setExtractedParameters(parsedMetadata)
+        }
+      } catch (extractorError) {
+        // Fallback to preset metadata if available
+        if (preset.metadata) {
+          const extractedParams = {
+            generation: preset.metadata.generation,
+            model: preset.metadata.model,
+            image: preset.metadata.dimensions,
+            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: null, negativeNodeId: null },
+            timing: preset.metadata.timingEstimate ? { duration: preset.metadata.timingEstimate.estimatedSeconds } : { duration: 0 }
+          }
+          setExtractedParameters(extractedParams)
+        }
       }
+      
+      setShowPresetSelector(false)
     } catch (error) {
       console.error('Failed to load preset:', error)
     }
   }
 
+  // Direct preset loading without using upload manager
+  const loadPresetDirect = async (preset: IPreset) => {
+    try {
+      // Reset any existing upload state first
+      resetCurrentUpload()
+      
+      // Set the workflow directly in the store
+      setCurrentWorkflow(preset.workflowData)
+      
+      // Extract parameters using ParameterExtractor to get the latest prompt data
+      try {
+        const parameterExtractor = await import('@/utils/parameterExtractor')
+        const extractor = new parameterExtractor.ParameterExtractor(preset.workflowData)
+        const parsedMetadata = extractor.extract()
+        if (parsedMetadata) {
+          setExtractedParameters(parsedMetadata)
+        }
+      } catch (extractorError) {
+        // Fallback to preset metadata if available
+        if (preset.metadata) {
+          const extractedParams = {
+            generation: preset.metadata.generation,
+            model: preset.metadata.model,
+            image: preset.metadata.dimensions,
+            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: null, negativeNodeId: null },
+            timing: preset.metadata.timingEstimate ? { duration: preset.metadata.timingEstimate.estimatedSeconds } : { duration: 0 }
+          }
+          setExtractedParameters(extractedParams)
+        }
+      }
+      
+      setShowPresetSelector(false)
+    } catch (error) {
+      console.error('Failed to load preset:', error)
+      // Make sure we're not stuck in loading state
+      resetCurrentUpload()
+    }
+  }
+
+  // Handle navigation from preset page (apply button)
+  useEffect(() => {
+    type NavigationState = {
+      presetToLoad?: IPreset
+      source?: string
+    }
+    
+    const navigationState = location.state as NavigationState | null
+    
+    if (navigationState?.presetToLoad && navigationState?.source === 'presets-page') {
+      
+      // Use setTimeout to ensure this runs after the component has mounted
+      setTimeout(async () => {
+        await loadPresetDirect(navigationState.presetToLoad)
+        // Clear navigation state to prevent re-loading on refresh
+        window.history.replaceState({}, document.title)
+      }, 100)
+    }
+  }, []) // Empty dependency array - only run once on mount
+
   // Queue management functions
-  const addToQueue = (preset: any, name?: string) => {
+  const addToQueue = (preset: IPreset, name?: string) => {
     const queueItem = {
       id: `queue_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name: name || preset.name || 'Unnamed Workflow',
@@ -258,14 +337,7 @@ export default function GeneratePage() {
 
   // Get prompt override preview info
   const promptPreview = useMemo(() => {
-    const preview = getPromptOverridePreview(extractedParameters)
-    console.log('[PromptPreview] Debug info:', {
-      extractedParameters: !!extractedParameters,
-      positiveNodeId: extractedParameters?.prompts?.positiveNodeId,
-      canOverride: preview.canOverride,
-      originalPrompt: preview.originalPrompt
-    })
-    return preview
+    return getPromptOverridePreview(extractedParameters)
   }, [extractedParameters])
 
 
@@ -403,7 +475,7 @@ export default function GeneratePage() {
                             key={preset.id}
                             className="flex items-center justify-between p-2 border border-comfy-border rounded hover:bg-comfy-bg-tertiary"
                           >
-                            <div className="flex-1 min-w-0" onClick={() => handleLoadPreset(preset)} style={{ cursor: 'pointer' }}>
+                            <div className="flex-1 min-w-0" onClick={() => loadPresetDirect(preset).catch(console.error)} style={{ cursor: 'pointer' }}>
                               <div className="text-sm font-medium text-comfy-text-primary truncate">
                                 {preset.name}
                               </div>
@@ -701,7 +773,7 @@ export default function GeneratePage() {
                       <div className="text-red-400">⚠️</div>
                       <div>
                         <h4 className="text-sm font-medium text-red-400">Generation Failed</h4>
-                        <p className="mt-1 text-sm text-red-300">{generationState.error}</p>
+                        <pre className="mt-1 text-sm text-red-300 whitespace-pre-wrap font-mono">{generationState.error}</pre>
                       </div>
                     </div>
                     <button

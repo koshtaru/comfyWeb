@@ -29,64 +29,43 @@ export function applyPromptOverride(
     return workflow
   }
 
-  // Create a deep copy of the workflow to avoid mutating the original
-  const modifiedWorkflow = JSON.parse(JSON.stringify(workflow)) as ComfyUIWorkflow
+  // Extract nodes from ComfyUI UI format if needed
+  let actualWorkflow = workflow
+  if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
+    actualWorkflow = (workflow as any).nodes as ComfyUIWorkflow
+  }
 
-  console.log('[PromptOverride] Starting prompt override process')
-  console.log('[PromptOverride] Extracted parameters:', extractedParams.prompts)
+  // Create a deep copy of the workflow to avoid mutating the original
+  const modifiedWorkflow = JSON.parse(JSON.stringify(actualWorkflow)) as ComfyUIWorkflow
   
   // Apply override to positive prompt node if available
   if (extractedParams.prompts.positiveNodeId) {
     const nodeId = extractedParams.prompts.positiveNodeId
     const node = modifiedWorkflow[nodeId]
     
-    console.log(`[PromptOverride] Found positive node ID: ${nodeId}`)
-    console.log(`[PromptOverride] Node exists:`, !!node)
-    console.log(`[PromptOverride] Node type:`, node?.class_type)
-    
     if (node && node.class_type === 'CLIPTextEncode') {
-      console.log(`[PromptOverride] ✅ Replacing positive prompt in node ${nodeId}`)
-      console.log(`[PromptOverride] Original: "${node.inputs.text}"`)
-      console.log(`[PromptOverride] Override: "${overrideText}"`)
-      
-      const oldText = node.inputs.text
       node.inputs.text = overrideText.trim()
-      
-      console.log(`[PromptOverride] ✅ Successfully changed prompt from "${oldText}" to "${node.inputs.text}"`)
-    } else {
-      console.warn(`[PromptOverride] ❌ Could not find CLIPTextEncode node with ID ${nodeId}`)
-      console.warn(`[PromptOverride] Available nodes:`, Object.keys(modifiedWorkflow))
     }
   } else {
     // Fallback: Find all CLIPTextEncode nodes and replace the first one connected to a positive input
-    console.log('[PromptOverride] ⚠️ No positive node ID found, searching for CLIPTextEncode nodes')
-    
-    let fallbackSuccess = false
     for (const [nodeId, node] of Object.entries(modifiedWorkflow)) {
       if (node.class_type === 'CLIPTextEncode') {
-        console.log(`[PromptOverride] Checking CLIPTextEncode node ${nodeId}`)
-        
         // Check if this node connects to a sampler's positive input
         const promptType = findPromptType(modifiedWorkflow, nodeId)
-        console.log(`[PromptOverride] Node ${nodeId} prompt type: ${promptType}`)
         
         if (promptType === 'positive') {
-          console.log(`[PromptOverride] ✅ Found positive prompt node ${nodeId}, applying override`)
-          console.log(`[PromptOverride] Original: "${node.inputs.text}"`)
-          console.log(`[PromptOverride] Override: "${overrideText}"`)
-          
-          const oldText = node.inputs.text
           node.inputs.text = overrideText.trim()
-          console.log(`[PromptOverride] ✅ Successfully changed prompt from "${oldText}" to "${node.inputs.text}"`)
-          fallbackSuccess = true
           break // Only override the first positive prompt found
         }
       }
     }
-    
-    if (!fallbackSuccess) {
-      console.error('[PromptOverride] ❌ No positive CLIPTextEncode nodes found in workflow')
-    }
+  }
+
+  // If we extracted nodes from UI format, return in the same UI format
+  if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
+    const uiFormat = JSON.parse(JSON.stringify(workflow))
+    uiFormat.nodes = modifiedWorkflow
+    return uiFormat
   }
 
   return modifiedWorkflow

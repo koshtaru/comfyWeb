@@ -3,11 +3,15 @@
 // ============================================================================
 
 import React, { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { PresetManager } from '@/components/presets/PresetManager'
 import { Container } from '@/components/ui/Container'
 import { usePresetStore } from '@/store/presetStore'
+import { ROUTES } from '@/constants/routes'
+import type { IPreset } from '@/types/preset'
 
 const PresetsPage: React.FC = () => {
+  const navigate = useNavigate()
   const {
     presets,
     isLoadingPresets: loading,
@@ -20,25 +24,12 @@ const PresetsPage: React.FC = () => {
     setActivePreset
   } = usePresetStore()
 
-  // Load presets on mount with debugging
+  // Load presets on mount
   useEffect(() => {
-    console.log('[PresetsPage] Component mounted, loading presets...')
-    loadPresets().then(() => {
-      console.log('[PresetsPage] Load presets completed')
-    }).catch((err) => {
+    loadPresets().catch((err) => {
       console.error('[PresetsPage] Load presets failed:', err)
     })
   }, [loadPresets])
-
-  // Debug log current state
-  useEffect(() => {
-    console.log('[PresetsPage] State update:', {
-      presetsCount: presets.length,
-      loading,
-      error,
-      presets: presets.slice(0, 2) // First 2 presets for debugging
-    })
-  }, [presets, loading, error])
 
   const handlePresetSelect = (preset: any) => {
     setActivePreset(preset)
@@ -57,9 +48,6 @@ const PresetsPage: React.FC = () => {
   }
 
   const handlePresetsImport = async (presets: any[]) => {
-    console.log('[PresetsPage] handlePresetsImport called with:', presets?.length, 'presets')
-    console.trace('[PresetsPage] handlePresetsImport call stack')
-    
     // This should only be called when importing from files, not during normal loading
     // The PresetImportExport component should handle the format conversion
     if (!Array.isArray(presets) || presets.length === 0) {
@@ -83,6 +71,19 @@ const PresetsPage: React.FC = () => {
     await importPresets(jsonData)
   }
 
+  const handleApplyAndNavigate = (preset: IPreset) => {
+    // Store the preset to be loaded in the global state
+    setActivePreset(preset)
+    
+    // Navigate to the txt2img page with the preset data in navigation state
+    navigate(ROUTES.GENERATE, { 
+      state: { 
+        presetToLoad: preset,
+        source: 'presets-page'
+      } 
+    })
+  }
+
   return (
     <Container>
       <PresetManager
@@ -92,6 +93,7 @@ const PresetsPage: React.FC = () => {
         onPresetUpdate={handlePresetUpdate}
         onPresetDelete={handlePresetDelete}
         onPresetsImport={handlePresetsImport}
+        onPresetApplyAndNavigate={handleApplyAndNavigate}
         loading={loading}
         error={error}
       />
