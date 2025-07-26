@@ -190,6 +190,25 @@ export type {
   TimingVisualizationConfig
 } from './timing'
 
+// Re-export preset types for better integration
+export type {
+  IPreset,
+  IPresetMetadata,
+  IPresetCreateInput,
+  IPresetUpdateInput,
+  IPresetStorageInfo,
+  IPresetOperationResult,
+  IPresetImportResult,
+  IPresetSearchOptions,
+  IPresetValidationResult,
+  IPresetServiceConfig,
+  IPresetExportData,
+  IPresetsExportData,
+  PresetCategory,
+  ICompressionOptions,
+  IPresetStorageConfig
+} from './preset'
+
 // Re-export component types for better integration
 export type {
   BaseComponentProps,
