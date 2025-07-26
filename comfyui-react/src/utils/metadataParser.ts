@@ -263,7 +263,7 @@ export class MetadataParser extends ParameterExtractor {
       cleaned[nodeId] = node
     }
 
-    console.log(`[MetadataParser] Cleaned workflow: ${Object.keys(actualWorkflow).length} → ${Object.keys(cleaned).length} nodes`)
+    console.log(`[MetadataParser] Cleaned workflow: ${Object.keys(workflowNodes).length} → ${Object.keys(cleaned).length} nodes`)
     return cleaned
   }
 
