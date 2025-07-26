@@ -1,0 +1,571 @@
+/* ============================================================================ */
+/* ComfyUI React - Preset Card Styles */
+/* ============================================================================ */
+
+.preset-card {
+  --bg-card: #232938;
+  --bg-hover: #2a3441;
+  --bg-selected: rgba(255, 124, 0, 0.1);
+  --border-default: #374151;
+  --border-hover: #4b5563;
+  --border-selected: #ff7c00;
+  --text-primary: #ffffff;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --accent-orange: #ff7c00;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  --shadow-hover: 0 4px 8px rgba(0, 0, 0, 0.15);
+  
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+
+.preset-card:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover);
+  box-shadow: var(--shadow-hover);
+  transform: translateY(-2px);
+}
+
+.preset-card.selected {
+  background: var(--bg-selected);
+  border-color: var(--border-selected);
+  box-shadow: 0 0 0 3px rgba(255, 124, 0, 0.2);
+}
+
+.preset-card.compressed {
+  border-left: 3px solid var(--success);
+}
+
+/* Grid vs List view adjustments */
+.preset-card.list {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+}
+
+.preset-card.grid {
+  display: block;
+  padding: 0;
+}
+
+/* Checkbox */
+.preset-checkbox {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+}
+
+.preset-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-default);
+  border-radius: 3px;
+  background: var(--bg-card);
+  cursor: pointer;
+  appearance: none;
+  position: relative;
+  transition: all 0.2s;
+}
+
+.preset-checkbox input[type="checkbox"]:checked {
+  background: var(--accent-orange);
+  border-color: var(--accent-orange);
+}
+
+.preset-checkbox input[type="checkbox"]:checked::after {
+  content: '✓';
+  position: absolute;
+  top: -2px;
+  left: 1px;
+  color: white;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+/* Main content */
+.preset-content {
+  padding: 16px;
+  padding-left: 44px; /* Account for checkbox */
+  flex: 1;
+}
+
+.list .preset-content {
+  padding: 0 16px 0 44px;
+}
+
+/* Header */
+.preset-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.preset-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.edit-input {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-hover);
+  border-radius: 4px;
+  padding: 4px 8px;
+  color: var(--text-primary);
+  font-size: 14px;
+  width: 100%;
+}
+
+.edit-input:focus {
+  outline: none;
+  border-color: var(--accent-orange);
+  box-shadow: 0 0 0 2px rgba(255, 124, 0, 0.2);
+}
+
+.tags-input {
+  margin-top: 8px;
+}
+
+/* Badges */
+.preset-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.badge {
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.badge.category {
+  color: white;
+  /* Background color set inline based on category */
+}
+
+.badge.compressed {
+  background: rgba(16, 185, 129, 0.2);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.badge.size {
+  background: rgba(107, 114, 128, 0.2);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-default);
+}
+
+/* Metadata */
+.preset-metadata {
+  margin-bottom: 12px;
+}
+
+.metadata-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.list .metadata-grid {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 8px;
+}
+
+.metadata-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metadata-item .label {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metadata-item .value {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Prompt preview */
+.prompt-preview {
+  margin-top: 8px;
+}
+
+.prompt-positive {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.prompt-negative {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.3;
+  font-style: italic;
+}
+
+.list .prompt-preview {
+  display: none; /* Hide in list view to save space */
+}
+
+/* Tags */
+.preset-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.tag {
+  padding: 2px 6px;
+  background: rgba(55, 65, 81, 0.6);
+  border: 1px solid var(--border-default);
+  border-radius: 8px;
+  font-size: 10px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Footer */
+.preset-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid rgba(55, 65, 81, 0.3);
+}
+
+.preset-dates {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.date-item {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+
+.list .preset-dates {
+  flex-direction: row;
+  gap: 12px;
+}
+
+/* Action buttons */
+.preset-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.preset-card:hover .preset-actions {
+  opacity: 1;
+}
+
+.list .preset-actions {
+  position: static;
+  opacity: 1;
+  margin-left: 16px;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+
+.action-btn:hover {
+  background: rgba(0, 0, 0, 0.9);
+  transform: scale(1.1);
+}
+
+.action-btn.apply {
+  background: rgba(16, 185, 129, 0.9);
+}
+
+.action-btn.apply:hover {
+  background: var(--success);
+}
+
+.action-btn.edit {
+  background: rgba(59, 130, 246, 0.9);
+}
+
+.action-btn.edit:hover {
+  background: #3b82f6;
+}
+
+.action-btn.delete {
+  background: rgba(239, 68, 68, 0.9);
+}
+
+.action-btn.delete:hover {
+  background: var(--danger);
+}
+
+.action-btn.compress {
+  background: rgba(245, 158, 11, 0.9);
+}
+
+.action-btn.compress:hover {
+  background: var(--warning);
+}
+
+.action-btn.details {
+  background: rgba(107, 114, 128, 0.9);
+}
+
+.action-btn.details:hover {
+  background: #6b7280;
+}
+
+.action-btn.cancel {
+  background: rgba(107, 114, 128, 0.9);
+}
+
+.action-btn.cancel:hover {
+  background: #6b7280;
+}
+
+/* Detailed view */
+.preset-details {
+  border-top: 1px solid var(--border-default);
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}
+
+.details-section {
+  margin-bottom: 16px;
+}
+
+.details-section:last-child {
+  margin-bottom: 0;
+}
+
+.details-section h4 {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.detail-item .label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.detail-item .value {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: 'Monaco', 'Menlo', monospace;
+}
+
+/* Prompt full view */
+.prompt-full {
+  margin-top: 8px;
+}
+
+.prompt-section {
+  margin-bottom: 12px;
+}
+
+.prompt-section:last-child {
+  margin-bottom: 0;
+}
+
+.prompt-section label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.prompt-text {
+  padding: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.prompt-text.positive {
+  color: var(--text-secondary);
+}
+
+.prompt-text.negative {
+  color: #fca5a5;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .preset-card.grid {
+    /* Stack more compactly on mobile */
+  }
+  
+  .metadata-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .preset-actions {
+    position: static;
+    opacity: 1;
+    justify-content: center;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(55, 65, 81, 0.3);
+  }
+  
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .details-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .preset-content {
+    padding: 12px;
+    padding-left: 36px;
+  }
+  
+  .preset-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .preset-badges {
+    align-self: stretch;
+  }
+  
+  .metadata-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+  .preset-card {
+    border-width: 2px;
+  }
+  
+  .badge {
+    border-width: 2px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .preset-card,
+  .action-btn,
+  .preset-details {
+    transition: none;
+    animation: none;
+  }
+  
+  .preset-card:hover {
+    transform: none;
+  }
+  
+  .action-btn:hover {
+    transform: none;
+  }
+}
+
+/* Focus styles for accessibility */
+.preset-card:focus-visible,
+.action-btn:focus-visible,
+.edit-input:focus-visible {
+  outline: 2px solid var(--accent-orange);
+  outline-offset: 2px;
+}

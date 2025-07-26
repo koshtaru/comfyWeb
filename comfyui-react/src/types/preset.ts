@@ -8,6 +8,7 @@ import type { ComfyUIWorkflow } from './index'
 export interface IPreset {
   id: string
   name: string
+  description?: string
   createdAt: Date
   lastModified: Date
   workflowData: ComfyUIWorkflow
@@ -70,6 +71,7 @@ export interface IPresetStorageInfo {
 // Preset creation input (omits auto-generated fields)
 export interface IPresetCreateInput {
   name: string
+  description?: string
   workflowData: ComfyUIWorkflow
   metadata: IPresetMetadata
   tags?: string[]
