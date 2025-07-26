@@ -1,0 +1,335 @@
+/* ============================================================================
+   ComfyUI React - Import Progress Dialog Styles
+   ============================================================================ */
+
+.import-progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.import-progress-dialog {
+  background: var(--color-bg-secondary, #181825);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--color-border, #374151);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* Header */
+.progress-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  border-bottom: 1px solid var(--color-border, #374151);
+}
+
+.progress-header h3 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.cancel-btn {
+  background: var(--color-bg-tertiary, #1f2937);
+  border: 1px solid var(--color-border, #374151);
+  color: var(--color-text-primary, #ffffff);
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cancel-btn:hover {
+  background: var(--color-error, #ef4444);
+  border-color: var(--color-error, #ef4444);
+}
+
+/* Current preset */
+.current-preset {
+  padding: 16px 24px;
+  background: var(--color-bg-primary, #0b0f19);
+  border-bottom: 1px solid var(--color-border, #374151);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.current-preset .label {
+  font-size: 14px;
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.current-preset .preset-name {
+  font-size: 14px;
+  color: var(--color-text-primary, #ffffff);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Progress bar */
+.progress-container {
+  padding: 24px;
+  position: relative;
+}
+
+.progress-bar {
+  height: 24px;
+  background: var(--color-bg-tertiary, #1f2937);
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--color-accent-orange, #ff7c00);
+  transition: width 0.3s ease, background-color 0.3s ease;
+  position: relative;
+}
+
+.progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmer 1.5s infinite;
+}
+
+.progress-fill.warning {
+  background: var(--color-warning, #f59e0b);
+}
+
+.progress-fill.success {
+  background: var(--color-success, #10b981);
+}
+
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary, #ffffff);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Statistics */
+.import-stats {
+  padding: 24px;
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.stat-item {
+  text-align: center;
+  background: var(--color-bg-primary, #0b0f19);
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border, #374151);
+}
+
+.stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--color-text-primary, #ffffff);
+  margin-bottom: 4px;
+}
+
+.stat-value.error {
+  color: var(--color-error, #ef4444);
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--color-text-secondary, #9ca3af);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.time-stats {
+  display: flex;
+  justify-content: space-around;
+  background: var(--color-bg-tertiary, #1f2937);
+  padding: 12px;
+  border-radius: 8px;
+}
+
+.time-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.time-item .label {
+  font-size: 13px;
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.time-item .value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary, #ffffff);
+}
+
+/* Errors section */
+.error-section {
+  padding: 0 24px 24px;
+}
+
+.error-section h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--color-error, #ef4444);
+}
+
+.error-list {
+  background: var(--color-bg-primary, #0b0f19);
+  border: 1px solid var(--color-error, #ef4444);
+  border-radius: 8px;
+  padding: 12px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.error-item {
+  font-size: 13px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.error-item:last-child {
+  margin-bottom: 0;
+}
+
+.error-preset {
+  color: var(--color-text-primary, #ffffff);
+  font-weight: 500;
+  margin-right: 4px;
+}
+
+.error-message {
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+.error-more {
+  font-size: 13px;
+  color: var(--color-text-secondary, #9ca3af);
+  font-style: italic;
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Completion message */
+.completion-message {
+  padding: 24px;
+  text-align: center;
+  background: var(--color-bg-primary, #0b0f19);
+  border-top: 1px solid var(--color-border, #374151);
+}
+
+.completion-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: var(--color-success, #10b981);
+  color: white;
+  font-size: 32px;
+  font-weight: bold;
+  border-radius: 50%;
+  margin-bottom: 16px;
+}
+
+.completion-message h4 {
+  margin: 0 0 8px 0;
+  font-size: 20px;
+  color: var(--color-text-primary, #ffffff);
+}
+
+.completion-message p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--color-text-secondary, #9ca3af);
+}
+
+/* Scrollbar styling */
+.error-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.error-list::-webkit-scrollbar-track {
+  background: var(--color-bg-tertiary, #1f2937);
+  border-radius: 3px;
+}
+
+.error-list::-webkit-scrollbar-thumb {
+  background: var(--color-border, #374151);
+  border-radius: 3px;
+}
+
+.error-list::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary, #9ca3af);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .import-progress-dialog {
+    max-width: 100%;
+    border-radius: 0;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .time-stats {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .time-item {
+    justify-content: space-between;
+    width: 100%;
+  }
+}
