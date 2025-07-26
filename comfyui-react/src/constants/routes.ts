@@ -6,6 +6,7 @@ export const ROUTES = {
   GENERATE: '/',
   HISTORY: '/history',
   MODELS: '/models',
+  PRESETS: '/presets',
   SETTINGS: '/settings',
   QUEUE: '/queue',
   WEBSOCKET_TEST: '/websocket-test',
@@ -15,6 +16,7 @@ export const ROUTE_NAMES = {
   GENERATE: 'txt2img',
   HISTORY: 'History',
   MODELS: 'Models',
+  PRESETS: 'Presets',
   SETTINGS: 'Settings',
   QUEUE: 'Queue',
   WEBSOCKET_TEST: 'Connection Test',
@@ -39,6 +41,12 @@ export const TAB_CONFIG = [
     name: ROUTE_NAMES.MODELS,
     path: ROUTES.MODELS,
     icon: '🤖',
+  },
+  {
+    key: 'presets' as const,
+    name: ROUTE_NAMES.PRESETS,
+    path: ROUTES.PRESETS,
+    icon: '💾',
   },
   {
     key: 'settings' as const,
