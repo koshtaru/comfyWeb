@@ -18,7 +18,7 @@ export interface IImportValidationResult {
   isValid: boolean
   errors: string[]
   warnings: string[]
-  format?: 'comfyui' | 'automatic1111' | 'invokeai' | 'unknown'
+  format?: 'comfyui' | 'automatic1111' | 'invokeai' | 'raw-workflow' | 'unknown'
   version?: string
   presetCount?: number
 }
@@ -154,13 +154,13 @@ export class ImportService {
   private async validateImportData(data: any): Promise<IImportValidationResult> {
     const errors: string[] = []
     const warnings: string[] = []
-    let format: 'comfyui' | 'automatic1111' | 'invokeai' | 'unknown' = 'unknown'
+    let format: 'comfyui' | 'automatic1111' | 'invokeai' | 'raw-workflow' | 'unknown' = 'unknown'
     let version: string | undefined
     let presetCount = 0
 
     // Detect format
     if (data.version && (data.presets || data.preset)) {
-      // ComfyUI format
+      // ComfyUI preset export format
       format = 'comfyui'
       version = data.version
       
@@ -183,6 +183,12 @@ export class ImportService {
           warnings.push('Checksum mismatch - data may be corrupted')
         }
       }
+    } else if (this.isRawComfyUIWorkflow(data)) {
+      // Raw ComfyUI workflow format
+      format = 'raw-workflow'
+      version = data.version?.toString() || '0.4'
+      presetCount = 1
+      warnings.push('Raw ComfyUI workflow detected - will be converted to preset format')
     } else if (Array.isArray(data) && data.length > 0) {
       // Check for Automatic1111 format
       if (data[0].prompt !== undefined && data[0].negative_prompt !== undefined) {
@@ -204,6 +210,10 @@ export class ImportService {
         }
         break
       
+      case 'raw-workflow':
+        // No additional validation needed for raw workflows
+        break
+      
       case 'automatic1111':
         warnings.push('Automatic1111 format detected - conversion will be applied')
         break
@@ -213,7 +223,7 @@ export class ImportService {
         break
       
       default:
-        errors.push('Unrecognized import format')
+        errors.push('Unrecognized import format - supported: ComfyUI presets, raw workflows, Automatic1111, InvokeAI')
     }
 
     // Additional validation
@@ -242,6 +252,9 @@ export class ImportService {
     switch (format) {
       case 'comfyui':
         return this.extractComfyUIPresets(data)
+      
+      case 'raw-workflow':
+        return this.convertFromRawWorkflow(data)
       
       case 'automatic1111':
         return this.convertFromAutomatic1111(data)
@@ -707,6 +720,142 @@ export class ImportService {
     }
 
     return updates
+  }
+
+  /**
+   * Check if data is a raw ComfyUI workflow
+   */
+  private isRawComfyUIWorkflow(data: any): boolean {
+    if (!data || typeof data !== 'object') return false
+    
+    // Check for typical ComfyUI workflow structure
+    // Look for numeric node IDs and class_type properties
+    const hasNumericKeys = Object.keys(data).some(key => /^\d+$/.test(key))
+    
+    if (hasNumericKeys) {
+      // Check if the numeric keys contain ComfyUI node structure
+      const numericEntries = Object.entries(data).filter(([key]) => /^\d+$/.test(key))
+      
+      if (numericEntries.length > 0) {
+        const [, firstNode] = numericEntries[0] as [string, any]
+        
+        // Check if it has ComfyUI node structure
+        return firstNode && 
+               typeof firstNode === 'object' && 
+               (firstNode.class_type || firstNode.inputs)
+      }
+    }
+    
+    // Alternative check: look for ComfyUI workflow structure with nodes object
+    return !!(data.nodes && typeof data.nodes === 'object' && 
+             Object.keys(data.nodes).length > 0 &&
+             Object.values(data.nodes).some((node: any) => 
+               node && typeof node === 'object' && node.class_type
+             ))
+  }
+
+  /**
+   * Convert raw ComfyUI workflow to preset format
+   */
+  private convertFromRawWorkflow(workflowData: any): IPreset[] {
+    const preset: IPreset = {
+      id: uuidv4(),
+      name: `Imported Workflow ${new Date().toLocaleDateString()}`,
+      description: 'Imported from raw ComfyUI workflow file',
+      createdAt: new Date(),
+      lastModified: new Date(),
+      workflowData: workflowData,
+      metadata: this.extractMetadataFromWorkflow(workflowData),
+      compressed: false,
+      size: new Blob([JSON.stringify(workflowData)]).size,
+      tags: ['imported', 'raw-workflow'],
+      category: 'imported',
+      version: '2.0.0'
+    }
+
+    return [preset]
+  }
+
+  /**
+   * Extract metadata from raw ComfyUI workflow
+   */
+  private extractMetadataFromWorkflow(workflow: any): any {
+    const metadata = {
+      model: { name: 'Unknown Model', architecture: 'SD1.5', hash: undefined },
+      generation: { steps: 20, cfg: 7, sampler: 'euler', scheduler: 'normal', seed: -1 },
+      dimensions: { width: 512, height: 512, batchSize: 1 },
+      prompts: { positive: '', negative: '' },
+      compatibility: {
+        requiredNodes: [],
+        customNodes: []
+      }
+    }
+
+    try {
+      // Extract information from workflow nodes
+      const nodes = workflow.nodes || workflow
+      const nodeEntries = Object.entries(nodes)
+
+      // Find key nodes and extract information
+      for (const [nodeId, node] of nodeEntries) {
+        if (!node || typeof node !== 'object') continue
+        
+        const nodeData = node as any
+
+        // Extract model information
+        if (nodeData.class_type === 'CheckpointLoaderSimple' && nodeData.inputs?.ckpt_name) {
+          metadata.model.name = nodeData.inputs.ckpt_name
+        }
+
+        // Extract sampling parameters
+        if (nodeData.class_type === 'KSampler' && nodeData.inputs) {
+          const inputs = nodeData.inputs
+          if (inputs.steps) metadata.generation.steps = inputs.steps
+          if (inputs.cfg) metadata.generation.cfg = inputs.cfg
+          if (inputs.sampler_name) metadata.generation.sampler = inputs.sampler_name
+          if (inputs.scheduler) metadata.generation.scheduler = inputs.scheduler
+          if (inputs.seed) metadata.generation.seed = inputs.seed
+        }
+
+        // Extract dimensions
+        if (nodeData.class_type === 'EmptyLatentImage' && nodeData.inputs) {
+          const inputs = nodeData.inputs
+          if (inputs.width) metadata.dimensions.width = inputs.width
+          if (inputs.height) metadata.dimensions.height = inputs.height
+          if (inputs.batch_size) metadata.dimensions.batchSize = inputs.batch_size
+        }
+
+        // Extract prompts
+        if (nodeData.class_type === 'CLIPTextEncode' && nodeData.inputs?.text) {
+          // Simple heuristic: first text encode is positive, second is negative
+          if (!metadata.prompts.positive) {
+            metadata.prompts.positive = nodeData.inputs.text
+          } else if (!metadata.prompts.negative) {
+            metadata.prompts.negative = nodeData.inputs.text
+          }
+        }
+
+        // Collect required nodes
+        if (nodeData.class_type && !metadata.compatibility.requiredNodes.includes(nodeData.class_type)) {
+          metadata.compatibility.requiredNodes.push(nodeData.class_type)
+        }
+      }
+
+      // Detect architecture based on dimensions
+      const resolution = metadata.dimensions.width * metadata.dimensions.height
+      if (resolution <= 512 * 768) {
+        metadata.model.architecture = 'SD1.5'
+      } else if (resolution <= 1024 * 1024) {
+        metadata.model.architecture = 'SDXL'
+      } else {
+        metadata.model.architecture = 'SD3'
+      }
+
+    } catch (error) {
+      console.warn('Failed to extract metadata from workflow:', error)
+    }
+
+    return metadata
   }
 
   /**
