@@ -16,13 +16,20 @@ import { useGeneration } from '@/hooks/useGeneration'
 import { useWebSocketContext } from '@/contexts/WebSocketContext'
 import { getPromptOverridePreview } from '@/utils/promptOverride'
 import { usePromptStore } from '@/store/promptStore'
+import { usePresetStore } from '@/store/presetStore'
+import { PresetSaveDialog } from '@/components/presets/PresetSaveDialog'
 
 export default function GeneratePage() {
   const uploadSelectors = useUploadSelectors()
   const [showEnhancedDisplay, setShowEnhancedDisplay] = useState(false)
+  const [showSavePresetDialog, setShowSavePresetDialog] = useState(false)
+  const [savingPreset, setSavingPreset] = useState(false)
   
   // Prompt override state from store
   const { promptOverride, usePromptOverride, setPromptOverride, setUsePromptOverride } = usePromptStore()
+  
+  // Preset store methods
+  const { createPreset } = usePresetStore()
   
   // Generation hook (only need clearError since generate/interrupt moved to header)
   const { state: generationState, clearError } = useGeneration()
@@ -79,6 +86,77 @@ export default function GeneratePage() {
     
     const nodeId = extractedParameters.generation.nodeId || ''
     handleParameterChange(nodeId, parameter, value)
+  }
+
+  // Convert current workflow to preset format
+  const convertWorkflowToPreset = (name: string) => {
+    if (!currentWorkflow || !extractedParameters) {
+      throw new Error('No workflow loaded')
+    }
+
+    return {
+      name: name.trim(),
+      workflowData: currentWorkflow,
+      metadata: {
+        model: {
+          name: extractedParameters.model.name || 'Unknown Model',
+          architecture: extractedParameters.model.architecture || 'SD1.5',
+          hash: extractedParameters.model.hash
+        },
+        generation: {
+          steps: extractedParameters.generation.steps || 20,
+          cfg: extractedParameters.generation.cfg || 7,
+          sampler: extractedParameters.generation.sampler || 'euler',
+          scheduler: extractedParameters.generation.scheduler || 'normal',
+          seed: extractedParameters.generation.seed || -1
+        },
+        dimensions: {
+          width: extractedParameters.image.width || 512,
+          height: extractedParameters.image.height || 512,
+          batchSize: extractedParameters.image.batchSize || 1
+        },
+        prompts: {
+          positive: usePromptOverride && promptOverride.trim() 
+            ? promptOverride 
+            : extractedParameters.prompts.positive || '',
+          negative: extractedParameters.prompts.negative || ''
+        },
+        timingEstimate: {
+          estimatedSeconds: extractedParameters.metadata.estimatedVRAM 
+            ? parseInt(extractedParameters.metadata.estimatedVRAM.replace(/[^\d]/g, '')) * 2 
+            : 30
+        }
+      },
+      category: 'custom' as const,
+      tags: [
+        'saved-from-txt2img',
+        extractedParameters.metadata.complexity?.toLowerCase() || 'medium',
+        extractedParameters.model.architecture?.toLowerCase() || 'sd15'
+      ]
+    }
+  }
+
+  // Handle save as preset
+  const handleSaveAsPreset = async (presetName: string) => {
+    if (!presetName.trim()) return false
+
+    setSavingPreset(true)
+    try {
+      const presetData = convertWorkflowToPreset(presetName)
+      const success = await createPreset(presetData)
+      
+      if (success) {
+        setShowSavePresetDialog(false)
+        // Could add a toast notification here
+      }
+      
+      return success
+    } catch (error) {
+      console.error('Failed to save preset:', error)
+      return false
+    } finally {
+      setSavingPreset(false)
+    }
   }
 
   // Generate enhanced metadata from current workflow
@@ -188,12 +266,23 @@ export default function GeneratePage() {
                       )}
                       
                       {uploadSelectors.isSuccess && currentWorkflow && (
-                        <span className="flex items-center gap-1 text-xs text-comfy-success">
-                          <svg viewBox="0 0 24 24" width="14" height="14">
-                            <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
-                          </svg>
-                          Workflow loaded successfully
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="flex items-center gap-1 text-xs text-comfy-success">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                              <path fill="currentColor" d="M21,7L9,19L3.5,13.5L4.91,12.09L9,16.17L19.59,5.59L21,7Z" />
+                            </svg>
+                            Workflow loaded successfully
+                          </span>
+                          <button
+                            type="button"
+                            className="comfy-button text-xs"
+                            onClick={() => setShowSavePresetDialog(true)}
+                            disabled={savingPreset}
+                            title="Save current workflow as a preset"
+                          >
+                            {savingPreset ? '💾 Saving...' : '💾 Save as Preset'}
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -455,6 +544,29 @@ export default function GeneratePage() {
           )}
         </div>
       </div>
+
+      {/* Save as Preset Dialog */}
+      {showSavePresetDialog && currentWorkflow && extractedParameters && (
+        <PresetSaveDialog
+          onSave={async (presetData) => {
+            const success = await createPreset(presetData)
+            if (success) {
+              setShowSavePresetDialog(false)
+            }
+          }}
+          onClose={() => setShowSavePresetDialog(false)}
+          initialData={{
+            name: `Workflow ${new Date().toLocaleDateString()}`,
+            category: 'custom',
+            tags: [
+              'saved-from-txt2img',
+              extractedParameters.metadata.complexity?.toLowerCase() || 'medium',
+              extractedParameters.model.architecture?.toLowerCase() || 'sd15'
+            ]
+          }}
+          workflowData={currentWorkflow}
+        />
+      )}
     </>
   )
 }

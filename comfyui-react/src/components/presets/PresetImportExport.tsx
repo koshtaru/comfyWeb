@@ -4,6 +4,7 @@
 
 import React, { useState, useRef, useCallback } from 'react'
 import type { IPreset, IPresetExportData, IPresetsExportData, IPresetImportResult } from '@/types/preset'
+import { importService } from '@/services/importService'
 import './PresetImportExport.css'
 
 interface PresetImportExportProps {
@@ -215,99 +216,29 @@ export const PresetImportExport: React.FC<PresetImportExportProps> = ({
   }
 
   const importPresetsFromJSON = async (jsonData: string): Promise<IPresetImportResult> => {
-    const result: IPresetImportResult = {
-      success: false,
-      imported: [],
-      skipped: 0,
-      errors: [],
-      warnings: []
-    }
-
     try {
-      const data = JSON.parse(jsonData)
-
-      // Validate data structure
-      if (!data.version) {
-        result.errors.push('Invalid file format: missing version')
-        return result
-      }
-
-      let presetsToImport: IPreset[] = []
-
-      // Handle different export formats
-      if (data.presets && Array.isArray(data.presets)) {
-        // Multi-preset export format
-        presetsToImport = data.presets
-        
-        // Verify checksum if present
-        if (data.checksum) {
-          const { checksum, ...dataWithoutChecksum } = data
-          const calculatedChecksum = generateChecksum(JSON.stringify(dataWithoutChecksum, null, 2))
-          if (checksum !== calculatedChecksum) {
-            result.warnings.push('Checksum mismatch - data may be corrupted')
-          }
+      // Use the enhanced ImportService which handles raw workflows
+      const result = await importService.importPresets(
+        jsonData,
+        presets,
+        {
+          validateWorkflows: true,
+          checkDuplicates: true,
+          autoMigrate: true,
+          mergeMetadata: false,
+          preserveIds: false
         }
-      } else if (data.preset) {
-        // Single preset export format
-        presetsToImport = [data.preset]
-        
-        // Verify checksum if present
-        if (data.checksum) {
-          const { checksum, ...dataWithoutChecksum } = data
-          const calculatedChecksum = generateChecksum(JSON.stringify(dataWithoutChecksum, null, 2))
-          if (checksum !== calculatedChecksum) {
-            result.warnings.push('Checksum mismatch - data may be corrupted')
-          }
-        }
-      } else {
-        result.errors.push('Invalid file format: no presets found')
-        return result
-      }
+      )
 
-      // Process each preset
-      for (const presetData of presetsToImport) {
-        try {
-          // Validate preset structure
-          if (!presetData.name || !presetData.workflowData || !presetData.metadata) {
-            result.errors.push(`Invalid preset: ${presetData.name || 'unnamed'} is missing required fields`)
-            continue
-          }
-
-          // Check for duplicates
-          const existingPreset = presets.find(p => p.name === presetData.name)
-          if (existingPreset) {
-            result.warnings.push(`Preset "${presetData.name}" already exists - skipping`)
-            result.skipped++
-            continue
-          }
-
-          // Generate new ID and timestamps
-          const importedPreset: IPreset = {
-            ...presetData,
-            id: `imported_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            createdAt: new Date(),
-            lastModified: new Date(),
-            category: presetData.category || 'imported',
-            version: presetData.version || '1.0.0'
-          }
-
-          // Recalculate size if needed
-          if (!importedPreset.size || importedPreset.size === 0) {
-            const workflowSize = new Blob([JSON.stringify(importedPreset.workflowData)]).size
-            importedPreset.size = workflowSize
-          }
-
-          result.imported.push(importedPreset)
-        } catch (error) {
-          result.errors.push(`Failed to process preset "${presetData.name}": ${error instanceof Error ? error.message : 'Unknown error'}`)
-        }
-      }
-
-      result.success = result.imported.length > 0
       return result
     } catch (error) {
-      result.errors.push(`JSON parsing failed: ${error instanceof Error ? error.message : 'Invalid JSON'}`)
-      return result
+      return {
+        success: false,
+        imported: [],
+        skipped: 0,
+        errors: [`Import failed: ${error instanceof Error ? error.message : 'Unknown error'}`],
+        warnings: []
+      }
     }
   }
 
@@ -488,7 +419,7 @@ export const PresetImportExport: React.FC<PresetImportExportProps> = ({
                   <strong>Drop JSON files here</strong> or click to browse
                 </div>
                 <div className="drop-subtext">
-                  Supports both single preset and multi-preset export files
+                  Supports preset exports, raw ComfyUI workflows, and Automatic1111 formats
                 </div>
                 <input
                   ref={fileInputRef}
@@ -507,7 +438,7 @@ export const PresetImportExport: React.FC<PresetImportExportProps> = ({
                   className="import-textarea"
                   value={importData}
                   onChange={(e) => setImportData(e.target.value)}
-                  placeholder="Paste exported preset JSON data here..."
+                  placeholder="Paste preset exports, raw ComfyUI workflows, or A1111 data here..."
                   rows={8}
                 />
               </div>
