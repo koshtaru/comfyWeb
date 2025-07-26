@@ -426,7 +426,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
                       const updated = e.target.checked
                         ? [...current, category]
                         : current.filter(c => c !== category)
-                      handleFilterChange('category', updated.length > 0 ? updated : undefined as any)
+                      handleFilterChange('category', updated.length > 0 ? updated : undefined)
                     }}
                   />
                   <span>{category}</span>
@@ -449,7 +449,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
                       const updated = e.target.checked
                         ? [...current, type]
                         : current.filter(t => t !== type)
-                      handleFilterChange('dataType', updated.length > 0 ? updated : undefined as any)
+                      handleFilterChange('dataType', updated.length > 0 ? updated : undefined)
                     }}
                   />
                   <span>{type}</span>
@@ -464,7 +464,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
               <input
                 type="checkbox"
                 checked={filters.hasValue || false}
-                onChange={(e) => handleFilterChange('hasValue', e.target.checked || undefined as any)}
+                onChange={(e) => handleFilterChange('hasValue', e.target.checked || undefined)}
               />
               <span>Has Value</span>
             </label>

@@ -22,8 +22,8 @@ export interface MetadataComparisonProps {
 
 interface ComparisonResult {
   path: string[]
-  leftValue: any
-  rightValue: any
+  leftValue: unknown
+  rightValue: unknown
   status: 'added' | 'removed' | 'modified' | 'equal'
   category: string
 }
@@ -318,7 +318,7 @@ const ComparisonRow: React.FC<ComparisonRowProps> = ({
     }
   }
 
-  const formatValue = (value: any): string => {
+  const formatValue = (value: unknown): string => {
     if (value === null) return 'null'
     if (value === undefined) return 'undefined'
     if (typeof value === 'string') return value
@@ -448,7 +448,7 @@ function generateComparison(
 }
 
 // Get all property paths from an object
-function getAllPaths(obj: any, prefix = '', paths = new Map<string, any>()): Map<string, any> {
+function getAllPaths(obj: unknown, prefix = '', paths = new Map<string, unknown>()): Map<string, unknown> {
   if (obj === null || obj === undefined) {
     if (prefix) paths.set(prefix, obj)
     return paths
@@ -496,7 +496,7 @@ function categorizeProperty(path: string[]): string {
 }
 
 // Deep equality check
-function deepEqual(a: any, b: any): boolean {
+function deepEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true
   
   if (a === null || b === null) return a === b

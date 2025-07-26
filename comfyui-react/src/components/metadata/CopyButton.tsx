@@ -5,7 +5,7 @@ import React, { useState, useCallback } from 'react'
 import './CopyButton.css'
 
 export interface CopyButtonProps {
-  data: any
+  data: unknown
   format?: 'text' | 'json' | 'yaml' | 'csv'
   label?: string
   size?: 'small' | 'medium' | 'large'
@@ -14,7 +14,7 @@ export interface CopyButtonProps {
   showTooltip?: boolean
   disabled?: boolean
   className?: string
-  onCopy?: (data: any, format: string) => void
+  onCopy?: (data: unknown, format: string) => void
   onError?: (error: Error) => void
 }
 
@@ -36,7 +36,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
   const [copyError, setCopyError] = useState<string | null>(null)
 
   // Format data based on requested format
-  const formatData = useCallback((data: any, format: string): string => {
+  const formatData = useCallback((data: unknown, format: string): string => {
     try {
       switch (format) {
         case 'json':
@@ -238,7 +238,7 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
 }
 
 // Utility function to convert data to YAML-like format
-function convertToYaml(data: any, indent = 0): string {
+function convertToYaml(data: unknown, indent = 0): string {
   const spaces = '  '.repeat(indent)
   
   if (data === null) return 'null'
@@ -269,7 +269,7 @@ function convertToYaml(data: any, indent = 0): string {
 }
 
 // Utility function to convert data to CSV format
-function convertToCsv(data: any): string {
+function convertToCsv(data: unknown): string {
   if (Array.isArray(data)) {
     if (data.length === 0) return ''
     
