@@ -1,6 +1,6 @@
 /* Import GenerationSettings styles */
-@import 'components/ui/GenerationSettingsFixes.css';
-@import 'components/ui/GenerationSettingsPolish.css';
+@import './components/ui/GenerationSettingsFixes.css';
+@import './components/ui/GenerationSettingsPolish.css';
 
 @tailwind base;
 @tailwind components;
