@@ -32,7 +32,7 @@ export function extractedParametersToParameterSet(
 export interface ParameterChange {
   nodeId: string
   parameter: string
-  value: any
+  value: unknown
 }
 
 export function parameterSetToChanges(
@@ -100,7 +100,7 @@ export function parameterSetToChanges(
 export function applyParameterSet(
   parameterSet: ParameterSet,
   extractedParams: ExtractedParameters,
-  onParameterChange: (nodeId: string, parameter: string, value: any) => void
+  onParameterChange: (nodeId: string, parameter: string, value: unknown) => void
 ): void {
   const changes = parameterSetToChanges(parameterSet, extractedParams)
   

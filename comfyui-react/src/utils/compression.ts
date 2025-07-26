@@ -143,14 +143,14 @@ export class CompressionService {
 
       // Level 3: Chunked compression for large workflows
       if (compressionLevel === CompressionLevel.CHUNKED) {
-        const presetId = (workflow as any).id || `temp_${Date.now()}`
+        const presetId = (workflow as unknown as { id?: string }).id || `temp_${Date.now()}`
         const chunks = await this.createChunks(jsonString, presetId)
         const totalCompressedSize = chunks.reduce((sum, chunk) => 
           sum + new Blob([chunk.data]).size, 0
         )
         
         // Store chunks in ChunkManager for persistence
-        if ((workflow as any).id) {
+        if ((workflow as unknown as { id?: string }).id) {
           try {
             await chunkManager.storeChunks(presetId, chunks)
           } catch (error) {

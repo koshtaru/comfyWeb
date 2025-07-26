@@ -8,7 +8,7 @@ export interface ErrorContext {
   userId?: string
   fileName?: string
   fileSize?: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export interface ErrorReport {
