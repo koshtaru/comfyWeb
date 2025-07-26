@@ -513,7 +513,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
 
   private emitEvent<T extends keyof WebSocketEventHandlers>(
     event: T, 
-    ...args: any[]
+    ...args: unknown[]
   ): void {
     const handlers = this.eventHandlers.get(event)
     if (handlers) {
@@ -527,7 +527,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     }
   }
 
-  private log(message: string, ...args: any[]): void {
+  private log(message: string, ...args: unknown[]): void {
     if (this.debug) {
       console.log(`[ComfyUI WebSocket] ${message}`, ...args)
     }

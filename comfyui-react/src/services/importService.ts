@@ -29,8 +29,8 @@ export interface IImportConflict {
   existingPreset: IPreset
   differences: {
     field: string
-    imported: any
-    existing: any
+    imported: unknown
+    existing: unknown
   }[]
   resolution?: 'replace' | 'skip' | 'merge' | 'rename'
 }

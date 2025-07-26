@@ -94,7 +94,7 @@ export interface IHistoryResponse {
 // WebSocket Message Types
 export interface IWebSocketMessage {
   type: 'status' | 'progress' | 'executing' | 'executed' | 'execution_start' | 'execution_cached' | 'execution_error'
-  data: any
+  data: Record<string, unknown>
 }
 
 export interface IExecutionProgress {
@@ -203,11 +203,11 @@ export interface APIClientConfig {
 
 // Request/Response Interceptor Types
 export interface RequestInterceptor {
-  onRequest?: (config: any) => any
-  onRequestError?: (error: any) => Promise<any>
+  onRequest?: (config: Record<string, unknown>) => Record<string, unknown>
+  onRequestError?: (error: unknown) => Promise<unknown>
 }
 
 export interface ResponseInterceptor {
-  onResponse?: (response: any) => any
-  onResponseError?: (error: any) => Promise<any>
+  onResponse?: (response: Record<string, unknown>) => Record<string, unknown>
+  onResponseError?: (error: unknown) => Promise<unknown>
 }

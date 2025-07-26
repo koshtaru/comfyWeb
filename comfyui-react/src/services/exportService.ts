@@ -300,15 +300,19 @@ export class ExportService {
   /**
    * Get nested value from object using dot notation
    */
-  private getNestedValue(obj: any, path: string): any {
+  private getNestedValue(obj: unknown, path: string): unknown {
     const parts = path.split('.')
-    let current = obj
+    let current: unknown = obj
     
     for (const part of parts) {
       if (current === null || current === undefined) {
         return null
       }
-      current = current[part]
+      if (typeof current === 'object' && current !== null && part in current) {
+        current = (current as Record<string, unknown>)[part]
+      } else {
+        return null
+      }
     }
     
     return current

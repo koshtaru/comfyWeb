@@ -17,7 +17,7 @@ import type {
   IPresetExportData,
   IPresetsExportData,
 } from '@/types/preset'
-import { compressionService } from '@/utils/compression'
+import { compressionService, type CompressionResult } from '@/utils/compression'
 
 // Default service configuration
 const DEFAULT_CONFIG: IPresetServiceConfig = {
@@ -312,7 +312,7 @@ export class PresetService {
       }
 
       // Re-compress if workflow changed
-      let compressionResult: any
+      let compressionResult: CompressionResult
       if (updates.metadata || JSON.stringify(preset.workflowData) !== JSON.stringify(updatedPreset.workflowData)) {
         compressionResult = await compressionService.compressWorkflow(updatedPreset.workflowData)
         updatedPreset.compressed = compressionResult.compressed
@@ -781,7 +781,7 @@ export class PresetService {
     return `${this.config.storage.storageKey}_${id}`
   }
 
-  private async storePreset(preset: IPreset, compressionResult: any): Promise<void> {
+  private async storePreset(preset: IPreset, compressionResult: CompressionResult): Promise<void> {
     const key = this.getPresetStorageKey(preset.id)
     const storageData = {
       preset: {

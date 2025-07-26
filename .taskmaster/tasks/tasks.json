@@ -2163,12 +2163,67 @@
         "description": "Implement Phase 2 fixes from CODEBASE_DEBUG_PLAN.md to improve code quality by replacing all 198 'any' type instances with proper TypeScript types, fixing 24 React hook dependency warnings, and removing console statements to meet production standards.",
         "details": "Execute comprehensive code quality improvements across the codebase:\n\n1. **Replace 198 'any' Type Instances**:\n   - **src/components/metadata/* (45 instances)**:\n     - Define interfaces for metadata structures: `IMetadataSection`, `IGenerationMetadata`, `IWorkflowMetadata`\n     - Replace any[] with specific array types like `MetadataItem[]` or `ParameterValue[]`\n     - Create type guards: `isMetadataSection()`, `isValidParameter()` for runtime validation\n     - Use generics for flexible component props: `MetadataDisplay<T extends BaseMetadata>`\n   \n   - **src/services/* (62 instances)**:\n     - Define API response interfaces: `IComfyUIResponse`, `IWorkflowSubmission`, `IQueueStatus`\n     - Replace any in service methods with proper return types and parameters\n     - Create DTOs for data transfer objects with strict typing\n     - Implement type predicates for API response validation\n   \n   - **src/utils/* (38 instances)**:\n     - Define utility function signatures with proper generic constraints\n     - Replace any in helper functions with union types or generics\n     - Create type aliases for complex types: `DeepPartial<T>`, `Nullable<T>`\n     - Add JSDoc comments with @param and @returns type information\n\n2. **Fix 24 React Hook Dependencies**:\n   - **useEffect Dependencies**:\n     ```typescript\n     // Before\n     useEffect(() => {\n       fetchData(id);\n     }, []); // Missing dependency\n     \n     // After\n     useEffect(() => {\n       fetchData(id);\n     }, [id]); // Proper dependency\n     ```\n   \n   - **useCallback Stabilization**:\n     ```typescript\n     // Stabilize callback references\n     const handleSubmit = useCallback((data: FormData) => {\n       onSubmit(data);\n     }, [onSubmit]);\n     ```\n   \n   - **Intentional Omissions**:\n     ```typescript\n     useEffect(() => {\n       // One-time setup\n       initializeWebSocket();\n       // eslint-disable-next-line react-hooks/exhaustive-deps\n     }, []); // Intentionally empty\n     ```\n\n3. **Remove Console Statements**:\n   - Search and remove all console.log statements (keep console.error for critical errors)\n   - Replace console.warn with proper error handling:\n     ```typescript\n     // Before\n     console.warn('Invalid parameter:', param);\n     \n     // After\n     if (!isValidParameter(param)) {\n       throw new ValidationError(`Invalid parameter: ${param}`);\n     }\n     ```\n   - Consider implementing a logging service if debugging logs are needed:\n     ```typescript\n     interface ILogger {\n       debug(message: string, ...args: any[]): void;\n       info(message: string, ...args: any[]): void;\n       warn(message: string, ...args: any[]): void;\n       error(message: string, error?: Error): void;\n     }\n     ```\n\n4. **Type Definition Strategy**:\n   - Create shared types in `src/types/` directory\n   - Use interface segregation principle for lean interfaces\n   - Implement discriminated unions for variant types\n   - Leverage TypeScript utility types: Partial, Required, Pick, Omit\n   - Use const assertions for literal types\n\n5. **Implementation Order**:\n   - Start with service layer types (API contracts)\n   - Move to component props and state types\n   - Fix utility function types\n   - Address React hook dependencies\n   - Clean up console statements last",
         "testStrategy": "1. **Static Analysis Verification**:\n   - Run `npm run lint` and verify ESLint warnings reduced from 320 to <50\n   - Execute `npm run type-check` to ensure no TypeScript errors\n   - Use `npx typescript-coverage-report` to verify type coverage reaches 90%+\n   - Run `grep -r \"any\" src/` to confirm all 'any' types are replaced\n\n2. **React Hook Testing**:\n   - Run `npm run lint:react-hooks` to verify all hook dependency warnings resolved\n   - Manually test components with fixed hooks for proper re-rendering behavior\n   - Use React DevTools Profiler to check for unnecessary re-renders\n   - Verify memoization works correctly with updated dependencies\n\n3. **Console Statement Audit**:\n   - Search codebase: `grep -r \"console\\.\" src/ | grep -v \"console\\.error\"`\n   - Verify only console.error remains for critical error logging\n   - Test error handling paths to ensure proper error propagation\n   - Check browser console is clean during normal operation\n\n4. **Type Safety Testing**:\n   - Write unit tests that verify type guards work correctly\n   - Test API response parsing with invalid data to ensure type validation\n   - Verify autocomplete works properly in IDE with new types\n   - Check that refactoring tools (rename, extract) work with typed code\n\n5. **Integration Testing**:\n   - Run full application and verify no runtime type errors\n   - Test all major user flows with strict type checking enabled\n   - Verify build process completes successfully: `npm run build`\n   - Check bundle size hasn't increased significantly due to type imports",
-        "status": "pending",
+        "status": "in-progress",
         "dependencies": [
           49
         ],
         "priority": "medium",
-        "subtasks": []
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Replace 'any' types in src/services/* (62 instances)",
+            "description": "Define proper TypeScript interfaces and types for all service layer files, replacing 62 instances of 'any' type with strongly typed alternatives",
+            "dependencies": [],
+            "details": "Create comprehensive interfaces for API responses (IComfyUIResponse, IWorkflowSubmission, IQueueStatus), define DTOs for data transfer objects, implement type predicates for runtime validation of API responses, replace all 'any' parameters and return types in service methods with proper types. Focus on files like workflowService.ts, apiService.ts, websocketService.ts, and queueService.ts. Ensure all API contracts are properly typed with interfaces that match ComfyUI's actual response structures.",
+            "status": "done",
+            "testStrategy": "Run TypeScript compiler with strict mode to verify no type errors, use type coverage tools to confirm 100% type coverage in services directory, manually test API calls to ensure runtime behavior matches type definitions, verify type predicates correctly validate API responses"
+          },
+          {
+            "id": 2,
+            "title": "Replace 'any' types in src/components/metadata/* (45 instances)",
+            "description": "Create proper type definitions for metadata components, replacing 45 instances of 'any' with specific interfaces and type guards",
+            "dependencies": [
+              1
+            ],
+            "details": "Define core metadata interfaces (IMetadataSection, IGenerationMetadata, IWorkflowMetadata), replace any[] arrays with specific types like MetadataItem[] or ParameterValue[], implement type guards (isMetadataSection(), isValidParameter()) for runtime validation, use generics for flexible component props like MetadataDisplay<T extends BaseMetadata>. Update all metadata display components to use these new types, ensuring proper type safety throughout the metadata rendering pipeline.",
+            "status": "pending",
+            "testStrategy": "Verify all metadata components compile without type errors, test type guards with various input data to ensure proper validation, check that metadata displays correctly with different workflow types, confirm no runtime errors when displaying complex metadata structures"
+          },
+          {
+            "id": 3,
+            "title": "Replace 'any' types in src/utils/* (38 instances) and create shared type definitions",
+            "description": "Define proper types for utility functions and create a centralized type system in src/types/ directory",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Create src/types/ directory structure with index.ts as central registry, define utility function signatures with generic constraints, replace 38 'any' instances in utils with union types or generics, create type aliases (DeepPartial<T>, Nullable<T>, etc.), add comprehensive JSDoc comments with @param and @returns type information. Implement shared types following interface segregation principle, use discriminated unions for variant types, leverage TypeScript utility types (Partial, Required, Pick, Omit), and use const assertions for literal types.",
+            "status": "pending",
+            "testStrategy": "Ensure all utility functions have 100% type coverage, verify generic constraints work correctly with different type arguments, test type aliases with complex nested structures, validate JSDoc comments generate correct IntelliSense information"
+          },
+          {
+            "id": 4,
+            "title": "Fix 24 React hook dependency warnings",
+            "description": "Resolve all React hook dependency warnings by adding missing dependencies, stabilizing callbacks, and properly documenting intentional omissions",
+            "dependencies": [
+              3
+            ],
+            "details": "Audit all useEffect hooks and add missing dependencies to dependency arrays, stabilize callback functions using useCallback to prevent unnecessary re-renders, for intentional dependency omissions add eslint-disable-next-line comments with explanations. Focus on common patterns: data fetching effects that need ID dependencies, event handlers that reference props or state, one-time initialization effects that genuinely need empty arrays. Ensure all fixes maintain correct component behavior while eliminating linter warnings.",
+            "status": "pending",
+            "testStrategy": "Run ESLint with react-hooks plugin to verify all warnings are resolved, manually test components to ensure no infinite render loops or missing updates, verify callbacks are properly memoized and don't cause child re-renders, check that intentionally empty dependencies are properly documented"
+          },
+          {
+            "id": 5,
+            "title": "Remove console statements and implement proper error handling",
+            "description": "Clean up all console.log statements and replace console.warn with proper error handling mechanisms",
+            "dependencies": [
+              4
+            ],
+            "details": "Search and remove all console.log statements throughout the codebase, keep console.error only for critical unrecoverable errors, replace console.warn with proper error handling using try-catch blocks and custom error classes. Consider implementing a logging service interface (ILogger) with methods for debug, info, warn, and error levels that can be toggled based on environment. Replace debugging console statements with proper error boundaries in React components and validation errors in services.",
+            "status": "pending",
+            "testStrategy": "Use grep to verify no console.log statements remain in source files, ensure all warnings are converted to proper error handling, test error scenarios to verify proper error propagation, confirm production build has no console output except critical errors"
+          }
+        ]
       },
       {
         "id": 51,
@@ -2187,7 +2242,7 @@
     ],
     "metadata": {
       "created": "2025-07-15T23:00:34.353Z",
-      "updated": "2025-07-26T22:14:48.883Z",
+      "updated": "2025-07-26T22:32:40.132Z",
       "description": "Tasks for master context"
     }
   }
