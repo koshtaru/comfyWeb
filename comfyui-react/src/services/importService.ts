@@ -2,7 +2,8 @@
 // ComfyUI React - Import Service
 // ============================================================================
 
-import type { IPreset, IPresetImportResult, IPresetsExportData, IPresetExportData, ComfyUIWorkflow } from '@/types/preset'
+import type { IPreset, IPresetImportResult, IPresetsExportData, IPresetExportData } from '@/types/preset'
+import type { ComfyUIWorkflow } from '@/types'
 import { compressionService } from '@/utils/compression'
 import { v4 as uuidv4 } from 'uuid'
 

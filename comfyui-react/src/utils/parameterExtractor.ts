@@ -2,6 +2,8 @@
 // Extracts and catalogs parameters from workflow JSON for UI manipulation
 
 import type { WorkflowData } from './workflowValidator'
+import type { ComfyUIWorkflow } from '@/types'
+import { getWorkflowNodes } from '@/types'
 
 export interface ExtractedParameters {
   generation: GenerationParameters
@@ -91,25 +93,20 @@ export class ParameterExtractor {
   protected workflow: WorkflowData
   protected nodeConnections: Map<string, Array<{ nodeId: string, outputIndex: number }>>
 
-  constructor(workflow: WorkflowData) {
-    // Extract nodes from ComfyUI UI format if needed
+  constructor(workflow: ComfyUIWorkflow | WorkflowData) {
+    // Extract nodes using the unified type helper
     this.workflow = this.extractWorkflowNodes(workflow)
     this.nodeConnections = new Map()
     this.buildConnectionMap()
   }
 
   /**
-   * Extract workflow nodes from ComfyUI UI format
+   * Extract workflow nodes from ComfyUI UI format using type-safe helper
    */
-  private extractWorkflowNodes(workflow: WorkflowData): WorkflowData {
-    // Check if this is a ComfyUI UI export format with nodes property
-    if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
-      console.log('[ParameterExtractor] Detected ComfyUI UI format, extracting nodes')
-      return (workflow as any).nodes as WorkflowData
-    }
-    
-    // Already in the correct format (direct node mapping)
-    return workflow
+  private extractWorkflowNodes(workflow: ComfyUIWorkflow | WorkflowData): WorkflowData {
+    // Use the type-safe helper to extract nodes
+    const nodes = getWorkflowNodes(workflow as ComfyUIWorkflow)
+    return nodes as WorkflowData
   }
 
   extract(): ExtractedParameters {
@@ -471,18 +468,20 @@ export class ParameterExtractor {
 }
 
 // Utility functions
-export function extractWorkflowParameters(workflow: WorkflowData): ExtractedParameters {
+export function extractWorkflowParameters(workflow: ComfyUIWorkflow | WorkflowData): ExtractedParameters {
   const extractor = new ParameterExtractor(workflow)
   return extractor.extract()
 }
 
 export function updateWorkflowParameter(
-  workflow: WorkflowData,
+  workflow: ComfyUIWorkflow | WorkflowData,
   nodeId: string,
   parameterName: string,
   value: any
-): WorkflowData {
-  const updatedWorkflow = { ...workflow }
+): ComfyUIWorkflow {
+  // Extract nodes from either format and create a copy
+  const workflowNodes = getWorkflowNodes(workflow as ComfyUIWorkflow)
+  const updatedWorkflow = { ...workflowNodes }
   
   if (updatedWorkflow[nodeId]) {
     updatedWorkflow[nodeId] = {
@@ -492,6 +491,13 @@ export function updateWorkflowParameter(
         [parameterName]: value
       }
     }
+  }
+  
+  // Return in the same format as the original workflow
+  if (isComfyUIWorkflowUI(workflow as ComfyUIWorkflow)) {
+    const uiFormat = JSON.parse(JSON.stringify(workflow))
+    uiFormat.nodes = updatedWorkflow
+    return uiFormat
   }
   
   return updatedWorkflow

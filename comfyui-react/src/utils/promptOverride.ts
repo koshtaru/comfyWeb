@@ -2,6 +2,7 @@
 // Handles replacing prompts in ComfyUI workflow JSON with user-provided overrides
 
 import type { ComfyUIWorkflow } from '@/types'
+import { getWorkflowNodes, isComfyUIWorkflowUI } from '@/types'
 import type { ExtractedParameters } from './parameterExtractor'
 
 /**
@@ -29,14 +30,11 @@ export function applyPromptOverride(
     return workflow
   }
 
-  // Extract nodes from ComfyUI UI format if needed
-  let actualWorkflow = workflow
-  if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
-    actualWorkflow = (workflow as any).nodes as ComfyUIWorkflow
-  }
-
-  // Create a deep copy of the workflow to avoid mutating the original
-  const modifiedWorkflow = JSON.parse(JSON.stringify(actualWorkflow)) as ComfyUIWorkflow
+  // Extract nodes using type-safe helper
+  const workflowNodes = getWorkflowNodes(workflow)
+  
+  // Create a deep copy of the nodes to avoid mutating the original
+  const modifiedWorkflow = JSON.parse(JSON.stringify(workflowNodes))
   
   // Apply override to positive prompt node if available
   if (extractedParams.prompts.positiveNodeId) {
@@ -61,8 +59,8 @@ export function applyPromptOverride(
     }
   }
 
-  // If we extracted nodes from UI format, return in the same UI format
-  if ((workflow as any).nodes && typeof (workflow as any).nodes === 'object') {
+  // If original was UI format, return in the same UI format
+  if (isComfyUIWorkflowUI(workflow)) {
     const uiFormat = JSON.parse(JSON.stringify(workflow))
     uiFormat.nodes = modifiedWorkflow
     return uiFormat
@@ -75,7 +73,7 @@ export function applyPromptOverride(
  * Determines if a CLIPTextEncode node is used for positive or negative conditioning
  * by analyzing its connections to sampler nodes
  */
-function findPromptType(workflow: ComfyUIWorkflow, nodeId: string): 'positive' | 'negative' | 'unknown' {
+function findPromptType(workflow: Record<string, ComfyUINode>, nodeId: string): 'positive' | 'negative' | 'unknown' {
   // Look through all nodes to find samplers that reference this node
   for (const [, node] of Object.entries(workflow)) {
     if (node.class_type === 'KSampler' || node.class_type === 'KSamplerAdvanced') {

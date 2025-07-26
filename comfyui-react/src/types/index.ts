@@ -38,9 +38,22 @@ export interface IPresetState {
   updatePreset: (presetId: string, preset: Partial<WorkflowPreset>) => void
 }
 
-// ComfyUI Workflow Types
-export interface ComfyUIWorkflow {
+// ComfyUI Workflow Types - Supports both API and UI export formats
+export type ComfyUIWorkflow = ComfyUIWorkflowAPI | ComfyUIWorkflowUI
+
+// Simple node mapping format (used by ComfyUI API and internal processing)
+export interface ComfyUIWorkflowAPI {
   [key: string]: ComfyUINode
+}
+
+// Complete UI export format (exported from ComfyUI interface)
+export interface ComfyUIWorkflowUI {
+  nodes: Record<string, ComfyUINode>
+  links: Array<[number, number, number, number, number, string]>
+  groups: any[]
+  config: Record<string, any>
+  extra?: Record<string, any>
+  version?: number
 }
 
 export interface ComfyUINode {
@@ -49,6 +62,20 @@ export interface ComfyUINode {
   _meta?: {
     title?: string
   }
+}
+
+// Type guard utilities for workflow format detection
+export function isComfyUIWorkflowUI(workflow: ComfyUIWorkflow): workflow is ComfyUIWorkflowUI {
+  return typeof workflow === 'object' && workflow !== null && 'nodes' in workflow && 'links' in workflow
+}
+
+export function isComfyUIWorkflowAPI(workflow: ComfyUIWorkflow): workflow is ComfyUIWorkflowAPI {
+  return !isComfyUIWorkflowUI(workflow)
+}
+
+// Helper to extract nodes from either format
+export function getWorkflowNodes(workflow: ComfyUIWorkflow): Record<string, ComfyUINode> {
+  return isComfyUIWorkflowUI(workflow) ? workflow.nodes : workflow
 }
 
 // Workflow Metadata Types

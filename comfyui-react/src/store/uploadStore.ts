@@ -6,6 +6,7 @@ import { devtools } from 'zustand/middleware'
 import type { ValidationResult } from '@/utils/workflowValidator'
 import type { ExtractedParameters } from '@/utils/parameterExtractor'
 import type { WorkflowData } from '@/utils/workflowValidator'
+import type { ComfyUIWorkflow } from '@/types'
 
 export interface UploadStatus {
   status: 'idle' | 'uploading' | 'processing' | 'validating' | 'extracting' | 'complete' | 'error'
@@ -47,7 +48,7 @@ interface UploadState {
   currentUpload: UploadStatus
   validationResult: ValidationResult | null
   extractedParameters: ExtractedParameters | null
-  currentWorkflow: WorkflowData | null
+  currentWorkflow: ComfyUIWorkflow | null
 
   // Upload queue for batch processing
   uploadQueue: UploadQueue[]
@@ -74,7 +75,7 @@ interface UploadState {
   setUploadStatus: (status: Partial<UploadStatus>) => void
   setValidationResult: (result: ValidationResult | null) => void
   setExtractedParameters: (parameters: ExtractedParameters | null) => void
-  setCurrentWorkflow: (workflow: WorkflowData | null) => void
+  setCurrentWorkflow: (workflow: ComfyUIWorkflow | null) => void
   
   // Queue management
   addToQueue: (file: File) => string

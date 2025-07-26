@@ -2,23 +2,8 @@
 // ComfyUI React - Preset Type Definitions
 // ============================================================================
 
-// ComfyUI Workflow structure (proper format)
-export interface ComfyUIWorkflow {
-  nodes: Record<string, ComfyUINode>
-  links: Array<[number, number, number, number, number, string]>
-  groups: any[]
-  config: Record<string, any>
-  extra: Record<string, any>
-  version: number
-}
-
-export interface ComfyUINode {
-  class_type: string
-  inputs: Record<string, any>
-  _meta?: {
-    title?: string
-  }
-}
+// Import ComfyUI workflow types from main types file
+import type { ComfyUIWorkflow } from './index'
 
 // Core preset interface
 export interface IPreset {

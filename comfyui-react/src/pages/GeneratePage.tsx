@@ -97,12 +97,23 @@ export default function GeneratePage() {
       } catch (extractorError) {
         // Fallback to preset metadata if available
         if (preset.metadata) {
-          const extractedParams = {
+          const extractedParams: ExtractedParameters = {
             generation: preset.metadata.generation,
-            model: preset.metadata.model,
+            model: { ...preset.metadata.model, loras: [], controlnets: [] },
             image: preset.metadata.dimensions,
-            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: null, negativeNodeId: null },
-            timing: preset.metadata.timingEstimate ? { duration: preset.metadata.timingEstimate.estimatedSeconds } : { duration: 0 }
+            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: undefined, negativeNodeId: undefined },
+            advanced: { customNodes: [] },
+            metadata: {
+              totalNodes: 0,
+              nodeTypes: [],
+              hasImg2Img: false,
+              hasInpainting: false,
+              hasControlNet: false,
+              hasLora: false,
+              hasUpscaling: false,
+              architecture: preset.metadata.model.architecture || 'Unknown',
+              complexity: 'Simple'
+            }
           }
           setExtractedParameters(extractedParams)
         }
@@ -134,12 +145,23 @@ export default function GeneratePage() {
       } catch (extractorError) {
         // Fallback to preset metadata if available
         if (preset.metadata) {
-          const extractedParams = {
+          const extractedParams: ExtractedParameters = {
             generation: preset.metadata.generation,
-            model: preset.metadata.model,
+            model: { ...preset.metadata.model, loras: [], controlnets: [] },
             image: preset.metadata.dimensions,
-            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: null, negativeNodeId: null },
-            timing: preset.metadata.timingEstimate ? { duration: preset.metadata.timingEstimate.estimatedSeconds } : { duration: 0 }
+            prompts: preset.metadata.prompts || { positive: '', negative: '', positiveNodeId: undefined, negativeNodeId: undefined },
+            advanced: { customNodes: [] },
+            metadata: {
+              totalNodes: 0,
+              nodeTypes: [],
+              hasImg2Img: false,
+              hasInpainting: false,
+              hasControlNet: false,
+              hasLora: false,
+              hasUpscaling: false,
+              architecture: preset.metadata.model.architecture || 'Unknown',
+              complexity: 'Simple'
+            }
           }
           setExtractedParameters(extractedParams)
         }
@@ -263,9 +285,9 @@ export default function GeneratePage() {
       workflowData: currentWorkflow,
       metadata: {
         model: {
-          name: extractedParameters.model.name || 'Unknown Model',
+          name: extractedParameters.model.checkpoint || 'Unknown Model',
           architecture: extractedParameters.model.architecture || 'SD1.5',
-          hash: extractedParameters.model.hash
+          hash: '' // ModelParameters doesn't have hash
         },
         generation: {
           steps: extractedParameters.generation.steps || 20,

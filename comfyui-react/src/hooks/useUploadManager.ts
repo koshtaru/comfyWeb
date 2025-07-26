@@ -8,12 +8,13 @@ import { extractWorkflowParameters, updateWorkflowParameter } from '@/utils/para
 import { errorHandler, uploadErrors, withErrorHandling } from '@/utils/errorHandler'
 import { uploadToasts } from '@/utils/toast'
 import type { WorkflowData } from '@/utils/workflowValidator'
+import type { ComfyUIWorkflow } from '@/types'
 
 interface UseUploadManagerOptions {
   maxFileSize?: number
   autoValidate?: boolean
   autoExtractParameters?: boolean
-  onUploadComplete?: (workflow: WorkflowData) => void
+  onUploadComplete?: (workflow: ComfyUIWorkflow) => void
   onValidationComplete?: (result: any) => void
   onParametersExtracted?: (parameters: any) => void
   onError?: (error: Error) => void
