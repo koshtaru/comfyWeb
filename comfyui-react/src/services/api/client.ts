@@ -140,7 +140,7 @@ const formatAPIError = (error: unknown): IAPIError => {
     return {
       error: axiosError.response.data?.error || `HTTP ${axiosError.response.status}: ${axiosError.response.statusText}`,
       details: axiosError.response.data?.details || axiosError.message,
-      node_errors: axiosError.response.data?.node_errors,
+      node_errors: axiosError.response.data?.node_errors as Record<string, string> | undefined,
     }
   } else if (error && typeof error === 'object' && 'request' in error) {
     // Request was made but no response received

@@ -1,7 +1,7 @@
 // Prompt Override Utility
 // Handles replacing prompts in ComfyUI workflow JSON with user-provided overrides
 
-import type { ComfyUIWorkflow } from '@/types'
+import type { ComfyUIWorkflow, ComfyUINode } from '@/types'
 import { getWorkflowNodes, isComfyUIWorkflowUI } from '@/types'
 import type { ExtractedParameters } from './parameterExtractor'
 
@@ -47,12 +47,12 @@ export function applyPromptOverride(
   } else {
     // Fallback: Find all CLIPTextEncode nodes and replace the first one connected to a positive input
     for (const [nodeId, node] of Object.entries(modifiedWorkflow)) {
-      if (node.class_type === 'CLIPTextEncode') {
+      if ((node as any).class_type === 'CLIPTextEncode') {
         // Check if this node connects to a sampler's positive input
         const promptType = findPromptType(modifiedWorkflow, nodeId)
         
         if (promptType === 'positive') {
-          node.inputs.text = overrideText.trim()
+          (node as any).inputs.text = overrideText.trim()
           break // Only override the first positive prompt found
         }
       }

@@ -74,7 +74,7 @@ export const TimingDashboard: React.FC<TimingDashboardProps> = ({
     if (!webSocketService) return
 
     const handleMessage = (message: unknown) => {
-      analyzer.processMessage(message)
+      analyzer.processMessage(message as any)
     }
 
     const unsubscribe = webSocketService.addEventListener('onMessage', handleMessage)

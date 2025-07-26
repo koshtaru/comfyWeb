@@ -346,7 +346,8 @@ export default function GeneratePage() {
     }
   }
 
-  // Handle save as preset
+  // Handle save as preset (unused but kept for future implementation)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _handleSaveAsPreset = async (presetName: string) => {
     if (!presetName.trim()) return false
 

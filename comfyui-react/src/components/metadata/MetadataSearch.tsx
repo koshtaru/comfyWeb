@@ -382,7 +382,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
   const categories = ['Generation', 'Models', 'Workflow', 'Performance', 'Image', 'Prompts']
   const dataTypes = ['string', 'number', 'boolean', 'object', 'array']
 
-  const handleFilterChange = (key: keyof SearchFilter, value: string[] | boolean | number) => {
+  const handleFilterChange = (key: keyof SearchFilter, value: string[] | boolean | number | undefined) => {
     const newFilters = { ...filters, [key]: value }
     onFiltersChange?.(newFilters)
   }
@@ -426,7 +426,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
                       const updated = e.target.checked
                         ? [...current, category]
                         : current.filter(c => c !== category)
-                      handleFilterChange('category', updated.length > 0 ? updated : undefined)
+                      handleFilterChange('category', updated.length > 0 ? updated : undefined as any)
                     }}
                   />
                   <span>{category}</span>
@@ -449,7 +449,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
                       const updated = e.target.checked
                         ? [...current, type]
                         : current.filter(t => t !== type)
-                      handleFilterChange('dataType', updated.length > 0 ? updated : undefined)
+                      handleFilterChange('dataType', updated.length > 0 ? updated : undefined as any)
                     }}
                   />
                   <span>{type}</span>
@@ -464,7 +464,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
               <input
                 type="checkbox"
                 checked={filters.hasValue || false}
-                onChange={(e) => handleFilterChange('hasValue', e.target.checked || undefined)}
+                onChange={(e) => handleFilterChange('hasValue', e.target.checked || undefined as any)}
               />
               <span>Has Value</span>
             </label>

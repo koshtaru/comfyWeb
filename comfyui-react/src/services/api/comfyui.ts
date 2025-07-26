@@ -242,7 +242,7 @@ export const utilAPI = {
     } catch (error: unknown) {
       return { 
         online: false, 
-        error: error.error || error.message || 'Unknown error' 
+        error: (error as any)?.error || (error instanceof Error ? error.message : String(error)) || 'Unknown error' 
       }
     }
   },

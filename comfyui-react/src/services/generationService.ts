@@ -171,8 +171,8 @@ export class GenerationService {
     } catch (error: unknown) {
       console.error('[Generation] Submission failed:', error)
       throw new Error(
-        error.response?.data?.error || 
-        error.message || 
+        (error as any)?.response?.data?.error || 
+        (error instanceof Error ? error.message : String(error)) || 
         'Failed to submit generation request'
       )
     }

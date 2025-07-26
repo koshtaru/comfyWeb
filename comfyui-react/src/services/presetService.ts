@@ -2,10 +2,10 @@
 // ComfyUI React - Preset Service
 // ============================================================================
 
-import type { ComfyUIWorkflow } from '@/types'
+// import type { ComfyUIWorkflow } from '@/types'  // Commented out unused import
 import type {
   IPreset,
-  IPresetMetadata,
+  // IPresetMetadata,  // Commented out unused import
   IPresetCreateInput,
   IPresetUpdateInput,
   IPresetStorageInfo,

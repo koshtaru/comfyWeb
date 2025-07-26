@@ -122,6 +122,25 @@ export interface ICompressionWrapper {
 
 export type ImportData = IComfyUIExportData | IRawWorkflowData | IAutomaticExportData[] | IInvokeAIExportData | ICompressionWrapper
 
+// Type guards for ImportData
+function isComfyUIExportData(data: ImportData): data is IComfyUIExportData {
+  return typeof data === 'object' && !Array.isArray(data) && 'version' in data && ('presets' in data || 'preset' in data)
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// Commented out unused type guard
+// function isCompressionWrapper(data: ImportData): data is ICompressionWrapper {
+//   return typeof data === 'object' && !Array.isArray(data) && 'compressed' in data && 'algorithm' in data && 'data' in data
+// }
+
+function isInvokeAIExportData(data: ImportData): data is IInvokeAIExportData {
+  return typeof data === 'object' && !Array.isArray(data) && 'meta' in data
+}
+
+function isAutomaticExportDataArray(data: ImportData): data is IAutomaticExportData[] {
+  return Array.isArray(data)
+}
+
 export class ImportService {
   private progressCallback?: ImportProgressCallback
   private readonly SUPPORTED_VERSIONS = ['1.0.0', '2.0.0']
@@ -203,10 +222,10 @@ export class ImportService {
           parsed.data,
           parsed.algorithm
         )
-        return decompressed
+        return decompressed as ImportData
       }
       
-      return parsed
+      return parsed as ImportData
     } catch (error) {
       throw new Error('Invalid JSON format')
     }
@@ -235,7 +254,7 @@ export class ImportService {
     let presetCount = 0
 
     // Detect format
-    if (data.version && (data.presets || data.preset)) {
+    if (isComfyUIExportData(data)) {
       // ComfyUI preset export format
       format = 'comfyui'
       version = data.version
@@ -265,13 +284,13 @@ export class ImportService {
       version = data.version?.toString() || '0.4'
       presetCount = 1
       warnings.push('Raw ComfyUI workflow detected - will be converted to preset format')
-    } else if (Array.isArray(data) && data.length > 0) {
+    } else if (isAutomaticExportDataArray(data) && data.length > 0) {
       // Check for Automatic1111 format
       if (data[0].prompt !== undefined && data[0].negative_prompt !== undefined) {
         format = 'automatic1111'
         presetCount = data.length
       }
-    } else if (data.meta && data.presets) {
+    } else if (isInvokeAIExportData(data) && data.meta && data.presets) {
       // InvokeAI format
       format = 'invokeai'
       version = data.meta.version
@@ -281,7 +300,7 @@ export class ImportService {
     // Validate based on format
     switch (format) {
       case 'comfyui':
-        if (!data.exportedAt) {
+        if (isComfyUIExportData(data) && !data.exportedAt) {
           warnings.push('Missing export timestamp')
         }
         break
@@ -327,16 +346,16 @@ export class ImportService {
   private async extractPresets(data: ImportData, format: string): Promise<IPreset[]> {
     switch (format) {
       case 'comfyui':
-        return this.extractComfyUIPresets(data)
+        return this.extractComfyUIPresets(data as IComfyUIExportData)
       
       case 'raw-workflow':
-        return this.convertFromRawWorkflow(data)
+        return this.convertFromRawWorkflow(data as IRawWorkflowData)
       
       case 'automatic1111':
-        return this.convertFromAutomatic1111(data)
+        return this.convertFromAutomatic1111(data as IAutomaticExportData[])
       
       case 'invokeai':
-        return this.convertFromInvokeAI(data.presets)
+        return this.convertFromInvokeAI((data as IInvokeAIExportData).presets)
       
       default:
         throw new Error(`Unsupported format: ${format}`)

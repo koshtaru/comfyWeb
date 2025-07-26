@@ -3,7 +3,7 @@
 
 import type { WorkflowData } from './workflowValidator'
 import type { ComfyUIWorkflow } from '@/types'
-import { getWorkflowNodes } from '@/types'
+import { getWorkflowNodes, isComfyUIWorkflowUI } from '@/types'
 
 export interface ExtractedParameters {
   generation: GenerationParameters

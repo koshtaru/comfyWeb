@@ -160,7 +160,7 @@ export const useGeneration = (): UseGenerationReturn => {
       setState(prev => ({
         ...prev,
         isGenerating: false,
-        error: error.message || 'Failed to start generation',
+        error: (error instanceof Error ? error.message : String(error)) || 'Failed to start generation',
         currentPromptId: null
       }))
     }
@@ -188,7 +188,7 @@ export const useGeneration = (): UseGenerationReturn => {
       console.error('[Generation] Failed to interrupt generation:', error)
       setState(prev => ({
         ...prev,
-        error: error.message || 'Failed to interrupt generation'
+        error: (error instanceof Error ? error.message : String(error)) || 'Failed to interrupt generation'
       }))
     }
   }, [state.isGenerating])
@@ -231,7 +231,7 @@ export const useGeneration = (): UseGenerationReturn => {
                   console.log('[Generation] History API response:', historyData)
                   
                   // Process history data to extract images (matching original HTML/JS approach)
-                  if (historyData && historyData[data.prompt_id]) {
+                  if (historyData && data.prompt_id && historyData[data.prompt_id]) {
                     const promptData = historyData[data.prompt_id]
                     console.log('[Generation] Found prompt data in history:', promptData)
                     
@@ -239,7 +239,13 @@ export const useGeneration = (): UseGenerationReturn => {
                       console.log('[Generation] Processing outputs from history:', promptData.outputs)
                       
                       // Extract images from outputs (same logic as original script.js)
-                      const imageUrls: string[] = []
+                      const imageUrls: Array<{
+                        promptId: string | undefined
+                        nodeId: string
+                        imageType: string
+                        timestamp: number
+                        url: string
+                      }> = []
                       
                       for (const nodeId in promptData.outputs) {
                         const nodeOutput = promptData.outputs[nodeId]
@@ -299,8 +305,8 @@ export const useGeneration = (): UseGenerationReturn => {
       
       // Check if this execution contains images in any output
       let hasImages = false
-      if (data.output && typeof data.output === 'object') {
-        for (const [, outputValue] of Object.entries(data.output)) {
+      if (data.outputs && typeof data.outputs === 'object') {
+        for (const [, outputValue] of Object.entries(data.outputs)) {
           if (outputValue && Array.isArray((outputValue as any).images)) {
             hasImages = true
             break

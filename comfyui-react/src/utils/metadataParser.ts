@@ -525,7 +525,7 @@ export class MetadataParser extends ParameterExtractor {
     
     return {
       name: checkpoint || 'Unknown',
-      architecture,
+      architecture: architecture as 'SD1.5' | 'SDXL' | 'SD3' | 'Flux' | 'Unknown',
       baseModel: this.extractBaseModel(checkpoint),
       variant: this.extractModelVariant(checkpoint),
       clipSkip: this.extractClipSkip(),
@@ -770,7 +770,7 @@ export class MetadataParser extends ParameterExtractor {
     
     for (let i = 0; i < nodeOutputs.length; i++) {
       const outputDef = nodeOutputs[i]
-      const connectedTo = this.findConnectedNodes(node, i)
+      const connectedTo = this.findConnectedNodes(node as any, i)
       
       outputs.push({
         name: outputDef.name,
@@ -943,11 +943,11 @@ export class MetadataParser extends ParameterExtractor {
 
   private extractLoRAInfo(baseLoras: Array<{ name?: string; strength?: number; clipStrength?: number; nodeId?: string }>): LoRAInfo[] {
     return baseLoras.map(lora => ({
-      name: lora.name,
-      modelStrength: lora.modelStrength,
-      clipStrength: lora.clipStrength,
-      nodeId: lora.nodeId,
-      triggerWords: this.extractLoRATriggerWords(lora.name)
+      name: lora.name || 'Unknown',
+      modelStrength: lora.strength || 1.0,
+      clipStrength: lora.clipStrength || 1.0,
+      nodeId: lora.nodeId || '',
+      triggerWords: this.extractLoRATriggerWords(lora.name || '') || undefined
     }))
   }
 
@@ -964,12 +964,12 @@ export class MetadataParser extends ParameterExtractor {
 
   private extractControlNetInfo(baseControlNets: Array<{ model?: string; weight?: number; startPercent?: number; endPercent?: number; nodeId?: string }>): ControlNetInfo[] {
     return baseControlNets.map(cn => ({
-      name: cn.name,
-      model: cn.name, // Would need to be extracted from loader
-      strength: cn.strength,
+      name: cn.model || 'Unknown',
+      model: cn.model || 'Unknown',
+      strength: cn.weight || 1.0,
       startPercent: cn.startPercent || 0,
       endPercent: cn.endPercent || 1,
-      nodeId: cn.nodeId
+      nodeId: cn.nodeId || ''
     }))
   }
 
