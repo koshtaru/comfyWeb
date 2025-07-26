@@ -343,7 +343,7 @@ export const useGeneration = (): UseGenerationReturn => {
       unsubscribeError() 
       unsubscribeInterrupted()
     }
-  }, [service, state.currentPromptId])
+  }, [service, state.currentPromptId, endpoint])
 
   // Check if ready to generate - don't require persistent WebSocket connection
   // ComfyUI WebSocket will connect when needed for real-time updates

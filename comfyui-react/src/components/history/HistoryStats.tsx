@@ -2,7 +2,7 @@
 // ComfyUI React - History Statistics Dashboard
 // ============================================================================
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import type { HistoryStats as HistoryStatsData } from '@/services/historyManager'
 import { historyManager } from '@/services/historyManager'
 import './HistoryStats.css'
@@ -71,7 +71,7 @@ export const HistoryStats: React.FC<HistoryStatsProps> = ({
     if (stats && canvasRef.current) {
       drawChart()
     }
-  }, [stats, activeChart])
+  }, [stats, activeChart, drawChart])
 
   // Handle canvas resize
   useEffect(() => {
@@ -83,10 +83,10 @@ export const HistoryStats: React.FC<HistoryStatsProps> = ({
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [stats])
+  }, [stats, drawChart])
 
   // Draw chart based on active selection
-  const drawChart = () => {
+  const drawChart = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !stats) return
 
@@ -129,7 +129,7 @@ export const HistoryStats: React.FC<HistoryStatsProps> = ({
         drawLineChart(ctx, dimensions, stats.successRateOverTime, 'Success Rate Over Time', 'rate')
         break
     }
-  }
+  }, [stats, activeChart])
 
   // Draw bar chart
   const drawBarChart = (

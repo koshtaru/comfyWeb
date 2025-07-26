@@ -286,7 +286,6 @@ export const useUploadManager = (options: UseUploadManagerOptions = {}) => {
       }
     }
   }, [
-    maxFileSize,
     autoValidate,
     autoExtractParameters,
     validateFile,

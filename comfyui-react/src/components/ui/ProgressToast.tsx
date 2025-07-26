@@ -2,7 +2,7 @@
 // ComfyUI React - Floating Progress Toast Component
 // ============================================================================
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 
 interface ProgressToastProps {
   isVisible: boolean
@@ -37,16 +37,16 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
       
       return () => clearTimeout(timer)
     }
-  }, [isVisible, localVisible, autoHideDelay])
+  }, [isVisible, localVisible, autoHideDelay, handleDismiss])
 
-  const handleDismiss = () => {
+  const handleDismiss = useCallback(() => {
     setIsAnimatingOut(true)
     setTimeout(() => {
       setLocalVisible(false)
       setIsAnimatingOut(false)
       onDismiss?.()
     }, 300) // Match animation duration
-  }
+  }, [onDismiss])
 
   // Calculate progress percentage
   const progressPercentage = maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0

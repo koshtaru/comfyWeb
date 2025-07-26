@@ -73,7 +73,7 @@ export const TimingDashboard: React.FC<TimingDashboardProps> = ({
   useEffect(() => {
     if (!webSocketService) return
 
-    const handleMessage = (message: any) => {
+    const handleMessage = (message: unknown) => {
       analyzer.processMessage(message)
     }
 

@@ -110,7 +110,7 @@ export const MetadataSearch = React.forwardRef<HTMLInputElement, MetadataSearchP
     return results
       .sort((a, b) => b.score - a.score)
       .slice(0, maxSuggestions)
-  }, [metadataKeywords, maxSuggestions])
+  }, [maxSuggestions])
 
   // Calculate fuzzy match score
   const calculateFuzzyScore = (query: string, text: string): number => {
@@ -382,7 +382,7 @@ export const AdvancedMetadataSearch: React.FC<AdvancedMetadataSearchProps> = ({
   const categories = ['Generation', 'Models', 'Workflow', 'Performance', 'Image', 'Prompts']
   const dataTypes = ['string', 'number', 'boolean', 'object', 'array']
 
-  const handleFilterChange = (key: keyof SearchFilter, value: any) => {
+  const handleFilterChange = (key: keyof SearchFilter, value: string[] | boolean | number) => {
     const newFilters = { ...filters, [key]: value }
     onFiltersChange?.(newFilters)
   }
