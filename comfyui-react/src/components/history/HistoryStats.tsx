@@ -66,26 +66,7 @@ export const HistoryStats: React.FC<HistoryStatsProps> = ({
     }
   }, [refreshInterval])
 
-  // Draw charts when stats change or active chart changes
-  useEffect(() => {
-    if (stats && canvasRef.current) {
-      drawChart()
-    }
-  }, [stats, activeChart, drawChart])
-
-  // Handle canvas resize
-  useEffect(() => {
-    const handleResize = () => {
-      if (stats && canvasRef.current) {
-        drawChart()
-      }
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [stats, drawChart])
-
-  // Draw chart based on active selection
+  // Define drawChart before useEffects that use it
   const drawChart = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas || !stats) return
@@ -130,6 +111,26 @@ export const HistoryStats: React.FC<HistoryStatsProps> = ({
         break
     }
   }, [stats, activeChart])
+
+  // Draw charts when stats change or active chart changes
+  useEffect(() => {
+    if (stats && canvasRef.current) {
+      drawChart()
+    }
+  }, [stats, activeChart, drawChart])
+
+  // Handle canvas resize
+  useEffect(() => {
+    const handleResize = () => {
+      if (stats && canvasRef.current) {
+        drawChart()
+      }
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [stats, drawChart])
+
 
   // Draw bar chart
   const drawBarChart = (

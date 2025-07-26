@@ -24,6 +24,16 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
   const [isAnimatingOut, setIsAnimatingOut] = useState(false)
   const [localVisible, setLocalVisible] = useState(isVisible)
 
+  // Define handleDismiss before useEffects that use it
+  const handleDismiss = useCallback(() => {
+    setIsAnimatingOut(true)
+    setTimeout(() => {
+      setLocalVisible(false)
+      setIsAnimatingOut(false)
+      onDismiss?.()
+    }, 300) // Match animation duration
+  }, [onDismiss])
+
   // Handle visibility changes
   useEffect(() => {
     if (isVisible && !localVisible) {
@@ -38,15 +48,6 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
       return () => clearTimeout(timer)
     }
   }, [isVisible, localVisible, autoHideDelay, handleDismiss])
-
-  const handleDismiss = useCallback(() => {
-    setIsAnimatingOut(true)
-    setTimeout(() => {
-      setLocalVisible(false)
-      setIsAnimatingOut(false)
-      onDismiss?.()
-    }, 300) // Match animation duration
-  }, [onDismiss])
 
   // Calculate progress percentage
   const progressPercentage = maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0
