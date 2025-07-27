@@ -321,7 +321,10 @@ export const useWebSocketStore = create<WebSocketStore>()(
                   progress: {
                     ...state.progress,
                     isGenerating: false,
-                    endTime: Date.now()
+                    endTime: Date.now(),
+                    // Keep final progress values to show completion state
+                    progress: state.progress.maxProgress || state.progress.progress,
+                    currentNode: null
                   }
                 }), false, 'onExecutionSuccess')
                 

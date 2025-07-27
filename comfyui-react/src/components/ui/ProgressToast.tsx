@@ -11,6 +11,7 @@ interface ProgressToastProps {
   currentNode?: string
   onDismiss?: () => void
   autoHideDelay?: number
+  isGenerating?: boolean
 }
 
 export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
@@ -19,7 +20,8 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
   maxProgress,
   currentNode,
   onDismiss,
-  autoHideDelay = 3000
+  autoHideDelay = 3000,
+  isGenerating = true
 }) => {
   const [isAnimatingOut, setIsAnimatingOut] = useState(false)
   const [localVisible, setLocalVisible] = useState(isVisible)
@@ -54,6 +56,11 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
     return maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0
   }, [progress, maxProgress])
 
+  // Determine if this is a completion state
+  const isCompleted = useMemo(() => {
+    return !isGenerating && progressPercentage === 100
+  }, [isGenerating, progressPercentage])
+
   if (!localVisible) return null
 
   return (
@@ -69,9 +76,13 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center space-x-2">
-            <div className="h-3 w-3 bg-green-400 rounded-full animate-pulse"></div>
+            <div className={`h-3 w-3 rounded-full ${
+              isCompleted 
+                ? 'bg-green-500' 
+                : 'bg-green-400 animate-pulse'
+            }`}></div>
             <span className="text-sm font-medium text-comfy-text-primary">
-              Generating
+              {isCompleted ? 'Complete' : 'Generating'}
             </span>
           </div>
           <button
@@ -89,7 +100,7 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
         <div className="space-y-2">
           <div className="flex items-center justify-between text-sm">
             <span className="text-comfy-text-secondary">
-              Step {progress} of {maxProgress}
+              {isCompleted ? 'Generation finished' : `Step ${progress} of ${maxProgress}`}
             </span>
             <span className="text-comfy-text-primary font-medium">
               {progressPercentage}%
@@ -99,17 +110,21 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
           {/* Progress Bar */}
           <div className="w-full bg-comfy-bg-tertiary rounded-full h-2">
             <div 
-              className="bg-green-400 h-2 rounded-full transition-all duration-200 ease-out"
+              className={`h-2 rounded-full transition-all duration-200 ease-out ${
+                isCompleted ? 'bg-green-500' : 'bg-green-400'
+              }`}
               style={{ 
                 width: `${progressPercentage}%`,
-                boxShadow: '0 0 8px rgba(34, 197, 94, 0.3)',
+                boxShadow: isCompleted 
+                  ? '0 0 8px rgba(34, 197, 94, 0.5)' 
+                  : '0 0 8px rgba(34, 197, 94, 0.3)',
                 willChange: 'width'
               }}
             />
           </div>
 
           {/* Current Node */}
-          {currentNode && (
+          {currentNode && !isCompleted && (
             <div className="text-xs text-comfy-text-secondary truncate">
               <span className="opacity-75">Executing:</span> {currentNode}
             </div>
@@ -126,7 +141,8 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
     prevProps.maxProgress === nextProps.maxProgress &&
     prevProps.currentNode === nextProps.currentNode &&
     prevProps.autoHideDelay === nextProps.autoHideDelay &&
-    prevProps.onDismiss === nextProps.onDismiss
+    prevProps.onDismiss === nextProps.onDismiss &&
+    prevProps.isGenerating === nextProps.isGenerating
   )
 })
 

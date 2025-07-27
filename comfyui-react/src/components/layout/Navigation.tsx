@@ -176,10 +176,11 @@ export default function Navigation() {
 
       {/* Floating Progress Toast */}
       <ProgressToast
-        isVisible={generationState.isGenerating}
+        isVisible={generationState.isGenerating || (!progress.isGenerating && progress.progress > 0)}
         progress={progress.progress || 0}
         maxProgress={progress.maxProgress || 100}
         currentNode={progress.currentNode || undefined}
+        isGenerating={progress.isGenerating}
         onDismiss={() => {
           // Toast dismissed - could add user preference to remember this
           console.log('[ProgressToast] User dismissed progress toast')
