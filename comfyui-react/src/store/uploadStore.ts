@@ -112,6 +112,7 @@ interface UploadState {
 
   // Parameter reuse
   reuseParameters: (parameters: ExtractedParameters) => void
+  reuseParametersWithWorkflow: (parameters: ExtractedParameters, workflow: ComfyUIWorkflow) => void
 
   // Reset functions
   resetCurrentUpload: () => void
@@ -335,6 +336,16 @@ export const useUploadStore = create<UploadState>()(
             status: 'complete'
           }
         }, false, 'reuseParameters'),
+
+      reuseParametersWithWorkflow: (parameters, workflow) =>
+        set({
+          extractedParameters: parameters,
+          currentWorkflow: workflow,
+          currentUpload: {
+            ...initialUploadStatus,
+            status: 'complete'
+          }
+        }, false, 'reuseParametersWithWorkflow'),
 
       // Reset functions
       resetCurrentUpload: () =>

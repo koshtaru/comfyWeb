@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { parameterReuseService } from '@/services/parameterReuseService'
 import { useUploadStore } from '@/store/uploadStore'
 import { uploadToasts, toastManager } from '@/utils/toast'
+import { ROUTES } from '@/constants/routes'
 import type { StoredGeneration } from '@/services/historyManager'
 
 export interface UseParameterReuseReturn {
@@ -36,7 +37,8 @@ export const useParameterReuse = (): UseParameterReuseReturn => {
   const navigate = useNavigate()
   const { 
     currentWorkflow,
-    reuseParameters: storeReuseParameters
+    reuseParameters: storeReuseParameters,
+    reuseParametersWithWorkflow: storeReuseParametersWithWorkflow
   } = useUploadStore()
 
   const reuseParameters = useCallback(async (
@@ -46,18 +48,7 @@ export const useParameterReuse = (): UseParameterReuseReturn => {
     const opts = { ...DEFAULT_OPTIONS, ...options }
 
     try {
-      // Check if we have a current workflow
-      if (!currentWorkflow) {
-        if (opts.showWarningToasts) {
-          uploadToasts.warning('No Workflow Loaded', {
-            message: 'Please upload a workflow first before reusing parameters',
-            duration: 5000
-          })
-        }
-        return false
-      }
-
-      // Use the parameter reuse service
+      // Use the parameter reuse service (now works with or without current workflow)
       const result = parameterReuseService.reuseParameters(generation, currentWorkflow)
 
       if (!result.success) {
@@ -72,7 +63,13 @@ export const useParameterReuse = (): UseParameterReuseReturn => {
 
       // Apply the parameters to the upload store
       if (result.parameters) {
-        storeReuseParameters(result.parameters)
+        if (result.workflowToLoad) {
+          // No current workflow - load both workflow and parameters
+          storeReuseParametersWithWorkflow(result.parameters, result.workflowToLoad)
+        } else {
+          // Has current workflow - just apply parameters
+          storeReuseParameters(result.parameters)
+        }
       }
 
       // Show success notification
@@ -97,7 +94,7 @@ export const useParameterReuse = (): UseParameterReuseReturn => {
       if (opts.navigateToGenerate) {
         // Small delay to ensure state updates are applied
         setTimeout(() => {
-          navigate('/generate')
+          navigate(ROUTES.GENERATE)
         }, 100)
       }
 
@@ -114,28 +111,12 @@ export const useParameterReuse = (): UseParameterReuseReturn => {
       
       return false
     }
-  }, [currentWorkflow, storeReuseParameters, navigate])
+  }, [currentWorkflow, storeReuseParameters, storeReuseParametersWithWorkflow, navigate])
 
   const isCompatible = useCallback((generation: StoredGeneration): boolean => {
-    console.log('[useParameterReuse] Checking compatibility:', {
-      hasCurrentWorkflow: !!currentWorkflow,
-      workflowKeys: currentWorkflow ? Object.keys(currentWorkflow).slice(0, 3) : 'none',
-      generationId: generation.id
-    })
-
-    if (!currentWorkflow) {
-      console.log('[useParameterReuse] No current workflow - incompatible')
-      return false
-    }
-
     try {
       const historyParams = parameterReuseService.convertHistoryToParameters(generation)
       const compatibility = parameterReuseService.checkCompatibility(historyParams, currentWorkflow)
-      console.log('[useParameterReuse] Compatibility check result:', {
-        isCompatible: compatibility.isCompatible,
-        issues: compatibility.issues,
-        warnings: compatibility.warnings
-      })
       return compatibility.isCompatible
     } catch (error) {
       console.error('[useParameterReuse] Error checking compatibility:', error)

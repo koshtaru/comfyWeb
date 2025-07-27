@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react'
 import { historyManager, type HistorySearchParams, type HistorySearchResult } from '@/services/historyManager'
 import { useParameterReuse } from '@/hooks/useParameterReuse'
+import { useUploadStore } from '@/store/uploadStore'
 
 export default function HistoryPage() {
   const [searchResult, setSearchResult] = useState<HistorySearchResult | null>(null)
@@ -16,6 +17,7 @@ export default function HistoryPage() {
 
   // Parameter reuse hook
   const { reuseParameters, isCompatible, getParameterSummary } = useParameterReuse()
+  const { currentWorkflow } = useUploadStore()
 
   // Handle ESC key to close modal
   useEffect(() => {
@@ -229,19 +231,11 @@ export default function HistoryPage() {
                           👁️
                         </button>
                         <button 
-                          className={`transition-colors p-1 ${
-                            isCompatible(item) 
-                              ? 'text-comfy-text-secondary hover:text-comfy-accent-orange' 
-                              : 'text-comfy-text-secondary opacity-50 cursor-not-allowed'
-                          }`}
-                          title={isCompatible(item) ? "Reuse Parameters" : "Upload a workflow first to enable parameter reuse"}
+                          className="text-comfy-text-secondary hover:text-comfy-accent-orange transition-colors p-1"
+                          title={currentWorkflow ? "Reuse Parameters" : "Reuse Parameters (will load workflow from history)"}
                           onClick={() => {
-                            console.log('[HistoryPage] Reuse button clicked for:', item.id, 'Compatible:', isCompatible(item))
-                            if (isCompatible(item)) {
-                              setShowReuseConfirm(item.id)
-                            }
+                            setShowReuseConfirm(item.id)
                           }}
-                          disabled={!isCompatible(item)}
                         >
                           🔄
                         </button>
@@ -345,16 +339,11 @@ export default function HistoryPage() {
                   {/* Action Buttons */}
                   <div className="flex space-x-2 mt-4">
                     <button 
-                      className={`comfy-button ${
-                        !isCompatible(selectedItem) ? 'opacity-50 cursor-not-allowed' : ''
-                      }`}
+                      className="comfy-button"
                       onClick={() => {
-                        if (isCompatible(selectedItem)) {
-                          setShowReuseConfirm(selectedItem.id)
-                        }
+                        setShowReuseConfirm(selectedItem.id)
                       }}
-                      disabled={!isCompatible(selectedItem)}
-                      title={isCompatible(selectedItem) ? "Copy parameters to current workflow" : "Incompatible with current workflow"}
+                      title={currentWorkflow ? "Copy parameters to current workflow" : "Copy parameters and load workflow from history"}
                     >
                       Copy Parameters
                     </button>
@@ -499,7 +488,10 @@ export default function HistoryPage() {
                     {/* Content */}
                     <div className="space-y-4">
                       <p className="text-sm text-comfy-text-secondary">
-                        Copy the following parameters to your current workflow:
+                        {currentWorkflow 
+                          ? 'Copy the following parameters to your current workflow:'
+                          : 'Load the following workflow and parameters from history:'
+                        }
                       </p>
 
                       <div className="bg-comfy-bg-secondary rounded-md p-3 max-h-48 overflow-y-auto">
@@ -512,12 +504,12 @@ export default function HistoryPage() {
                         </div>
                       </div>
 
-                      {!compatible && (
-                        <div className="bg-red-900/20 border border-red-500/30 p-3 rounded-md">
+                      {!currentWorkflow && (
+                        <div className="bg-blue-900/20 border border-blue-500/30 p-3 rounded-md">
                           <div className="flex items-start space-x-2">
-                            <div className="text-red-400">⚠️</div>
-                            <div className="text-sm text-red-300">
-                              These parameters may not be compatible with your current workflow. Please upload a compatible workflow first.
+                            <div className="text-blue-400">ℹ️</div>
+                            <div className="text-sm text-blue-300">
+                              No workflow is currently loaded. This will load the complete workflow from this history item along with the parameters.
                             </div>
                           </div>
                         </div>
@@ -526,18 +518,15 @@ export default function HistoryPage() {
                       {/* Action Buttons */}
                       <div className="flex space-x-3 pt-4">
                         <button
-                          className={`flex-1 comfy-button ${!compatible ? 'opacity-50 cursor-not-allowed' : ''}`}
+                          className="flex-1 comfy-button"
                           onClick={async () => {
-                            if (compatible) {
-                              const success = await reuseParameters(item)
-                              if (success) {
-                                setShowReuseConfirm(null)
-                              }
+                            const success = await reuseParameters(item)
+                            if (success) {
+                              setShowReuseConfirm(null)
                             }
                           }}
-                          disabled={!compatible}
                         >
-                          {compatible ? 'Copy & Switch to Generate' : 'Incompatible'}
+                          {currentWorkflow ? 'Copy & Switch to Generate' : 'Load Workflow & Switch to Generate'}
                         </button>
                         <button
                           className="flex-1 comfy-button secondary"

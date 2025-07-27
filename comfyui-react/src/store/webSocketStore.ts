@@ -8,6 +8,7 @@ import { ComfyUIWebSocketService } from '@/services/websocket'
 import { uploadToasts } from '@/utils/toast'
 import { useAPIStore } from './apiStore'
 import { generationService } from '@/services/generationService'
+import { historyManager } from '@/services/historyManager'
 import type {
   WebSocketConfig,
   WebSocketState,
@@ -31,6 +32,14 @@ interface WebSocketStoreState {
   progressPercentage: number
   estimatedTimeRemaining: number | null
   generationDuration: number | null
+  
+  // Current generation tracking for history
+  currentGeneration: {
+    promptId: string | null
+    workflow: any
+    startTime: number | null
+    metadata: any
+  } | null
   
   // Error and image state
   recentErrors: GenerationError[]
@@ -82,6 +91,7 @@ interface WebSocketStoreActions {
   setProgressPercentage: (percentage: number) => void
   setEstimatedTimeRemaining: (time: number | null) => void
   setGenerationDuration: (duration: number | null) => void
+  setCurrentGeneration: (generation: { promptId: string; workflow: any; startTime: number; metadata?: any } | null) => void
   
   // Error management
   addError: (error: GenerationError) => void
@@ -180,6 +190,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
       progressPercentage: 0,
       estimatedTimeRemaining: null,
       generationDuration: null,
+      currentGeneration: null,
       recentErrors: [],
       hasErrors: false,
       latestError: null,
@@ -317,6 +328,8 @@ export const useWebSocketStore = create<WebSocketStore>()(
             service.addEventListener('onExecutionSuccess', (data) => {
               const execData = data as any
               if (execData?.prompt_id) {
+                const state = get()
+                
                 set((state) => ({
                   progress: {
                     ...state.progress,
@@ -327,6 +340,87 @@ export const useWebSocketStore = create<WebSocketStore>()(
                     currentNode: null
                   }
                 }), false, 'onExecutionSuccess')
+                
+                // Save to history if we have generation data (disabled - now handled by useGeneration.ts)
+                if (false && state.currentGeneration && state.currentGeneration.promptId === execData.prompt_id) {
+                  const generation = state.currentGeneration
+                  const endTime = Date.now()
+                  const duration = generation.startTime ? endTime - generation.startTime : null
+                  
+                  // Wait a bit for images to be available
+                  setTimeout(async () => {
+                    try {
+                      const currentState = get()
+                      // Try to find images by prompt_id with different possible formats
+                      let images = currentState.generatedImages
+                        .filter(img => 
+                          img.promptId === execData.prompt_id ||
+                          (img.promptId && typeof img.promptId === 'string' && execData.prompt_id && img.promptId.includes(execData.prompt_id))
+                        )
+                        .map(img => img.url)
+                      
+                      console.log('[WebSocketStore] Looking for images with prompt_id:', execData.prompt_id)
+                      console.log('[WebSocketStore] Found images:', images)
+                      console.log('[WebSocketStore] All generated images:', currentState.generatedImages)
+                      
+                      // If no images found by prompt_id, use the most recent images as fallback
+                      if (images.length === 0 && currentState.generatedImages.length > 0) {
+                        // Get the most recent images (they should be the ones just generated)
+                        const recentImages = currentState.generatedImages
+                          .filter(img => {
+                            // Only use very recent images (within last 10 seconds)
+                            const tenSecondsAgo = Date.now() - 10000
+                            return img.timestamp > tenSecondsAgo
+                          })
+                          .slice(0, 3)
+                          .map(img => img.url)
+                        
+                        if (recentImages.length > 0) {
+                          images = recentImages
+                          console.log('[WebSocketStore] Using recent images as fallback:', images)
+                        }
+                      }
+                      
+                      // Create history item
+                      const historyItem = {
+                        id: `gen_${execData.prompt_id || 'unknown'}_${Date.now()}`,
+                        timestamp: new Date(generation.startTime).toISOString(),
+                        status: 'completed' as const,
+                        metadata: {
+                          prompts: {
+                            positive: generation.metadata?.positive || 'Generated image',
+                            negative: generation.metadata?.negative || ''
+                          },
+                          generation: {
+                            steps: generation.metadata?.steps || 20,
+                            cfg: generation.metadata?.cfg || 7,
+                            sampler: generation.metadata?.sampler || 'Unknown',
+                            scheduler: generation.metadata?.scheduler || 'Unknown',
+                            seed: generation.metadata?.seed || Math.floor(Math.random() * 1000000)
+                          },
+                          model: {
+                            name: generation.metadata?.model || 'Unknown Model',
+                            architecture: 'Unknown'
+                          },
+                          image: {
+                            width: generation.metadata?.width || 512,
+                            height: generation.metadata?.height || 512
+                          },
+                          timing: duration ? { duration } : undefined
+                        },
+                        workflow: generation.workflow,
+                        images
+                      }
+                      
+                      console.log('[WebSocketStore] Saving generation to history:', historyItem)
+                      console.log('[WebSocketStore] Images being saved:', images)
+                      await historyManager.addGeneration(historyItem)
+                      console.log('[WebSocketStore] ✅ Generation saved to history successfully')
+                    } catch (error) {
+                      console.error('[WebSocketStore] Failed to save generation to history:', error)
+                    }
+                  }, 3000) // Wait 3 seconds for images to be processed
+                }
                 
                 // Show completion toast
                 uploadToasts.info('Generation Complete', {
@@ -339,6 +433,7 @@ export const useWebSocketStore = create<WebSocketStore>()(
             // Add executed event handler for individual node completion
             service.addEventListener('onExecuted', (data) => {
               const execData = data as any
+              console.log('[WebSocketStore] onExecuted event received:', execData)
               if (execData?.node && execData?.outputs) {
                 // Check if this execution has images
                 const hasImages = Object.values(execData.outputs).some((output: any) => 
@@ -366,7 +461,10 @@ export const useWebSocketStore = create<WebSocketStore>()(
                   })
                   
                   if (images.length > 0) {
+                    console.log('[WebSocketStore] Adding generated images to store:', images)
                     get().addGeneratedImages(images)
+                  } else {
+                    console.log('[WebSocketStore] No images found in onExecuted event for node:', execData.node)
                   }
                 }
               }
@@ -466,6 +564,9 @@ export const useWebSocketStore = create<WebSocketStore>()(
 
       setGenerationDuration: (generationDuration) => 
         set({ generationDuration }, false, 'setGenerationDuration'),
+
+      setCurrentGeneration: (currentGeneration) => 
+        set({ currentGeneration }, false, 'setCurrentGeneration'),
 
       addError: (error) => 
         set(

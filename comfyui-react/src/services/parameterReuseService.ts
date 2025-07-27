@@ -85,14 +85,15 @@ export class ParameterReuseService {
    */
   checkCompatibility(
     historyParams: ExtractedParameters,
-    currentWorkflow: ComfyUIWorkflow
+    currentWorkflow: ComfyUIWorkflow | null
   ): CompatibilityCheck {
     const issues: string[] = []
     const warnings: string[] = []
 
+    // If no workflow is loaded, we'll load from history - always compatible
     if (!currentWorkflow) {
-      issues.push('No workflow loaded')
-      return { isCompatible: false, issues, warnings }
+      warnings.push('No current workflow - will load workflow from history')
+      return { isCompatible: true, issues, warnings }
     }
 
     const workflowNodes = getWorkflowNodes(currentWorkflow)
@@ -210,8 +211,8 @@ export class ParameterReuseService {
    */
   reuseParameters(
     generation: StoredGeneration,
-    currentWorkflow: ComfyUIWorkflow
-  ): ParameterReuseResult {
+    currentWorkflow: ComfyUIWorkflow | null
+  ): ParameterReuseResult & { workflowToLoad?: ComfyUIWorkflow } {
     try {
       // Convert history to parameters
       const historyParams = this.convertHistoryToParameters(generation)
@@ -227,7 +228,26 @@ export class ParameterReuseService {
         }
       }
 
-      // Apply parameters to workflow
+      // If no current workflow, use the workflow from history
+      if (!currentWorkflow) {
+        if (!generation.workflow) {
+          return {
+            success: false,
+            message: 'No workflow available in history item',
+            incompatibilities: ['History item missing workflow data']
+          }
+        }
+
+        return {
+          success: true,
+          message: 'Workflow and parameters loaded from history',
+          parameters: historyParams,
+          workflowToLoad: generation.workflow,
+          incompatibilities: compatibility.warnings
+        }
+      }
+
+      // Apply parameters to existing workflow
       const { updatedParameters } = this.applyParametersToWorkflow(historyParams, currentWorkflow)
 
       let message = 'Parameters copied successfully'
