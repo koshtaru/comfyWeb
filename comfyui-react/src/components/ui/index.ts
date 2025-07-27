@@ -3,7 +3,7 @@
 // ============================================================================
 
 // Base Components
-export { Button, buttonVariants, type ButtonProps } from './Button'
+export { default as Button, type ButtonProps } from './Button'
 
 // Form Components
 export { Input, inputVariants, type InputProps } from './Input'
@@ -67,8 +67,10 @@ export { default as ValidationDropdown } from './ValidationDropdown'
 export { IconButton, iconButtonVariants, type IconButtonProps } from './IconButton'
 export { ToastContainer, useToast } from './Toast'
 export { default as Tooltip } from './Tooltip'
+export type { TooltipProps } from '@/types/tooltip'
 export { Progress, progressVariants, type ProgressProps } from './Progress'
-export { Spinner, CenteredSpinner, spinnerVariants, type SpinnerProps, type CenteredSpinnerProps } from './Spinner'
+export { default as Spinner, type SpinnerProps } from './Spinner'
+export { CenteredSpinner, type CenteredSpinnerProps } from '@/utils/spinnerHelpers'
 export { Alert, AlertTitle, AlertDescription, alertVariants, type AlertProps } from './Alert'
 export { Badge, Tag, badgeVariants, type BadgeProps, type TagProps } from './Badge'
 

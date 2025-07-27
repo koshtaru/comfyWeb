@@ -1,7 +1,7 @@
 import React, { forwardRef } from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '../../utils/cn'
-import { Tooltip } from './Tooltip'
+import Tooltip from './Tooltip'
 import type { BaseComponentProps } from '../../types/component'
 
 const iconButtonVariants = cva(

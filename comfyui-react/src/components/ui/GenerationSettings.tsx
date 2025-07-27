@@ -4,7 +4,7 @@ import { cn } from '../../utils/cn'
 import { Card } from './Card'
 import { Slider } from './Slider'
 import { Input } from './Input'
-import { Button } from './Button'
+import Button from './Button'
 
 export interface GenerationSettingsProps extends BaseComponentProps {
   /** Current generation parameters */

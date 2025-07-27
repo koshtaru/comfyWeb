@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef } from 'react'
-import { Tooltip } from '@/components/ui/Tooltip'
+import Tooltip from '@/components/ui/Tooltip'
 import { useParameterTooltips } from '@/hooks/useParameterTooltips'
 import { useEnhancedValidation } from './hooks/useEnhancedValidation'
 import { ValidationMessage } from './ValidationMessage'

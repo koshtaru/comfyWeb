@@ -1,26 +1,8 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
+import type { TooltipProps } from '@/types/tooltip'
 import './Tooltip.css'
 
-export interface TooltipProps {
-  /** The content to display in the tooltip */
-  content: React.ReactNode
-  /** Placement of the tooltip relative to the trigger */
-  placement?: 'top' | 'bottom' | 'left' | 'right'
-  /** How the tooltip is triggered */
-  trigger?: 'hover' | 'click' | 'focus'
-  /** Delay before showing tooltip (in ms) */
-  delay?: number
-  /** Maximum width of the tooltip */
-  maxWidth?: number
-  /** Whether the tooltip is disabled */
-  disabled?: boolean
-  /** Additional CSS class */
-  className?: string
-  /** Children that trigger the tooltip */
-  children: React.ReactNode
-}
-
-export const Tooltip: React.FC<TooltipProps> = ({
+const Tooltip: React.FC<TooltipProps> = ({
   content,
   placement = 'top',
   trigger = 'hover',
@@ -37,7 +19,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Calculate tooltip position
-  const calculatePosition = () => {
+  const calculatePosition = useCallback(() => {
     if (!triggerRef.current || !tooltipRef.current) return
 
     const triggerRect = triggerRef.current.getBoundingClientRect()
@@ -80,7 +62,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
     }
 
     setPosition({ top, left })
-  }
+  }, [placement])
 
   const showTooltip = () => {
     if (disabled) return
@@ -112,7 +94,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
     if (isVisible) {
       setTimeout(calculatePosition, 0) // Defer to next tick to ensure DOM is updated
     }
-  }, [isVisible, placement])
+  }, [isVisible, placement, calculatePosition])
 
   // Handle window resize
   useEffect(() => {
@@ -124,7 +106,7 @@ export const Tooltip: React.FC<TooltipProps> = ({
 
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [isVisible])
+  }, [isVisible, calculatePosition])
 
   // Cleanup timeout on unmount
   useEffect(() => {

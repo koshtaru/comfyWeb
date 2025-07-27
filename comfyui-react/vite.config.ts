@@ -4,7 +4,21 @@ import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react({
+      // Enable Fast Refresh optimization
+      fastRefresh: true,
+      // Exclude problematic patterns from Fast Refresh
+      exclude: [/node_modules/, /\.test\.(ts|tsx)$/, /\.spec\.(ts|tsx)$/],
+      // Include all React components for Fast Refresh
+      include: '**/*.{jsx,tsx}',
+      // Babel configuration for optimal Fast Refresh
+      babel: {
+        plugins: [],
+        presets: [],
+      },
+    })
+  ],
   resolve: {
     alias: {
       '@': resolve('./src'),

@@ -2,19 +2,8 @@ import React, { useCallback, useEffect, useState, useRef } from 'react'
 import { useParameterValidation } from './hooks/useParameterValidation'
 import { useEnhancedValidation } from './hooks/useEnhancedValidation'
 import { ValidationMessage } from './ValidationMessage'
-import { Tooltip } from '@/components/ui/Tooltip'
-
-// Simple debounce utility
-function debounce<T extends (...args: any[]) => any>(
-  func: T,
-  delay: number
-): (...args: Parameters<T>) => void {
-  let timeoutId: NodeJS.Timeout
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => func(...args), delay)
-  }
-}
+import Tooltip from '@/components/ui/Tooltip'
+import { debounce } from '@/utils/debounce'
 
 export interface ParameterInputProps {
   label: string
