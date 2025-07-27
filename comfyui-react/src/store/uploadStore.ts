@@ -110,6 +110,9 @@ interface UploadState {
     maxHistoryItems: number
   }>) => void
 
+  // Parameter reuse
+  reuseParameters: (parameters: ExtractedParameters) => void
+
   // Reset functions
   resetCurrentUpload: () => void
   resetAll: () => void
@@ -322,6 +325,16 @@ export const useUploadStore = create<UploadState>()(
       // Settings
       updateSettings: (settings) =>
         set(settings, false, 'updateSettings'),
+
+      // Parameter reuse
+      reuseParameters: (parameters) =>
+        set({
+          extractedParameters: parameters,
+          currentUpload: {
+            ...initialUploadStatus,
+            status: 'complete'
+          }
+        }, false, 'reuseParameters'),
 
       // Reset functions
       resetCurrentUpload: () =>

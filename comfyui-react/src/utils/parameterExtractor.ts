@@ -180,13 +180,23 @@ export class ParameterExtractor {
       controlnets: []
     }
 
-    // Find checkpoint loader
+    // Find checkpoint loader - support multiple loader types
     for (const [nodeId, node] of Object.entries(this.workflow)) {
       if (node.class_type === 'CheckpointLoaderSimple') {
         params.checkpoint = this.getStringValue(node.inputs.ckpt_name)
         params.nodeId = nodeId
         params.architecture = this.detectArchitecture(params.checkpoint)
         break
+      } else if (node.class_type === 'NunchakuFluxDiTLoader') {
+        // Handle custom NunchakuFluxDiTLoader
+        const modelPath = this.getStringValue(node.inputs.model_path)
+        if (modelPath) {
+          // Extract just the filename from the path
+          params.checkpoint = modelPath.split('/').pop() || modelPath
+          params.nodeId = nodeId
+          params.architecture = this.detectArchitecture(params.checkpoint)
+          break
+        }
       }
     }
 
