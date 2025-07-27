@@ -1,9 +1,11 @@
 // Custom hook for managing ComfyUI generation
 import { useState, useCallback, useEffect } from 'react'
 import { generationService } from '@/services/generationService'
-import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { useWebSocketStore } from '@/store'
 import { useAPIStore } from '@/store/apiStore'
 import type { ComfyUIWorkflow } from '@/types'
+import { createComponentLogger } from '@/utils/logger'
+import { uploadToasts } from '@/utils/toast'
 
 // Event data interfaces
 interface ExecutionEventData {
@@ -49,7 +51,14 @@ export interface UseGenerationReturn {
 }
 
 export const useGeneration = (): UseGenerationReturn => {
-  const { isConnected, service, connect: connectWS } = useWebSocketContext()
+  const logger = createComponentLogger('useGeneration')
+  
+  const isConnected = useWebSocketStore((state) => state.isConnected)
+  const getService = useWebSocketStore((state) => state.getService)
+  const connectWS = useWebSocketStore((state) => state.connect)
+  const addGeneratedImages = useWebSocketStore((state) => state.addGeneratedImages)
+  const setProgress = useWebSocketStore((state) => state.setProgress)
+  const service = getService()
   const { endpoint } = useAPIStore()
   
   const [state, setState] = useState<GenerationState>({
@@ -58,6 +67,12 @@ export const useGeneration = (): UseGenerationReturn => {
     error: null,
     lastGeneration: null
   })
+
+  // Create unique instance ID to prevent duplicate event handling
+  const instanceId = useState(() => `gen_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`)[0]
+
+  // Log hook initialization
+  logger.info('useGeneration hook initialized', { isConnected, endpoint, instanceId })
 
   // Clear error state
   const clearError = useCallback(() => {
@@ -114,10 +129,32 @@ export const useGeneration = (): UseGenerationReturn => {
         }
       }))
 
+      // Initialize progress in WebSocket store
+      setProgress({
+        promptId: response.prompt_id,
+        currentNode: null,
+        currentNodeType: null,
+        progress: 0,
+        maxProgress: 0,
+        isGenerating: true,
+        startTime: Date.now(),
+        endTime: null,
+        queueRemaining: response.number || 0,
+        executedNodes: [],
+        cachedNodes: [],
+        lastUpdate: Date.now()
+      })
+
       console.log('[Generation] Workflow submitted successfully:', {
         promptId: response.prompt_id,
         queueNumber: response.number,
         nodeErrors: response.node_errors
+      })
+
+      // Show generation start toast
+      uploadToasts.info('Generation Started', {
+        message: `Workflow submitted to queue (position: ${response.number || 'unknown'})`,
+        duration: 3000
       })
       
       // Check if there were node errors
@@ -164,7 +201,7 @@ export const useGeneration = (): UseGenerationReturn => {
         currentPromptId: null
       }))
     }
-  }, [state.isGenerating, isConnected, service, connectWS])
+  }, [isConnected, service, connectWS, setProgress, addGeneratedImages])
 
   // Interrupt current generation
   const interrupt = useCallback(async () => {
@@ -197,23 +234,26 @@ export const useGeneration = (): UseGenerationReturn => {
   useEffect(() => {
     if (!service) return
 
+    console.log(`[Generation:${instanceId}] Setting up WebSocket event listeners`)
+
     const unsubscribeStart = service.addEventListener('onExecutionStart', (data: ExecutionEventData) => {
-      console.log('[Generation] Execution started:', data)
-      if (data.prompt_id === state.currentPromptId) {
-        setState(prev => ({
-          ...prev,
-          isGenerating: true
-        }))
-      }
+      console.log(`[Generation:${instanceId}] Execution started:`, data)
+      setState(prev => {
+        if (data.prompt_id && data.prompt_id === prev.currentPromptId) {
+          return {
+            ...prev,
+            isGenerating: true
+          }
+        }
+        return prev
+      })
     })
 
     const unsubscribeSuccess = service.addEventListener('onExecutionSuccess', (data: ExecutionSuccessData) => {
-      console.log('[Generation] ✅ Execution completed successfully:', data)
-      console.log('[Generation] Current prompt ID:', state.currentPromptId)
-      console.log('[Generation] Event prompt ID:', data.prompt_id)
+      console.log(`[Generation:${instanceId}] ✅ Execution completed successfully:`, data)
       
       // Wait a bit for executed events, then check history API and mark as complete
-      console.log('[Generation] Workflow execution complete, waiting for image outputs...')
+      console.log(`[Generation:${instanceId}] Workflow execution complete, waiting for image outputs...`)
       
       setTimeout(async () => {
         setState(prev => {
@@ -272,10 +312,8 @@ export const useGeneration = (): UseGenerationReturn => {
                       
                       if (imageUrls.length > 0) {
                         console.log(`[Generation] 🎉 Found ${imageUrls.length} images from history API!`)
-                        // Trigger a custom event to update the images in the WebSocket context
-                        window.dispatchEvent(new CustomEvent('comfyui-images-found', { 
-                          detail: { images: imageUrls } 
-                        }))
+                        // Add images directly to the WebSocket store
+                        addGeneratedImages(imageUrls)
                       } else {
                         console.log('[Generation] ⚠️ No images found in history data')
                       }
@@ -301,7 +339,7 @@ export const useGeneration = (): UseGenerationReturn => {
     
     // Also listen for executed events which contain the actual outputs
     const unsubscribeExecuted = service.addEventListener('onExecuted', (data: ExecutionSuccessData) => {
-      console.log('[Generation] 🖼️ Node executed with outputs:', data)
+      console.log(`[Generation:${instanceId}] 🖼️ Node executed with outputs:`, data)
       
       // Check if this execution contains images in any output
       let hasImages = false
@@ -324,7 +362,7 @@ export const useGeneration = (): UseGenerationReturn => {
     })
 
     const unsubscribeError = service.addEventListener('onExecutionError', (data: ExecutionErrorData) => {
-      console.error('[Generation] Execution error:', data)
+      console.error(`[Generation:${instanceId}] Execution error:`, data)
       // Always mark as not generating and show error on any execution error
       setState(prev => ({
         ...prev,
@@ -334,7 +372,7 @@ export const useGeneration = (): UseGenerationReturn => {
     })
 
     const unsubscribeInterrupted = service.addEventListener('onExecutionInterrupted', (data: ExecutionEventData) => {
-      console.log('[Generation] Execution interrupted:', data)
+      console.log(`[Generation:${instanceId}] Execution interrupted:`, data)
       // Always mark as not generating on interruption
       setState(prev => ({
         ...prev,
@@ -343,13 +381,14 @@ export const useGeneration = (): UseGenerationReturn => {
     })
 
     return () => {
+      console.log(`[Generation:${instanceId}] Cleaning up WebSocket event listeners`)
       unsubscribeStart()
       unsubscribeSuccess()
       unsubscribeExecuted()
       unsubscribeError() 
       unsubscribeInterrupted()
     }
-  }, [service, state.currentPromptId, endpoint])
+  }, [service, endpoint, addGeneratedImages])
 
   // Check if ready to generate - don't require persistent WebSocket connection
   // ComfyUI WebSocket will connect when needed for real-time updates

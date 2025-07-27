@@ -2,7 +2,7 @@
 // ComfyUI React - Floating Progress Toast Component
 // ============================================================================
 
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useMemo } from 'react'
 
 interface ProgressToastProps {
   isVisible: boolean
@@ -13,7 +13,7 @@ interface ProgressToastProps {
   autoHideDelay?: number
 }
 
-export const ProgressToast: React.FC<ProgressToastProps> = ({
+export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
   isVisible,
   progress,
   maxProgress,
@@ -49,8 +49,10 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
     }
   }, [isVisible, localVisible, autoHideDelay, handleDismiss])
 
-  // Calculate progress percentage
-  const progressPercentage = maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0
+  // Calculate progress percentage with throttling to prevent excessive re-renders
+  const progressPercentage = useMemo(() => {
+    return maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0
+  }, [progress, maxProgress])
 
   if (!localVisible) return null
 
@@ -97,10 +99,11 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
           {/* Progress Bar */}
           <div className="w-full bg-comfy-bg-tertiary rounded-full h-2">
             <div 
-              className="bg-green-400 h-2 rounded-full transition-all duration-300 ease-out"
+              className="bg-green-400 h-2 rounded-full transition-all duration-200 ease-out"
               style={{ 
                 width: `${progressPercentage}%`,
-                boxShadow: '0 0 8px rgba(34, 197, 94, 0.3)'
+                boxShadow: '0 0 8px rgba(34, 197, 94, 0.3)',
+                willChange: 'width'
               }}
             />
           </div>
@@ -115,6 +118,18 @@ export const ProgressToast: React.FC<ProgressToastProps> = ({
       </div>
     </div>
   )
-}
+}, (prevProps, nextProps) => {
+  // Custom comparison to prevent unnecessary re-renders
+  return (
+    prevProps.isVisible === nextProps.isVisible &&
+    prevProps.progress === nextProps.progress &&
+    prevProps.maxProgress === nextProps.maxProgress &&
+    prevProps.currentNode === nextProps.currentNode &&
+    prevProps.autoHideDelay === nextProps.autoHideDelay &&
+    prevProps.onDismiss === nextProps.onDismiss
+  )
+})
+
+ProgressToast.displayName = 'ProgressToast'
 
 export default ProgressToast

@@ -11,11 +11,13 @@ import type {
   ConnectionStats,
   MessageQueueItem
 } from '@/types/websocket'
+import { createComponentLogger } from '@/utils/logger'
 
 export class ComfyUIWebSocketService implements WebSocketServiceInterface {
   private ws: WebSocket | null = null
   private config: Required<WebSocketConfig>
   private eventHandlers: Map<keyof WebSocketEventHandlers, Set<Function>> = new Map()
+  private logger = createComponentLogger('WebSocketService')
   
   // Simplified state management like original
   private state: WebSocketServiceState = {
@@ -44,6 +46,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     executedNodes: [],
     lastUpdate: 0
   }
+
 
   private connectionStats: ConnectionStats = {
     totalConnections: 0,
@@ -80,11 +83,14 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
   // Connection Management - Simple synchronous like original
   connect(): void {
     if (this.state.connectionState === 'connecting' || this.state.connectionState === 'connected') {
+      this.logger.info('Connection already in progress or established')
       return
     }
 
     this.isManualDisconnect = false
     this.updateState({ connectionState: 'connecting' })
+    
+    this.logger.info('Attempting WebSocket connection', { url: this.config.url })
     
     try {
       this.log(`Connecting to ComfyUI WebSocket at: ${this.config.url}`)
@@ -92,7 +98,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       this.log('WebSocket object created, setting up handlers...')
       this.setupEventHandlers()
     } catch (error) {
-      console.error('Failed to create WebSocket connection:', error)
+      this.logger.error('Failed to create WebSocket connection', error as Error)
       this.handleConnectionError(error as Error)
     }
   }
@@ -129,20 +135,12 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       try {
         this.handleMessage(event)
       } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+        this.logger.error('Error parsing WebSocket message', error as Error, { rawData: event.data })
         this.emitEvent('onError', { type: 'parse_error', error, data: event.data })
       }
     }
 
     this.ws.onclose = (event) => {
-      console.error(`🔌 [CRITICAL] WebSocket connection closed during operation!`)
-      console.error(`🔌 Close Code: ${event.code}`)
-      console.error(`🔌 Close Reason: "${event.reason}"`)
-      console.error(`🔌 Was Clean: ${event.wasClean}`)
-      console.error(`🔌 Manual Disconnect: ${this.isManualDisconnect}`)
-      console.error(`🔌 Connection State: ${this.state.connectionState}`)
-      console.error(`🔌 Timestamp: ${new Date().toISOString()}`)
-      
       // Log common close codes for debugging
       const closeCodeMeanings: Record<number, string> = {
         1000: 'Normal Closure',
@@ -160,7 +158,16 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       }
       
       const meaning = closeCodeMeanings[event.code] || 'Unknown Close Code'
-      console.error(`🔌 Close Code Meaning: ${meaning}`)
+      
+      this.logger.error('WebSocket connection closed during operation', undefined, {
+        closeCode: event.code,
+        closeReason: event.reason,
+        closeCodeMeaning: meaning,
+        wasClean: event.wasClean,
+        manualDisconnect: this.isManualDisconnect,
+        connectionState: this.state.connectionState,
+        timestamp: new Date().toISOString()
+      })
       
       this.log(`WebSocket disconnected: ${event.code} ${event.reason}`)
       this.updateState({ connectionState: 'disconnected' })
@@ -173,7 +180,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     }
 
     this.ws.onerror = (error) => {
-      console.error('WebSocket error:', error)
+      this.logger.error('WebSocket error occurred', error as Error)
       this.handleConnectionError(error)
     }
   }
@@ -313,12 +320,12 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
   }
 
   private handleMessage(event: MessageEvent): void {
-    console.log(`🔌 [MESSAGE] Raw WebSocket message received:`, event.data)
+    this.log('Raw WebSocket message received', event.data)
     
     try {
       const message: ComfyUIMessage = JSON.parse(event.data)
       
-      console.log(`🔌 [MESSAGE] Parsed message type: ${message.type}`, message.data)
+      this.log(`Parsed message type: ${message.type}`, message.data)
       
       this.connectionStats.totalMessages++
       
@@ -347,18 +354,25 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
     
     for (const item of unprocessedMessages) {
       try {
-        console.log(`🔌 [PROCESS] Processing message ${item.message.type}`)
+        this.log(`Processing message ${item.message.type}`)
         this.processMessage(item.message)
         item.processed = true
-        console.log(`🔌 [PROCESS] Successfully processed ${item.message.type}`)
+        this.log(`Successfully processed ${item.message.type}`)
       } catch (error) {
-        console.error(`🔌 [ERROR] Failed to process message ${item.id} (${item.message.type}):`, error)
-        console.error(`🔌 [ERROR] Message data:`, item.message.data)
+        this.logger.error(`Failed to process message ${item.id} (${item.message.type})`, error as Error, {
+          messageId: item.id,
+          messageType: item.message.type,
+          messageData: item.message.data
+        })
         this.log(`Failed to process message ${item.id}:`, error)
         item.retryCount++
         
         if (item.retryCount >= 3) {
-          console.warn(`🔌 [WARN] Giving up on message ${item.id} after 3 retries`)
+          this.logger.warn(`Giving up on message ${item.id} after 3 retries`, {
+            messageId: item.id,
+            messageType: item.message.type,
+            retryCount: item.retryCount
+          })
           item.processed = true // Mark as processed to avoid infinite retries
         }
         
@@ -399,6 +413,9 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
       case 'progress':
         this.emitEvent('onProgress', message.data)
         break
+      case 'progress_state':
+        this.emitEvent('onProgress', message.data)
+        break
       case 'executing':
         this.emitEvent('onExecuting', message.data)
         break
@@ -406,7 +423,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
         this.emitEvent('onStatus', message.data)
         break
       case 'executed':
-        console.log('🔌 [EXECUTED] Node execution completed:', {
+        this.log('Node execution completed:', {
           nodeId: message.data.node,
           promptId: message.data.prompt_id,
           output: message.data.output
@@ -423,7 +440,10 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
         break
       default:
         // Log unknown message types to help debug missing events
-        console.log(`🔌 [UNKNOWN] Received unknown message type: ${(message as any).type}`, (message as any).data)
+        this.logger.warn(`Received unknown message type: ${(message as unknown as any).type}`, {
+          messageType: (message as unknown as any).type,
+          messageData: (message as unknown as any).data
+        })
         break
     }
   }
@@ -529,7 +549,7 @@ export class ComfyUIWebSocketService implements WebSocketServiceInterface {
 
   private log(message: string, ...args: unknown[]): void {
     if (this.debug) {
-      console.log(`[ComfyUI WebSocket] ${message}`, ...args)
+      this.logger.debug(message, undefined, { args })
     }
   }
 
