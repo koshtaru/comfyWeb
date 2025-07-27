@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import type { BaseComponentProps } from '../../types/component'
 import { cn } from '../../utils/cn'
 import { Card } from './Card'
@@ -36,15 +36,27 @@ const GenerationSettings = React.forwardRef<HTMLDivElement, GenerationSettingsPr
     ref
   ) => {
     const [localParams, setLocalParams] = useState({
-      steps: 20,
-      cfgScale: 1,
-      seed: '5005',
-      sampler: 'euler',
-      scheduler: 'simple',
-      width: 512,
-      height: 512,
-      ...parameters
+      steps: parameters?.steps ?? 20,
+      cfgScale: parameters?.cfgScale ?? 7,
+      seed: parameters?.seed ?? '',
+      sampler: parameters?.sampler ?? 'euler',
+      scheduler: parameters?.scheduler ?? 'simple',
+      width: parameters?.width ?? 512,
+      height: parameters?.height ?? 512,
     })
+
+    // Update local state when parameters prop changes
+    useEffect(() => {
+      setLocalParams({
+        steps: parameters?.steps ?? 20,
+        cfgScale: parameters?.cfgScale ?? 7,
+        seed: parameters?.seed ?? '',
+        sampler: parameters?.sampler ?? 'euler',
+        scheduler: parameters?.scheduler ?? 'simple',
+        width: parameters?.width ?? 512,
+        height: parameters?.height ?? 512,
+      })
+    }, [parameters])
 
     const handleChange = (param: string, value: any) => {
       setLocalParams(prev => ({ ...prev, [param]: value }))

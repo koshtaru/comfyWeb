@@ -17,7 +17,9 @@ import type {
   IPresetExportData,
   IPresetsExportData,
 } from '@/types/preset'
-import { compressionService, type CompressionResult } from '@/utils/compression'
+import { compressionService } from '@/utils/compression'
+import type { CompressionResult } from '@/types/compression'
+import { createComponentLogger } from '@/utils/logger'
 
 // Default service configuration
 const DEFAULT_CONFIG: IPresetServiceConfig = {
@@ -50,6 +52,7 @@ export class PresetService {
   private config: IPresetServiceConfig
   private cache: Map<string, IPreset> = new Map()
   private isInitialized = false
+  private logger = createComponentLogger('PresetService')
 
   constructor(config: Partial<IPresetServiceConfig> = {}) {
     this.config = this.mergeConfig(DEFAULT_CONFIG, config)
@@ -65,12 +68,12 @@ export class PresetService {
       await this.loadPresetsFromStorage()
       await this.performMaintenanceTasks()
       this.isInitialized = true
-      console.log(`PresetService initialized successfully with ${this.cache.size} presets`)
+      this.logger.info(`Initialized successfully with ${this.cache.size} presets`)
     } catch (error) {
-      console.error('Failed to initialize PresetService:', error)
+      this.logger.error('Failed to initialize PresetService', error as Error)
       // Don't throw error - allow service to work with empty state
       this.isInitialized = true
-      console.warn('PresetService initialized in recovery mode')
+      this.logger.warn('PresetService initialized in recovery mode')
     }
   }
 

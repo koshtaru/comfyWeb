@@ -259,3 +259,10 @@ export type {
   TabsProps,
   FileUploadProps
 } from './component'
+
+// Re-export compression types for better integration
+export type {
+  ChunkMetadata,
+  CompressionResult,
+  CompressionLevel
+} from './compression'

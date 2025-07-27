@@ -1,0 +1,10 @@
+{
+  "totalFiles": 154,
+  "circularDependencies": 0,
+  "filesByType": {
+    "other": 149,
+    "hook": 5
+  },
+  "dependencyViolations": [],
+  "circularDeps": []
+}

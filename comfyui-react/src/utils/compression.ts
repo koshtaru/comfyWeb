@@ -5,15 +5,9 @@
 import LZString from 'lz-string'
 import type { ComfyUIWorkflow } from '@/types'
 import type { ICompressionOptions } from '@/types/preset'
+import type { ChunkMetadata, CompressionResult } from '@/types/compression'
+import { CompressionLevel } from '@/types/compression'
 import { chunkManager } from './chunkManager'
-
-// Compression levels based on data size
-export enum CompressionLevel {
-  NONE = 0,        // < 1KB - No compression, just base64
-  BASIC = 1,       // 1KB-50KB - LZ-string standard compression
-  ENHANCED = 2,    // 50KB-100KB - LZ-string UTF16 compression
-  CHUNKED = 3      // > 100KB - Chunked compression
-}
 
 // Default compression configuration
 const DEFAULT_COMPRESSION_OPTIONS: ICompressionOptions = {
@@ -24,28 +18,6 @@ const DEFAULT_COMPRESSION_OPTIONS: ICompressionOptions = {
   chunkSize: 50 * 1024, // 50KB chunks for large data
 }
 
-// Chunk metadata for large workflows
-export interface ChunkMetadata {
-  id: string
-  presetId: string
-  chunkIndex: number
-  totalChunks: number
-  data: string
-  checksum: string
-  compressed: boolean
-}
-
-// Compression result with enhanced metadata
-export interface CompressionResult {
-  data: string | ChunkMetadata[]
-  compressed: boolean
-  compressionLevel: CompressionLevel
-  originalSize: number
-  compressedSize: number
-  ratio: number
-  isChunked: boolean
-  chunkCount?: number
-}
 
 /**
  * Enhanced compression service with LZ-string and chunking support

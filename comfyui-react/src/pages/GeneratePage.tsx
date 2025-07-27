@@ -18,6 +18,7 @@ import { useWebSocketContext } from '@/contexts/WebSocketContext'
 import { getPromptOverridePreview } from '@/utils/promptOverride'
 import { usePromptStore } from '@/store/promptStore'
 import { usePresetStore } from '@/store/presetStore'
+import { createComponentLogger } from '@/utils/logger'
 import { PresetSaveDialog } from '@/components/presets/PresetSaveDialog'
 import type { IPreset } from '@/types/preset'
 
@@ -34,6 +35,11 @@ function validateArchitecture(value: string | undefined): ModelArchitecture {
 }
 
 export default function GeneratePage() {
+  const logger = createComponentLogger('GeneratePage')
+  
+  // Test log to verify terminal logging is working
+  logger.info('GeneratePage component mounted/rendered')
+  
   const location = useLocation()
   const uploadSelectors = useUploadSelectors()
   const { setCurrentWorkflow, setExtractedParameters, resetCurrentUpload } = useUploadStore()
@@ -280,13 +286,13 @@ export default function GeneratePage() {
   // Convert ExtractedParameters to GenerationSettings format
   const convertToGenerationParams = (extractedParams: ExtractedParameters) => {
     return {
-      steps: extractedParams.generation.steps,
-      cfgScale: extractedParams.generation.cfg,
-      seed: extractedParams.generation.seed?.toString() || '',
-      sampler: extractedParams.generation.sampler || 'euler',
-      scheduler: extractedParams.generation.scheduler || 'simple',
-      width: extractedParams.image.width,
-      height: extractedParams.image.height
+      steps: extractedParams.generation.steps ?? 20,
+      cfgScale: extractedParams.generation.cfg ?? 7,
+      seed: extractedParams.generation.seed?.toString() ?? '',
+      sampler: extractedParams.generation.sampler ?? 'euler',
+      scheduler: extractedParams.generation.scheduler ?? 'simple',
+      width: extractedParams.image.width ?? 512,
+      height: extractedParams.image.height ?? 512
     }
   }
 

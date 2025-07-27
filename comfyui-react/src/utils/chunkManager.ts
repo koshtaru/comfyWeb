@@ -2,7 +2,7 @@
 // ComfyUI React - Chunk Management Service
 // ============================================================================
 
-import type { ChunkMetadata } from './compression'
+import type { ChunkMetadata } from '@/types/compression'
 
 export interface ChunkStorage {
   id: string
