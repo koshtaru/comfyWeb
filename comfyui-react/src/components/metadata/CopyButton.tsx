@@ -3,6 +3,7 @@
 
 import React, { useState, useCallback } from 'react'
 import './CopyButton.css'
+import { convertToYaml, convertToCsv } from '../../utils/formatters'
 
 export interface CopyButtonProps {
   data: unknown
@@ -235,73 +236,6 @@ export const CopyButton: React.FC<CopyButtonProps> = ({
       )}
     </button>
   )
-}
-
-// Utility function to convert data to YAML-like format
-function convertToYaml(data: unknown, indent = 0): string {
-  const spaces = '  '.repeat(indent)
-  
-  if (data === null) return 'null'
-  if (data === undefined) return 'undefined'
-  if (typeof data === 'string') return `"${data}"`
-  if (typeof data === 'number' || typeof data === 'boolean') return String(data)
-  
-  if (Array.isArray(data)) {
-    if (data.length === 0) return '[]'
-    return data.map(item => `${spaces}- ${convertToYaml(item, indent + 1)}`).join('\n')
-  }
-  
-  if (typeof data === 'object') {
-    const entries = Object.entries(data)
-    if (entries.length === 0) return '{}'
-    
-    return entries.map(([key, value]) => {
-      const yamlValue = convertToYaml(value, indent + 1)
-      if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-        return `${spaces}${key}:\n${yamlValue}`
-      } else {
-        return `${spaces}${key}: ${yamlValue}`
-      }
-    }).join('\n')
-  }
-  
-  return String(data)
-}
-
-// Utility function to convert data to CSV format
-function convertToCsv(data: unknown): string {
-  if (Array.isArray(data)) {
-    if (data.length === 0) return ''
-    
-    // If array of objects, create CSV with headers
-    if (typeof data[0] === 'object' && data[0] !== null) {
-      const headers = Object.keys(data[0])
-      const csvHeaders = headers.join(',')
-      const csvRows = data.map(row => 
-        headers.map(header => {
-          const value = row[header]
-          // Escape quotes and wrap in quotes if contains comma or quote
-          if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
-            return `"${value.replace(/"/g, '""')}"`
-          }
-          return String(value ?? '')
-        }).join(',')
-      )
-      return [csvHeaders, ...csvRows].join('\n')
-    } else {
-      // Simple array
-      return data.map(item => String(item)).join(',')
-    }
-  }
-  
-  if (typeof data === 'object' && data !== null) {
-    // Convert object to key-value CSV
-    return Object.entries(data)
-      .map(([key, value]) => `${key},${String(value)}`)
-      .join('\n')
-  }
-  
-  return String(data)
 }
 
 // Multi-format copy button with dropdown

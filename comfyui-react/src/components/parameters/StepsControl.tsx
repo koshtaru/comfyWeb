@@ -4,6 +4,7 @@ import type { ParameterInputProps } from './ParameterInput'
 import { useParameterPresets } from './hooks/useParameterPresets'
 import type { PresetOption } from './hooks/useParameterPresets'
 import { useParameterTooltips } from '@/hooks/useParameterTooltips'
+import { getQualityClass, getQualityLabel, getTimeEstimate } from '@/utils/generation'
 
 interface StepsControlProps extends Omit<ParameterInputProps, 'label' | 'min' | 'max' | 'step'> {
   label?: string
@@ -92,26 +93,3 @@ export const StepsControl: React.FC<StepsControlProps> = ({
   )
 }
 
-// Helper functions for steps analysis
-function getQualityClass(steps: number): string {
-  if (steps < 15) return 'quality-low'
-  if (steps < 25) return 'quality-medium'
-  if (steps < 40) return 'quality-high'
-  return 'quality-ultra'
-}
-
-function getQualityLabel(steps: number): string {
-  if (steps < 15) return 'Low'
-  if (steps < 25) return 'Good'
-  if (steps < 40) return 'High'
-  return 'Ultra'
-}
-
-function getTimeEstimate(steps: number): string {
-  // Rough estimates based on typical generation times
-  if (steps < 15) return '~10-20s'
-  if (steps < 25) return '~20-40s'
-  if (steps < 40) return '~40-80s'
-  if (steps < 60) return '~1-2min'
-  return '~2-5min'
-}

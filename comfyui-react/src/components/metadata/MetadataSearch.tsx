@@ -3,6 +3,7 @@
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import './MetadataSearch.css'
+import { highlightMatch } from '../../utils/search'
 
 export interface MetadataSearchProps {
   value: string
@@ -332,30 +333,6 @@ export const MetadataSearch = React.forwardRef<HTMLInputElement, MetadataSearchP
 
 MetadataSearch.displayName = 'MetadataSearch'
 
-// Utility function to highlight matching text
-function highlightMatch(text: string, query: string): React.ReactNode {
-  if (!query.trim()) {
-    return text
-  }
-
-  const queryLower = query.toLowerCase()
-  const textLower = text.toLowerCase()
-  const index = textLower.indexOf(queryLower)
-
-  if (index === -1) {
-    return text
-  }
-
-  return (
-    <>
-      {text.slice(0, index)}
-      <mark className="search-highlight">
-        {text.slice(index, index + query.length)}
-      </mark>
-      {text.slice(index + query.length)}
-    </>
-  )
-}
 
 // Advanced search filters
 export interface SearchFilter {
