@@ -25,6 +25,7 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
 }) => {
   const [isAnimatingOut, setIsAnimatingOut] = useState(false)
   const [localVisible, setLocalVisible] = useState(isVisible)
+  const [showCompletionState, setShowCompletionState] = useState(false)
 
   // Define handleDismiss before useEffects that use it
   const handleDismiss = useCallback(() => {
@@ -36,20 +37,25 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
     }, 300) // Match animation duration
   }, [onDismiss])
 
-  // Handle visibility changes
+  // Handle visibility changes and completion state
   useEffect(() => {
     if (isVisible && !localVisible) {
       setLocalVisible(true)
       setIsAnimatingOut(false)
-    } else if (!isVisible && localVisible) {
-      // Auto-hide after completion
+      setShowCompletionState(false)
+    } else if (!isVisible && localVisible && !isGenerating) {
+      // Show completion state briefly when generation finishes
+      setShowCompletionState(true)
       const timer = setTimeout(() => {
         handleDismiss()
       }, autoHideDelay)
       
       return () => clearTimeout(timer)
+    } else if (!isVisible && localVisible && isGenerating) {
+      // Hide immediately if generation was interrupted
+      handleDismiss()
     }
-  }, [isVisible, localVisible, autoHideDelay, handleDismiss])
+  }, [isVisible, localVisible, isGenerating, autoHideDelay, handleDismiss])
 
   // Calculate progress percentage with throttling to prevent excessive re-renders
   const progressPercentage = useMemo(() => {
@@ -58,8 +64,8 @@ export const ProgressToast: React.FC<ProgressToastProps> = React.memo(({
 
   // Determine if this is a completion state
   const isCompleted = useMemo(() => {
-    return !isGenerating && progressPercentage === 100
-  }, [isGenerating, progressPercentage])
+    return showCompletionState || (!isGenerating && progressPercentage === 100)
+  }, [showCompletionState, isGenerating, progressPercentage])
 
   if (!localVisible) return null
 

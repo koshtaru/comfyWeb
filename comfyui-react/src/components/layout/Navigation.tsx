@@ -176,7 +176,7 @@ export default function Navigation() {
 
       {/* Floating Progress Toast */}
       <ProgressToast
-        isVisible={generationState.isGenerating || (!progress.isGenerating && progress.progress > 0)}
+        isVisible={progress.isGenerating}
         progress={progress.progress || 0}
         maxProgress={progress.maxProgress || 100}
         currentNode={progress.currentNode || undefined}
