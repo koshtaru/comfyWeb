@@ -3,7 +3,7 @@
 // ============================================================================
 
 import { Link, useLocation } from 'react-router-dom'
-import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { useWebSocketConnection, useGenerationProgress } from '@/store'
 import { TAB_CONFIG } from '@/constants/routes'
 import { useGeneration } from '@/hooks/useGeneration'
 import { useUploadStore } from '@/store/uploadStore'
@@ -18,9 +18,9 @@ export default function Navigation() {
     isConnected: wsConnected, 
     connectionState, 
     isReconnecting,
-    connect: connectWS,
-    progress
-  } = useWebSocketContext()
+    connect: connectWS
+  } = useWebSocketConnection()
+  const { progress } = useGenerationProgress()
   
   // Generation functionality
   const { state: generationState, generate, interrupt, isReady } = useGeneration()

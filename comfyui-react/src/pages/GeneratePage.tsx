@@ -14,7 +14,7 @@ import { ToastContainer } from '@/components/ui/Toast'
 import { useUploadManager } from '@/hooks/useUploadManager'
 import { useUploadSelectors, useUploadStore } from '@/store/uploadStore'
 import { useGeneration } from '@/hooks/useGeneration'
-import { useWebSocketContext } from '@/contexts/WebSocketContext'
+import { useWebSocketConnection, useGenerationProgress, useGeneratedImages } from '@/store'
 import { getPromptOverridePreview } from '@/utils/promptOverride'
 import { usePromptStore } from '@/store/promptStore'
 import { usePresetStore } from '@/store/presetStore'
@@ -64,7 +64,9 @@ export default function GeneratePage() {
   
   // Generation hook (only need clearError since generate/interrupt moved to header)
   const { state: generationState, clearError } = useGeneration()
-  const { isConnected, progress, generatedImages } = useWebSocketContext()
+  const { isConnected } = useWebSocketConnection()
+  const { progress } = useGenerationProgress()
+  const { generatedImages } = useGeneratedImages()
   
   const {
     currentUpload,
