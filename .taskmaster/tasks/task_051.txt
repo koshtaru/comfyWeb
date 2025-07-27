@@ -1,0 +1,107 @@
+# Task ID: 51
+# Title: Phase 3: Architecture Improvements - Module Structure and State Management
+# Status: pending
+# Dependencies: 49, 50
+# Priority: medium
+# Description: Implement Phase 3 architectural improvements from CODEBASE_DEBUG_PLAN.md by reorganizing module structure to fix circular dependencies, standardizing state management patterns, and optimizing Fast Refresh configuration
+# Details:
+Execute comprehensive architectural improvements across the codebase:
+
+1. **Reorganize Module Structure (Priority: High)**:
+   - **Analyze Current Dependencies**: Use `madge --circular --extensions ts,tsx src/` to identify all circular dependencies
+   - **Create Type Module Hierarchy**:
+     - Move all shared interfaces to `src/types/index.ts` as central type registry
+     - Create domain-specific type modules: `src/types/workflow.ts`, `src/types/generation.ts`, `src/types/preset.ts`
+     - Implement barrel exports pattern for clean imports: `export * from './workflow'`
+   - **Separate Components from Utilities**:
+     - Move all utility functions from component files to `src/utils/` directory
+     - Create utility modules: `src/utils/workflow.ts`, `src/utils/validation.ts`, `src/utils/formatting.ts`
+     - Ensure components only import from utils, never vice versa
+   - **Establish Clear Module Boundaries**:
+     - Components import from: types, utils, services, stores
+     - Services import from: types, utils only
+     - Utils import from: types only
+     - Types import from: nothing (leaf modules)
+   - **Fix Import Paths**: Update all imports to use path aliases (@components, @utils, @types)
+
+2. **Standardize State Management (Priority: Medium)**:
+   - **Document Current State Patterns**: Create `docs/STATE_MANAGEMENT.md` documenting:
+     - Zustand stores: promptStore, connectionStore, generationStore
+     - Context providers: ThemeContext, NotificationContext
+     - Local component state patterns and when to use each
+   - **Consolidate State Management**:
+     - Migrate remaining Context API usage to Zustand for consistency
+     - Create central store registry: `src/stores/index.ts`
+     - Implement store selectors for performance: `usePrompt`, `useConnection` hooks
+     - Remove prop drilling by connecting components directly to stores
+   - **Optimize Store Structure**:
+     - Split large stores into feature-specific slices
+     - Implement computed values using Zustand subscriptions
+     - Add middleware for persistence and devtools integration
+   - **Performance Improvements**:
+     - Use shallow equality checks: `useStore(selector, shallow)`
+     - Implement memoized selectors for complex state derivations
+     - Add React.memo to components consuming store state
+
+3. **Fast Refresh Optimization (Priority: Low)**:
+   - **Identify Fast Refresh Issues**: Run dev server and catalog all 15 warnings
+   - **Move Non-Component Exports**:
+     - Extract constants to `src/constants/` directory
+     - Move helper functions to appropriate utility modules
+     - Ensure each component file has single default export
+   - **Create Utility Module Structure**:
+     - `src/utils/api/` - API helper functions
+     - `src/utils/format/` - Formatting utilities
+     - `src/utils/validation/` - Validation functions
+     - `src/utils/helpers/` - General helper functions
+   - **Update Import Statements**: Fix all imports to reference new utility locations
+
+4. **Implementation Order**:
+   - Phase 1: Type module reorganization (2-3 hours)
+   - Phase 2: Component/utility separation (3-4 hours)
+   - Phase 3: State management standardization (3-4 hours)
+   - Phase 4: Fast Refresh fixes (1-2 hours)
+
+5. **Migration Strategy**:
+   - Create new module structure alongside existing code
+   - Migrate one module at a time to avoid breaking changes
+   - Run tests after each migration step
+   - Update import statements incrementally
+   - Remove old modules only after all references updated
+
+# Test Strategy:
+1. **Circular Dependency Verification**:
+   - Run `madge --circular --extensions ts,tsx src/` and confirm zero circular dependencies
+   - Execute `npm run build` to verify no import resolution errors
+   - Use `npx depcheck` to identify any missing or unused dependencies
+   - Validate module boundaries using custom ESLint rules
+
+2. **State Management Testing**:
+   - Create unit tests for all Zustand stores using `@testing-library/react-hooks`
+   - Test store subscriptions and computed values for correct updates
+   - Verify no unnecessary re-renders using React DevTools Profiler
+   - Measure performance improvements using React DevTools
+   - Test persistence middleware saves/loads state correctly
+
+3. **Fast Refresh Validation**:
+   - Start dev server and confirm zero Fast Refresh warnings in console
+   - Make component changes and verify instant updates without full reload
+   - Test that state is preserved during component edits
+   - Verify utility changes trigger appropriate component updates
+
+4. **Architecture Compliance**:
+   - Use `eslint-plugin-boundaries` to enforce module boundaries
+   - Run custom architecture tests to validate import rules
+   - Generate dependency graph with madge to visualize architecture
+   - Review that no components import from other components
+
+5. **Integration Testing**:
+   - Test full user flows to ensure functionality preserved
+   - Verify API calls and WebSocket connections work correctly
+   - Test preset management and workflow execution
+   - Validate UI responsiveness and performance metrics
+
+6. **Documentation Review**:
+   - Ensure STATE_MANAGEMENT.md accurately reflects implementation
+   - Verify all team members understand new architecture
+   - Update README with new module structure diagram

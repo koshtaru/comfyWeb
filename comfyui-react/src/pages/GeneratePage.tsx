@@ -414,17 +414,79 @@ export default function GeneratePage() {
       <ToastContainer position="top-right" maxToasts={5} />
       
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_1.25fr] gap-6" onPaste={handlePaste} tabIndex={-1}>
-        {/* Left Column - Workflow Controls */}
+        {/* Left Column - Generation Controls */}
         <UploadErrorBoundary>
           <div className="comfy-panel p-6">
             <h1 className="mb-4 text-2xl font-bold text-comfy-text-primary">
-              Workflow Controls
+              Generation Controls
             </h1>
             <p className="mb-6 text-comfy-text-secondary">
-              Upload a ComfyUI workflow and configure generation parameters.
+              Configure your prompt and generate images with your loaded workflow.
             </p>
 
             <div className="space-y-4">
+              {/* Prompt Override Section - Moved to Top */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-sm font-medium text-comfy-text-primary">
+                    Prompt Override
+                  </label>
+                  <div className="flex items-center gap-3">
+                    {promptPreview.canOverride && (
+                      <div className="text-xs text-comfy-text-secondary">
+                        {usePromptOverride && promptOverride.trim() ? (
+                          <span className="text-comfy-accent-orange">Override active</span>
+                        ) : (
+                          <span>Original: "{promptPreview.originalPrompt?.substring(0, 30)}..."</span>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <label className={`relative inline-flex items-center ${promptPreview.canOverride ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
+                        <input
+                          type="checkbox"
+                          className="sr-only"
+                          checked={usePromptOverride}
+                          disabled={!promptPreview.canOverride}
+                          onChange={(e) => setUsePromptOverride(e.target.checked)}
+                        />
+                        <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
+                          usePromptOverride && promptPreview.canOverride ? 'bg-comfy-accent-orange' : 'bg-comfy-bg-tertiary'
+                        }`}>
+                          <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
+                            usePromptOverride && promptPreview.canOverride ? 'translate-x-5' : 'translate-x-0.5'
+                          } mt-0.5`} />
+                        </div>
+                        <span className="ml-2 text-xs text-comfy-text-secondary">
+                          Use Override
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+                <textarea
+                  className={`comfy-input h-24 ${(!usePromptOverride || !promptPreview.canOverride) ? 'opacity-50' : ''}`}
+                  placeholder={
+                    promptPreview.canOverride 
+                      ? (usePromptOverride 
+                          ? "Enter prompt to override the workflow's positive prompt... (Ctrl+V to paste workflow JSON)"
+                          : "Toggle 'Use Override' to enable prompt override... (Ctrl+V to paste workflow JSON)"
+                        )
+                      : "Load a workflow from the Presets tab to enable prompt override... (Ctrl+V to paste workflow JSON)"
+                  }
+                  value={promptOverride}
+                  onChange={(e) => setPromptOverride(e.target.value)}
+                  disabled={generationState.isGenerating || isProcessing || !usePromptOverride || !promptPreview.canOverride}
+                />
+                {usePromptOverride && promptOverride.trim() && promptPreview.canOverride && (
+                  <div className="mt-1 text-xs text-comfy-text-secondary">
+                    This will replace the positive prompt in node {promptPreview.nodeId}
+                  </div>
+                )}
+              </div>
+
+              {/* Upload Workflow Section - Hidden (using presets instead) */}
+              {false && (
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <label className="block text-sm font-medium text-comfy-text-primary">
@@ -501,6 +563,7 @@ export default function GeneratePage() {
                 )}
                 
               </div>
+              )}
 
               {/* Preset Selector */}
               <div className="mt-4">
@@ -714,64 +777,6 @@ export default function GeneratePage() {
               )}
 
 
-              <div>
-                <div className="mb-2 flex items-center justify-between">
-                  <label className="block text-sm font-medium text-comfy-text-primary">
-                    Prompt Override
-                  </label>
-                  <div className="flex items-center gap-3">
-                    {promptPreview.canOverride && (
-                      <div className="text-xs text-comfy-text-secondary">
-                        {usePromptOverride && promptOverride.trim() ? (
-                          <span className="text-comfy-accent-orange">Override active</span>
-                        ) : (
-                          <span>Original: "{promptPreview.originalPrompt?.substring(0, 30)}..."</span>
-                        )}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2">
-                      <label className={`relative inline-flex items-center ${promptPreview.canOverride ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'}`}>
-                        <input
-                          type="checkbox"
-                          className="sr-only"
-                          checked={usePromptOverride}
-                          disabled={!promptPreview.canOverride}
-                          onChange={(e) => setUsePromptOverride(e.target.checked)}
-                        />
-                        <div className={`w-11 h-6 rounded-full transition-colors duration-200 ease-in-out ${
-                          usePromptOverride && promptPreview.canOverride ? 'bg-comfy-accent-orange' : 'bg-comfy-bg-tertiary'
-                        }`}>
-                          <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${
-                            usePromptOverride && promptPreview.canOverride ? 'translate-x-5' : 'translate-x-0.5'
-                          } mt-0.5`} />
-                        </div>
-                        <span className="ml-2 text-xs text-comfy-text-secondary">
-                          Use Override
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <textarea
-                  className={`comfy-input h-24 ${(!usePromptOverride || !promptPreview.canOverride) ? 'opacity-50' : ''}`}
-                  placeholder={
-                    promptPreview.canOverride 
-                      ? (usePromptOverride 
-                          ? "Enter prompt to override the workflow's positive prompt... (Ctrl+V to paste workflow JSON)"
-                          : "Toggle 'Use Override' to enable prompt override... (Ctrl+V to paste workflow JSON)"
-                        )
-                      : "Upload a workflow first to enable prompt override... (Ctrl+V to paste workflow JSON)"
-                  }
-                  value={promptOverride}
-                  onChange={(e) => setPromptOverride(e.target.value)}
-                  disabled={generationState.isGenerating || isProcessing || !usePromptOverride || !promptPreview.canOverride}
-                />
-                {usePromptOverride && promptOverride.trim() && promptPreview.canOverride && (
-                  <div className="mt-1 text-xs text-comfy-text-secondary">
-                    This will replace the positive prompt in node {promptPreview.nodeId}
-                  </div>
-                )}
-              </div>
 
 
 

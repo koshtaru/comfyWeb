@@ -1,0 +1,128 @@
+# Task ID: 40
+# Title: Workflow Upload and Validation System - Implement comprehensive JSON workflow upload, parsing, validation, and parameter extraction for ComfyUI workflows with drag-and-drop support and error handling
+# Status: done
+# Dependencies: 5, 23, 25
+# Priority: medium
+# Description: Build a robust workflow upload system with drag-and-drop file handling, JSON validation, schema verification, and parameter extraction that seamlessly integrates with the existing workflow modification engine
+# Details:
+Implement a comprehensive workflow upload and validation system with the following components:
+
+1. **File Upload Interface**:
+   - Create drag-and-drop zone with visual feedback (dashed border, hover states)
+   - Implement file input element as fallback for click-to-upload
+   - Support .json file type filtering with accept attribute
+   - Add upload progress indicator and file size validation (max 10MB)
+   - Style with dark theme: #1f2937 background, #ff7c00 accent on hover
+   - Display selected filename with clear/remove option
+
+2. **Drag-and-Drop Implementation**:
+   - Handle dragenter, dragover, dragleave, and drop events
+   - Prevent default browser file handling behavior
+   - Add visual feedback during drag operations (highlight drop zone)
+   - Implement file type validation on drop (reject non-JSON files)
+   - Support multiple file selection with queue display
+   - Add paste support for JSON text content
+
+3. **JSON Validation Engine**:
+   - Parse uploaded JSON with try-catch error handling
+   - Validate basic JSON structure and syntax
+   - Check for required ComfyUI workflow properties
+   - Verify node structure: class_type, inputs, outputs
+   - Validate node connections and graph integrity
+   - Implement schema validation for known node types
+   - Create detailed error messages with line numbers
+
+4. **Parameter Extraction System**:
+   - Extract workflow metadata: name, version, description
+   - Identify and catalog all node types in workflow
+   - Extract generation parameters from KSampler nodes
+   - Parse model information from CheckpointLoaderSimple
+   - Extract prompt data from CLIPTextEncode nodes
+   - Identify image dimensions from EmptyLatentImage
+   - Map VAE, LoRA, and ControlNet configurations
+   - Build parameter summary object for UI display
+
+5. **Error Handling and User Feedback**:
+   - Display parsing errors with context and suggestions
+   - Highlight problematic nodes or connections
+   - Provide workflow compatibility warnings
+   - Show missing node type alerts with install guidance
+   - Implement retry mechanism for corrupted files
+   - Add detailed logging for debugging
+
+6. **Integration with Existing Systems**:
+   - Connect to parseAndModifyWorkflow() for parameter updates
+   - Update UI controls with extracted parameters
+   - Trigger preset save dialog for new workflows
+   - Emit events for successful upload and validation
+   - Store validated workflow in AppState
+   - Update last used workflow in localStorage
+
+# Test Strategy:
+1. **File Upload Testing**:
+   - Test drag-and-drop with valid .json files
+   - Verify rejection of non-JSON file types (.txt, .png)
+   - Test file size limits with large workflows (>10MB)
+   - Validate upload progress indicators
+   - Test keyboard accessibility for file input
+
+2. **Validation Testing**:
+   - Test with valid ComfyUI workflow JSONs
+   - Test malformed JSON (missing brackets, quotes)
+   - Test workflows with missing required properties
+   - Verify detection of broken node connections
+   - Test with unknown node types
+   - Validate error message accuracy and helpfulness
+
+3. **Parameter Extraction Testing**:
+   - Test extraction from various workflow architectures (SD1.5, SDXL, Flux)
+   - Verify accurate KSampler parameter parsing
+   - Test prompt extraction with special characters
+   - Validate model checkpoint identification
+   - Test with workflows containing multiple samplers
+   - Verify LoRA and ControlNet detection
+
+4. **Integration Testing**:
+   - Test workflow upload → validation → UI update flow
+   - Verify preset system integration
+   - Test error recovery and retry mechanisms
+   - Validate localStorage persistence
+   - Test with real ComfyUI workflow examples
+
+5. **Performance Testing**:
+   - Test with complex workflows (100+ nodes)
+   - Measure parsing time for large files
+   - Verify memory usage during validation
+   - Test concurrent file uploads
+
+# Subtasks:
+## 1. Create File Upload UI Components with Drag-and-Drop Zone [done]
+### Dependencies: None
+### Description: Build the visual interface for file upload including drag-and-drop area, file input fallback, and visual feedback states
+### Details:
+Implement a styled drag-and-drop zone with dashed border using the dark theme (#1f2937 background). Add hover states with #ff7c00 accent color. Create hidden file input element with accept='.json' attribute for click-to-upload fallback. Implement visual feedback for dragenter/dragover states. Add file size indicator and 10MB limit validation. Display selected filename with a clear/remove button. Style all components to match the existing dark theme design system.
+
+## 2. Implement Drag-and-Drop Event Handling and File Processing [done]
+### Dependencies: 40.1
+### Description: Set up JavaScript event handlers for drag-and-drop functionality with file type validation and paste support
+### Details:
+Attach event listeners for dragenter, dragover, dragleave, and drop events on the drop zone. Prevent default browser file handling with preventDefault(). Implement file type validation to accept only .json files, rejecting others with user feedback. Add visual highlighting during drag operations. Support multiple file selection with a queue display showing all selected files. Implement paste event listener to accept JSON text content from clipboard. Handle FileReader API to read file contents asynchronously.
+
+## 3. Build JSON Validation Engine with Schema Verification [done]
+### Dependencies: 40.2
+### Description: Create comprehensive JSON parsing and validation system with ComfyUI workflow structure verification
+### Details:
+Implement JSON.parse() with detailed try-catch error handling that captures line numbers. Validate required ComfyUI properties: version, nodes array, links array. Verify each node has required fields: id, type, pos, size, class_type, inputs. Check node connections validity by verifying all link IDs exist. Implement schema validation for known node types (KSampler, CLIPTextEncode, CheckpointLoaderSimple). Validate data types and value ranges for node parameters. Create detailed error messages with specific issues and line numbers for debugging.
+
+## 4. Develop Parameter Extraction and Cataloging System [done]
+### Dependencies: 40.3
+### Description: Extract and organize all workflow parameters from validated JSON into structured data for UI population
+### Details:
+Parse workflow metadata including name, version, and description if available. Build a catalog of all unique node types found in the workflow. Extract KSampler parameters: steps, cfg, sampler_name, scheduler, denoise. Find CheckpointLoaderSimple nodes and extract model name/hash. Parse all CLIPTextEncode nodes for positive and negative prompts. Extract image dimensions and batch size from EmptyLatentImage nodes. Identify VAE, LoRA, and ControlNet nodes with their configurations. Create a structured parameter object mapping all extracted data for easy UI population.
+
+## 5. Integrate Upload System with UI and Error Handling [done]
+### Dependencies: 40.4
+### Description: Connect the upload and validation system to existing UI components with comprehensive error handling and user feedback
+### Details:
+Connect validated workflow to parseAndModifyWorkflow() function for parameter updates. Populate UI controls (steps, cfg, dimensions, prompts) with extracted values. Show parsing errors with contextual help and recovery suggestions. Highlight missing or incompatible node types with installation guidance. Implement retry mechanism for corrupted files with user prompts. Add success notifications and trigger preset save dialog for new workflows. Update AppState with validated workflow data. Store last used workflow path in localStorage. Emit custom events for successful upload to notify other components.
+

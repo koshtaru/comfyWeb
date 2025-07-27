@@ -530,6 +530,49 @@ export class HistoryManager {
     }
   }
 
+  // Delete multiple generations with error handling and progress callback
+  async deleteMultipleGenerations(
+    ids: string[], 
+    onProgress?: (completed: number, total: number) => void
+  ): Promise<{
+    deleted: string[]
+    failed: { id: string, error: string }[]
+  }> {
+    await this.ensureInitialized()
+
+    const results = {
+      deleted: [] as string[],
+      failed: [] as { id: string, error: string }[]
+    }
+
+    // Process deletions in batches to avoid overwhelming the database
+    const batchSize = 10
+    for (let i = 0; i < ids.length; i += batchSize) {
+      const batch = ids.slice(i, i + batchSize)
+      
+      for (const id of batch) {
+        try {
+          await this.deleteGeneration(id)
+          results.deleted.push(id)
+        } catch (error) {
+          console.error(`Failed to delete generation ${id}:`, error)
+          results.failed.push({
+            id,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          })
+        }
+        
+        // Report progress after each deletion
+        const completed = results.deleted.length + results.failed.length
+        if (onProgress) {
+          onProgress(completed, ids.length)
+        }
+      }
+    }
+
+    return results
+  }
+
   // Clear all history
   async clearHistory(): Promise<void> {
     await this.ensureInitialized()

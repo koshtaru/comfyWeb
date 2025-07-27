@@ -1,0 +1,69 @@
+# Task ID: 47
+# Title: Document ComfyUI Workflow Format Fix in Technical Documentation
+# Status: pending
+# Dependencies: 5, 6, 23, 40, 44, 46
+# Priority: medium
+# Description: Create comprehensive technical documentation for the workflow format compatibility fix that resolved issues with React app sending full UI export format instead of direct node mapping to ComfyUI API
+# Details:
+Document the workflow format compatibility fix with the following components:
+
+1. **Problem Documentation**:
+   - Document the issue where React app was sending complete UI export format (containing metadata wrapper with nodes, links, groups, config properties) instead of the direct node mapping structure expected by ComfyUI API
+   - Include examples of both formats showing the structural differences
+   - Explain how this caused preset loading failures and generation errors
+   - Document the symptoms users experienced (failed generations, presets not working)
+
+2. **Solution Architecture**:
+   - Document the extractWorkflowNodes() method implementation in GenerationService
+   - Show code examples of the extraction logic that handles both format types
+   - Explain the detection mechanism that identifies wrapped vs unwrapped formats
+   - Include flowchart or diagram showing the format conversion process
+
+3. **Implementation Details**:
+   - Provide detailed code walkthrough of the fix implementation
+   - Document the specific properties checked (nodes, links, groups, config)
+   - Show before/after examples of workflow submission payloads
+   - Include error handling for edge cases and malformed workflows
+
+4. **Integration Points**:
+   - Document where extractWorkflowNodes() is called in the generation flow
+   - Show how it integrates with existing workflow validation (Task 40)
+   - Explain interaction with preset loading system (Task 23)
+   - Document any changes to the workflow modification engine (Task 5)
+
+5. **Testing and Validation**:
+   - Document test cases for both workflow formats
+   - Include examples of complex workflows that previously failed
+   - Provide validation steps for developers to verify the fix
+   - Document any performance implications of the extraction process
+
+6. **Migration Guide**:
+   - Create guide for updating existing presets to work with the fix
+   - Document any breaking changes or compatibility considerations
+   - Provide troubleshooting steps for common issues
+   - Include version compatibility notes for different ComfyUI versions
+
+# Test Strategy:
+1. **Documentation Accuracy Testing**:
+   - Verify all code examples compile and run correctly
+   - Test that documented workflows work with actual ComfyUI instance
+   - Validate that format examples accurately represent real workflows
+   - Cross-reference with actual GenerationService implementation
+
+2. **Completeness Testing**:
+   - Ensure all edge cases mentioned in the fix are documented
+   - Verify integration points are accurately described
+   - Check that troubleshooting covers reported user issues
+   - Validate that examples cover all supported workflow types
+
+3. **Usability Testing**:
+   - Have developers unfamiliar with the fix follow the documentation
+   - Test that migration guide successfully updates old presets
+   - Verify troubleshooting steps resolve common problems
+   - Ensure technical level is appropriate for target audience
+
+4. **Format Validation**:
+   - Test documentation renders correctly in markdown viewers
+   - Verify code blocks have proper syntax highlighting
+   - Check that diagrams/flowcharts display properly
+   - Validate internal links and references work correctly

@@ -1,0 +1,46 @@
+# Task ID: 46
+# Title: Header Layout Reorganization and Progress Toast Implementation
+# Status: done
+# Dependencies: 24, 12, 22, 44
+# Priority: medium
+# Description: Reorganize the ComfyUI React header layout by moving the Generate button to navigation header, implementing floating progress toast with real-time WebSocket integration, and creating shared state management via promptStore.ts
+# Details:
+Implement comprehensive header layout reorganization and progress toast system with the following components:
+
+1. **Header Layout Reorganization**:
+   - Move Generate button from main content area to navigation header, positioning it next to the Connected WebSocket button
+   - Relocate 'ComfyUI React' title to far right of header for balanced layout
+   - Remove Help button to achieve cleaner, more focused navigation interface
+   - Maintain all existing functionality while improving spatial organization
+   - Ensure responsive behavior across different screen sizes
+
+2. **Floating Progress Toast Implementation**:
+   - Create floating progress toast component positioned in top-right corner of viewport
+   - Implement light green progress bar (#10b981) with smooth CSS transitions and animations
+   - Add dismissible functionality with close button and auto-hide on completion
+   - Integrate real-time WebSocket progress updates showing current step, total steps, and percentage
+   - Include fade-in/fade-out animations with proper z-index layering (z-index: 9999)
+   - Handle edge cases: rapid progress updates, generation interruption, error states
+
+3. **Shared State Management with promptStore.ts**:
+   - Create promptStore.ts using Zustand or similar state management solution
+   - Define interfaces: IPromptState, IProgressState, IGenerationState
+   - Implement state actions: updatePrompt, setProgress, toggleGeneration, resetState
+   - Maintain full functionality of prompt override feature through centralized state
+   - Ensure type safety with TypeScript interfaces and proper error handling
+   - Provide state persistence for user preferences and session continuity
+
+4. **Component Integration**:
+   - Update Navigation component to accommodate repositioned Generate button
+   - Modify GeneratePage to use shared prompt state from promptStore
+   - Integrate progress toast with existing WebSocket service for seamless updates
+   - Ensure all components properly subscribe to and update shared state
+
+# Test Strategy:
+1. **Layout Testing**: Verify Generate button appears in header next to WebSocket button with proper spacing and alignment. Test 'ComfyUI React' title positioning in far right. Confirm Help button removal doesn't break navigation functionality. Test responsive behavior on mobile, tablet, and desktop viewports.
+
+2. **Progress Toast Testing**: Verify toast appears in top-right corner during generation with correct positioning and z-index. Test light green progress bar updates in real-time with WebSocket events. Validate smooth animations for show/hide transitions. Test dismissible functionality and auto-hide behavior. Verify toast handles rapid progress updates without visual glitches.
+
+3. **State Management Testing**: Test promptStore.ts state updates across components. Verify prompt override feature maintains full functionality through shared state. Test state persistence across page refreshes and navigation. Validate TypeScript interfaces and error handling for invalid state updates.
+
+4. **Integration Testing**: Test Generate button functionality from new header position. Verify WebSocket progress integration with toast component. Test cross-component state synchronization during generation process. Validate proper cleanup of event listeners and subscriptions.

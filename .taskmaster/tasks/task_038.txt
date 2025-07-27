@@ -1,0 +1,122 @@
+# Task ID: 38
+# Title: TypeScript Migration Phase: Convert ComfyUI Web Interface to TypeScript with Build System and Type Safety
+# Status: cancelled
+# Dependencies: 27, 28, 29, 33, 34, 35, 36
+# Priority: medium
+# Description: Migrate the entire ComfyUI Web Interface from vanilla JavaScript to TypeScript, including build system setup, type definitions creation, module conversion, and ensuring type safety for all DOM operations and API calls while preserving existing functionality
+# Details:
+Implement a comprehensive TypeScript migration strategy with the following components:
+
+1. **TypeScript Build System Setup**:
+   - Initialize TypeScript configuration with `tsconfig.json` targeting ES2020+ with strict mode enabled
+   - Configure module resolution for path aliases (@components, @services, @types, @utils)
+   - Set up webpack/vite build pipeline with ts-loader or esbuild for optimal bundle sizes
+   - Configure source maps for development and production debugging
+   - Implement hot module replacement (HMR) for development workflow
+   - Set up incremental compilation for faster rebuilds
+
+2. **Type Definition Architecture**:
+   - Create `types/` directory structure with domain-specific type definitions
+   - Define core interfaces: `IComfyUIWorkflow`, `IGenerationParams`, `IWebSocketMessage`, `IAPIResponse`
+   - Create type definitions for ComfyUI API responses and WebSocket event payloads
+   - Implement utility types for strict null checking and exhaustive switch statements
+   - Define DOM element types using TypeScript's built-in HTMLElement interfaces
+   - Create ambient type declarations for any external libraries without types
+
+3. **Core Service Migration**:
+   - Convert `AppState` class to TypeScript with proper property typing and method signatures
+   - Migrate `WebSocketService` with typed event emitters and connection state management
+   - Convert `InterruptService` with proper error handling types and async/await patterns
+   - Transform `MetadataParser` with strict typing for workflow analysis and parameter extraction
+   - Migrate API communication layer with typed request/response interfaces
+
+4. **DOM Operations Type Safety**:
+   - Replace all `querySelector` calls with typed versions using generic constraints
+   - Implement type guards for DOM element assertions (e.g., `isHTMLInputElement`)
+   - Create typed event handlers with proper Event interface extensions
+   - Implement strict null checking for all DOM references with optional chaining
+   - Define custom DOM utility functions with proper type inference
+
+5. **Module System Conversion**:
+   - Convert all JavaScript files to TypeScript modules with explicit imports/exports
+   - Implement barrel exports for cleaner import statements
+   - Create index.ts files for each major directory to manage exports
+   - Migrate from global scope to proper module encapsulation
+   - Implement dependency injection patterns where appropriate
+
+6. **API Integration Type Safety**:
+   - Define comprehensive types for all ComfyUI API endpoints
+   - Create typed fetch wrappers with generic response handling
+   - Implement type-safe error handling with discriminated unions
+   - Add request/response interceptors with proper typing
+   - Create typed API client classes with method-specific return types
+
+7. **Build Configuration**:
+   - Set up npm scripts for development, production, and type checking
+   - Configure ESLint with TypeScript parser and strict ruleset
+   - Implement pre-commit hooks for type checking and linting
+   - Set up Jest with ts-jest for TypeScript testing support
+   - Configure code splitting and lazy loading with dynamic imports
+
+# Test Strategy:
+1. **Type Safety Verification**:
+   - Run `tsc --noEmit` to ensure zero type errors across entire codebase
+   - Verify all implicit any types are eliminated with strict mode
+   - Test type inference works correctly for complex generic functions
+   - Validate discriminated unions handle all possible cases
+
+2. **Build System Testing**:
+   - Verify development build completes successfully with HMR working
+   - Test production build generates optimized bundles under 500KB
+   - Confirm source maps generate correctly for debugging
+   - Validate tree shaking removes unused code
+
+3. **Runtime Compatibility**:
+   - Test all existing functionality works identically after migration
+   - Verify no runtime errors from type assertions or casts
+   - Confirm API calls maintain same request/response format
+   - Test WebSocket connections handle all event types correctly
+
+4. **Integration Testing**:
+   - Run full end-to-end tests for workflow submission and generation
+   - Test error scenarios with proper type-safe error handling
+   - Verify preset management maintains data integrity
+   - Confirm all UI interactions work with typed event handlers
+
+5. **Performance Validation**:
+   - Measure bundle size increase stays under 10% after TypeScript
+   - Verify no performance regression in critical paths
+   - Test memory usage remains stable with no leaks
+   - Confirm build times are acceptable (under 30 seconds for full rebuild)
+
+# Subtasks:
+## 1. Initialize TypeScript Build System and Development Environment [pending]
+### Dependencies: None
+### Description: Set up the complete TypeScript build infrastructure including package.json dependencies, tsconfig.json with strict mode, webpack/vite configuration, and development scripts
+### Details:
+Install TypeScript and build tool dependencies (typescript, webpack/vite, ts-loader/esbuild, webpack-dev-server). Create tsconfig.json with target ES2020+, strict mode enabled, module resolution for path aliases (@components, @services, @types, @utils), and proper lib references for DOM APIs. Configure webpack.config.js or vite.config.js with TypeScript loader, source maps, hot module replacement (HMR), and development/production build modes. Set up npm scripts in package.json for 'dev' (with HMR), 'build' (production), 'type-check' (tsc --noEmit), and 'lint' commands. Configure .gitignore for node_modules, dist, and build artifacts.
+
+## 2. Create Type Definition Architecture and Core Interfaces [pending]
+### Dependencies: 38.1
+### Description: Establish the complete type system with dedicated types directory, core interfaces for ComfyUI data structures, API responses, and utility types
+### Details:
+Create types/ directory with subdirectories: api/, dom/, models/, utils/. Define core interfaces in types/models/: IComfyUIWorkflow (with node structure types), IGenerationParams (steps, cfg, dimensions, prompts), IWorkflowNode with discriminated unions for different node types. Create types/api/: IAPIResponse<T> generic, IWebSocketMessage with event type unions, IHistoryResponse, IQueueResponse, IInterruptResponse. Implement types/dom/: typed querySelector utilities, DOM element type guards (isHTMLInputElement, isHTMLTextAreaElement), event handler types. Add types/utils/: Nullable<T>, DeepPartial<T>, exhaustive switch helpers, Result<T, E> for error handling. Create ambient declarations in types/ambient.d.ts for any external resources.
+
+## 3. Migrate Core Services to TypeScript with Proper Typing [pending]
+### Dependencies: 38.2
+### Description: Convert all JavaScript service classes to TypeScript, starting with AppState, WebSocketService, InterruptService, and MetadataParser
+### Details:
+Convert script.js AppState class to services/AppState.ts with typed properties (isGenerating: boolean, currentWorkflow: IComfyUIWorkflow | null, etc.) and method signatures. Migrate WebSocketService to services/WebSocketService.ts with typed event emitters, connection states enum, and proper WebSocket event typing. Transform InterruptService to services/InterruptService.ts with async/await patterns and Result<T, E> error handling. Convert MetadataParser to services/MetadataParser.ts with strict typing for workflow analysis methods and return types. Create services/index.ts barrel export. Implement dependency injection pattern for service initialization.
+
+## 4. Implement Type-Safe DOM Operations and Event Handling [pending]
+### Dependencies: 38.2, 38.3
+### Description: Create a comprehensive DOM manipulation layer with full type safety, replacing all querySelector calls and event handlers with typed versions
+### Details:
+Create utils/dom.ts with typed querySelector functions: querySelector<T extends Element>(selector: string): T | null with proper type narrowing. Implement querySelectorStrict<T> that throws if element not found. Create type guards in utils/typeGuards.ts for all HTML element types used. Convert all document.querySelector calls to use typed versions with explicit type parameters. Implement typed event handler system in utils/events.ts with createEventHandler<T extends Event>() factory. Replace all addEventListener calls with typed versions ensuring correct Event subtype. Add null checking with optional chaining for all DOM references. Create utils/domHelpers.ts with common patterns like getInputValue(), setElementText() with proper typing.
+
+## 5. Complete Module System Conversion and Build Pipeline Integration [pending]
+### Dependencies: 38.3, 38.4
+### Description: Convert all remaining JavaScript to TypeScript modules, implement barrel exports, configure the final build pipeline with code splitting and testing
+### Details:
+Convert presetManager.js to modules/PresetManager.ts with proper import/export syntax and typed storage interfaces. Create index.ts files in each directory (components/, services/, utils/, types/) for clean barrel exports. Migrate any remaining global scope code to proper modules with explicit dependencies. Configure dynamic imports for code splitting (e.g., lazy load preset manager). Set up ESLint with @typescript-eslint/parser and strict ruleset including no-explicit-any rule. Configure Jest with ts-jest preset and write initial type safety tests. Set up husky pre-commit hooks running 'npm run type-check' and 'npm run lint'. Configure production build with minification, tree shaking, and optimal chunk splitting. Create API client classes in api/ directory with method-specific typed returns.
+

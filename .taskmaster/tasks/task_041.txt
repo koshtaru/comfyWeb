@@ -1,0 +1,109 @@
+# Task ID: 41
+# Title: Real-time WebSocket Integration
+# Status: done
+# Dependencies: 11, 12
+# Priority: medium
+# Description: Implement WebSocket connection to ComfyUI for live progress updates, execution status, and generation feedback with automatic reconnection and error handling
+# Details:
+Create a comprehensive WebSocket integration system that provides real-time communication between the React application and ComfyUI server:
+
+1. **WebSocket Service Architecture**:
+   - Build upon the existing WebSocket Connection Manager (Task 11) to create a React-specific service layer
+   - Implement a custom React hook `useWebSocket` that provides WebSocket state and methods to components
+   - Create TypeScript interfaces for all WebSocket message types: ExecutingMessage, ProgressMessage, ExecutedMessage, ErrorMessage
+   - Implement event-driven architecture with typed event emitters for clean component integration
+
+2. **Connection Management**:
+   - Implement automatic connection on app mount with configurable retry logic (exponential backoff: 1s, 2s, 4s, 8s, max 30s)
+   - Handle connection states: connecting, connected, disconnected, error with appropriate UI feedback
+   - Create connection health monitoring with heartbeat/ping mechanism (30s intervals)
+   - Implement graceful shutdown on component unmount or page navigation
+   - Store connection preferences in Zustand store for persistence
+
+3. **Real-time Event Handling**:
+   - Parse and dispatch ComfyUI WebSocket events: 'status', 'execution_start', 'execution_cached', 'executing', 'progress', 'executed', 'execution_error'
+   - Create event handlers for each message type with proper error boundaries
+   - Implement message queuing for handling rapid updates without UI lag
+   - Add debouncing for progress updates to prevent excessive re-renders (16ms throttle)
+
+4. **React Integration**:
+   - Create WebSocketProvider component to wrap the app with WebSocket context
+   - Implement useWebSocketStatus hook for connection state monitoring
+   - Create useGenerationProgress hook for progress tracking integration
+   - Build useExecutionQueue hook for queue management features
+   - Ensure proper cleanup and re-subscription on component lifecycle changes
+
+5. **Error Handling & Recovery**:
+   - Implement comprehensive error handling for connection failures, parsing errors, and unexpected disconnections
+   - Create user-friendly error notifications using the existing toast system
+   - Add connection retry UI with manual retry button and countdown timer
+   - Log errors to console with detailed context for debugging
+   - Implement fallback to polling mode if WebSocket fails repeatedly
+
+6. **Performance Optimization**:
+   - Use React.memo and useMemo for preventing unnecessary re-renders
+   - Implement virtual scrolling for execution history if needed
+   - Add WebSocket message compression support if available
+   - Monitor and limit memory usage for long-running sessions
+   - Implement cleanup for old execution data (keep last 100 executions)
+
+# Test Strategy:
+1. **Unit Tests for WebSocket Service**:
+   - Test connection establishment with mock WebSocket server
+   - Verify automatic reconnection logic with different failure scenarios
+   - Test message parsing and event emission for all message types
+   - Validate error handling and recovery mechanisms
+   - Test connection cleanup on service destruction
+
+2. **React Hook Testing**:
+   - Test useWebSocket hook with React Testing Library
+   - Verify state updates trigger appropriate re-renders
+   - Test hook cleanup on unmount prevents memory leaks
+   - Validate error boundaries catch and handle exceptions
+   - Test concurrent hook usage in multiple components
+
+3. **Integration Tests**:
+   - Test end-to-end flow with mock ComfyUI WebSocket server
+   - Verify progress updates reflect in Progress Bar component (Task 12)
+   - Test queue management features with real-time updates
+   - Validate connection recovery after network interruption
+   - Test performance with rapid message sequences
+
+4. **Manual Testing**:
+   - Test with actual ComfyUI instance running various workflows
+   - Verify real-time updates during long-running generations
+   - Test connection stability over extended periods
+   - Validate behavior with multiple browser tabs open
+   - Test on different network conditions (slow, intermittent)
+
+# Subtasks:
+## 1. Create WebSocket Service Class and TypeScript Interfaces [done]
+### Dependencies: None
+### Description: Implement core WebSocket service architecture with TypeScript type definitions for all ComfyUI message types
+### Details:
+Create a WebSocketService class that extends the existing WebSocket Connection Manager from Task 11. Define TypeScript interfaces for ExecutingMessage, ProgressMessage, ExecutedMessage, ErrorMessage, StatusMessage, ExecutionStartMessage, ExecutionCachedMessage, and ExecutionErrorMessage. Implement connection lifecycle methods (connect, disconnect, reconnect) with exponential backoff retry logic (1s, 2s, 4s, 8s, max 30s). Add heartbeat mechanism with 30-second ping intervals. Create typed event emitter system for clean component integration.
+
+## 2. Implement React Hooks for WebSocket Integration [done]
+### Dependencies: 41.1
+### Description: Create custom React hooks for WebSocket state management and real-time data access
+### Details:
+Develop useWebSocket hook that provides connection state, methods, and message subscription. Create useWebSocketStatus hook for monitoring connection health (connecting, connected, disconnected, error states). Implement useGenerationProgress hook that subscribes to progress events and provides current step, total steps, and percentage. Build useExecutionQueue hook for queue management with add, remove, and status methods. Ensure all hooks properly handle cleanup on unmount and re-subscription on dependency changes.
+
+## 3. Create WebSocketProvider and Context Integration [done]
+### Dependencies: 41.1, 41.2
+### Description: Build React context provider for app-wide WebSocket access with Zustand store integration
+### Details:
+Create WebSocketProvider component that initializes WebSocket service and provides it through React context. Integrate with Zustand store to persist connection preferences and state. Implement auto-connection on app mount with configuration from store. Add connection state to global app state for UI components. Create HOC withWebSocket for class components if needed. Ensure provider handles app lifecycle events (focus, blur, visibility change) for connection management.
+
+## 4. Implement Message Parsing and Event Handling [done]
+### Dependencies: 41.1, 41.2, 41.3
+### Description: Create comprehensive event parsing system with error boundaries and performance optimization
+### Details:
+Build message parser for all ComfyUI WebSocket events: 'status', 'execution_start', 'execution_cached', 'executing', 'progress', 'executed', 'execution_error'. Implement message queue with 16ms throttle for progress updates to prevent UI lag. Add error boundaries around event handlers to prevent crashes. Create event-specific handlers that update relevant UI state through hooks. Implement memory-efficient circular buffer for execution history (keep last 100). Add message compression support detection and handling.
+
+## 5. Build Error Handling and Recovery UI Components [done]
+### Dependencies: 41.1, 41.2, 41.3, 41.4
+### Description: Create user-facing error handling system with notifications and manual recovery options
+### Details:
+Implement comprehensive error handling for connection failures, parsing errors, and unexpected disconnections. Create toast notifications for WebSocket errors using existing toast system. Build connection retry UI component with manual retry button and countdown timer showing next retry attempt. Add connection status indicator in UI header showing current state with color coding. Implement fallback polling mode that activates after 5 consecutive WebSocket failures. Add debug mode toggle that logs detailed WebSocket traffic to console for troubleshooting.
+
